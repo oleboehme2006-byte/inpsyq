@@ -11,7 +11,7 @@ export default function Hero() {
                 <div>
                     <FadeIn>
                         <span className="inline-block px-3 py-1 mb-6 text-xs font-semibold tracking-wider text-accent-secondary uppercase bg-accent-secondary/10 rounded-full border border-accent-secondary/20">
-                            Social discourse analytics
+                            Psychological Signal Extraction Engine
                         </span>
                     </FadeIn>
 
@@ -35,7 +35,7 @@ export default function Hero() {
 
                     <FadeIn delay={0.4}>
                         <p className="text-lg text-text-muted mb-8 max-w-lg leading-relaxed">
-                            InPsyQ reveals the deeper drivers of public online conversations—turning sentiment into structured, explainable insight.
+                            InPsyq reveals the sub-textual drivers of public conversation—extracting core narratives, emotional frames, and psychological clusters from large-scale data.
                         </p>
                     </FadeIn>
 

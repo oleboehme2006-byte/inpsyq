@@ -10,12 +10,15 @@ import EarlyAccessSection from "@/components/EarlyAccessSection";
 import Footer from "@/components/Footer";
 import BackgroundEffects from "@/components/BackgroundEffects";
 
+import ExplainerSection from "@/components/ExplainerSection";
+
 export default function Home() {
     return (
         <main className="relative min-h-screen overflow-x-hidden selection:bg-accent-primary/30">
             <BackgroundEffects />
             <Navbar />
             <Hero />
+            <ExplainerSection />
             <ProblemSection />
             <SolutionSection />
             <HowItWorks />

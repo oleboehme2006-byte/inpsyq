@@ -20,7 +20,7 @@ export default function EarlyAccessSection() {
                     </h2>
 
                     <p className="text-xl text-text-muted mb-12 max-w-2xl mx-auto">
-                        We’re onboarding a small group of early adopters to refine InPsyQ with real use cases. Gain deep insight before the market catches up.
+                        We’re onboarding a small group of early adopters to refine InPsyq with real use cases. Gain deep insight before the market catches up.
                     </p>
 
                     <div className="flex flex-col md:flex-row gap-8 justify-center mb-12 text-left max-w-2xl mx-auto">

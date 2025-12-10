@@ -1,14 +1,16 @@
 "use client";
 
 import FadeIn from "./ui/FadeIn";
-import { Download } from "lucide-react";
+import { Download, TrendingUp } from "lucide-react";
+import InteractiveHeatmap from "./InteractiveHeatmap";
+import { DriverPanel, NarrativeAxesPanel, TemporalDynamicsPanel } from "./ReportPanels";
 
 export default function SampleReportSection() {
     return (
         <section id="sample-report" className="py-24 relative overflow-hidden">
             <div className="container mx-auto px-6 text-center">
                 <FadeIn className="max-w-4xl mx-auto">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">A glimpse into an InPsyQ report</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">A glimpse into an InPsyq report</h2>
 
                     <div className="relative group cursor-default">
                         {/* Report Card */}
@@ -21,26 +23,23 @@ export default function SampleReportSection() {
                                 <div className="text-text-muted text-sm">Oct 2025</div>
                             </div>
 
-                            <div className="grid md:grid-cols-2 gap-8 mb-8">
-                                <div>
+                            <div className="grid md:grid-cols-2 gap-6 mb-8">
+                                {/* Top Row: Heatmap & Drivers */}
+                                <div className="md:col-span-2 lg:col-span-1">
                                     <h4 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Emotional Landscape</h4>
-                                    <div className="h-32 bg-white/5 rounded-lg flex items-center justify-center text-xs text-text-muted">
-                                        [Interactive Heatmap Visualization]
+                                    <div className="rounded-lg overflow-hidden border border-white/5">
+                                        <InteractiveHeatmap />
                                     </div>
                                 </div>
-                                <div>
-                                    <h4 className="text-sm font-semibold text-text-muted mb-3 uppercase tracking-wider">Key Narratives</h4>
-                                    <ul className="space-y-2 text-sm text-gray-300">
-                                        <li className="flex gap-2">
-                                            <span className="text-green-500">↑</span> Rising trust around solution-focused messaging
-                                        </li>
-                                        <li className="flex gap-2">
-                                            <span className="text-red-500">↓</span> Fear-framed narratives losing traction
-                                        </li>
-                                        <li className="flex gap-2">
-                                            <span className="text-accent-primary">•</span> Anger spikes mapped to infrastructure delays
-                                        </li>
-                                    </ul>
+
+                                <div className="md:col-span-2 lg:col-span-1 grid gap-6">
+                                    <DriverPanel />
+                                    <NarrativeAxesPanel />
+                                </div>
+
+                                {/* Bottom: Temporal Dynamics */}
+                                <div className="md:col-span-2">
+                                    <TemporalDynamicsPanel />
                                 </div>
                             </div>
 

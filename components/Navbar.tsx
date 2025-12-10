@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import clsx from "clsx";
 import { Menu, X } from "lucide-react";
+import BrandLogo from "@/components/BrandLogo";
 
 const navLinks = [
     { name: "Features", href: "#features" },
@@ -43,8 +44,13 @@ export default function Navbar() {
             )}
         >
             <div className="container mx-auto px-6 flex items-center justify-between">
-                <a href="#" onClick={(e) => scrollToSection(e, "#hero")} className="text-2xl font-bold tracking-tight text-white hover:text-accent-primary transition-colors">
-                    InPsyQ
+                <a href="#top" className="flex items-center">
+                    <span className="inline-flex flex-col leading-none text-white">
+                        <span className="text-3xl font-semibold tracking-tight">
+                            InPsyq
+                        </span>
+                        <span className="mt-[0.15em] h-[3px] w-full bg-current" />
+                    </span>
                 </a>
 
                 {/* Desktop Nav */}

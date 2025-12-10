@@ -33,7 +33,7 @@ export default function FeaturesSection() {
         {
             icon: <ShieldCheck className="w-6 h-6" />,
             title: "GDPR-safe discourse focus",
-            text: "InPsyQ analyzes public discourse, not individuals—keeping you compliant."
+            text: "InPsyq analyzes public discourse, not individuals—keeping you compliant."
         }
     ];
 
@@ -41,7 +41,7 @@ export default function FeaturesSection() {
         <section id="features" className="py-24">
             <div className="container mx-auto px-6">
                 <FadeIn className="text-center mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">What you get with InPsyQ</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">What you get with InPsyq</h2>
                 </FadeIn>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

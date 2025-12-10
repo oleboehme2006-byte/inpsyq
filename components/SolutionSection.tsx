@@ -28,7 +28,7 @@ export default function SolutionSection() {
 
             <div className="container mx-auto px-6 relative z-10">
                 <FadeIn className="mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">What InPsyQ adds</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">What InPsyq adds</h2>
                 </FadeIn>
 
                 <div className="grid md:grid-cols-3 gap-8">

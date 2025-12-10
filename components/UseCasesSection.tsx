@@ -27,7 +27,7 @@ export default function UseCasesSection() {
         <section id="use-cases" className="py-24 bg-surface-dark/30">
             <div className="container mx-auto px-6">
                 <FadeIn className="mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Who InPsyQ is for</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Who InPsyq is for</h2>
                     <div className="h-1 w-20 bg-accent-primary rounded-full" />
                 </FadeIn>
 
