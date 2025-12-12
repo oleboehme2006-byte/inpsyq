@@ -1,0 +1,44 @@
+[
+    {
+        "type": "rating",
+        "prompt_text": "How much autonomy did you feel in your last project?",
+        "parameter_targets": [
+            "autonomy_friction"
+        ],
+        "expected_signal_strength": 0.8
+    },
+    {
+        "type": "reflection",
+        "prompt_text": "Describe a recent interaction with your lead.",
+        "parameter_targets": [
+            "trust_leadership",
+            "emotional_load"
+        ],
+        "expected_signal_strength": 0.6
+    },
+    {
+        "type": "rating",
+        "prompt_text": "I feel my work has meaning.",
+        "parameter_targets": [
+            "meaning"
+        ],
+        "expected_signal_strength": 0.9
+    },
+    {
+        "type": "rating",
+        "prompt_text": "The team supports each other.",
+        "parameter_targets": [
+            "trust_peers"
+        ],
+        "expected_signal_strength": 0.7
+    },
+    {
+        "type": "rating",
+        "prompt_text": "I can handle the current workload.",
+        "parameter_targets": [
+            "emotional_load",
+            "adaptive_capacity"
+        ],
+        "expected_signal_strength": 0.8
+    }
+]
