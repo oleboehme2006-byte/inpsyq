@@ -1,5 +1,26 @@
 import { query } from '../db/client';
 import { getContributionVector, PROFILES } from '../lib/contributionModel';
+import { profileService } from './profileService';
+
+type ParamKey =
+    | 'control'
+    | 'meaning'
+    | 'engagement'
+    | 'trust_peers'
+    | 'psych_safety'
+    | 'emotional_load'
+    | 'trust_leadership'
+    | 'adaptive_capacity'
+    | 'autonomy_friction'
+    | 'cognitive_dissonance';
+
+interface Contributor {
+    user_id: string;
+    normalized_weight: number;
+    employee_mean: number;
+    profile_scores: Record<string, number>;
+    confidence: number;
+}
 
 export class AggregationService {
 
@@ -64,8 +85,9 @@ export class AggregationService {
                 breakdown.profile_weight_share[p] += (emp.profile_type_scores[p] || 0) / validProfiles.length;
             });
 
-            allParams.forEach(param => {
-                let w = contribVector[param as any] || 0;
+            allParams.forEach(p => {
+                const param = p as ParamKey;
+                let w = contribVector[param] || 0;
                 w = w * reliability;
 
                 empWeights[emp.user_id][param] = w;
@@ -79,7 +101,7 @@ export class AggregationService {
             let weightedSumVar = 0;
             const totalW = Math.max(paramTotalWeights[param], 1e-9);
 
-            const contributors = [];
+            const contributors: Contributor[] = [];
 
             validProfiles.forEach(emp => {
                 const rawW = empWeights[emp.user_id][param];

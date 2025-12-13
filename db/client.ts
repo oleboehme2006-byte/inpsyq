@@ -2,6 +2,10 @@ import { Pool } from 'pg';
 import { config } from '../lib/config';
 
 // Singleton pool
+declare global {
+    var pgPool: Pool | undefined;
+}
+
 let pool: Pool;
 
 if (!global.pgPool) {

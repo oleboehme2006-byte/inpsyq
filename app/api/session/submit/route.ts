@@ -3,13 +3,22 @@ import { query } from '@/db/client';
 import { encoderService } from '@/services/encoderService';
 import { inferenceEngine } from '@/services/inferenceService';
 
+// Define valid parameter keys
+type ParamKey =
+    | 'control'
+    | 'meaning'
+    | 'engagement'
+    | 'trust_peers'
+    | 'psych_safety'
+    | 'emotional_load'
+    | 'trust_leadership'
+    | 'adaptive_capacity'
+    | 'autonomy_friction'
+    | 'cognitive_dissonance';
+
 export async function POST(req: Request) {
     try {
-        const { sessionId, responses, userId } = await req.json(); // Expecting list of responses now from full session? 
-        // Or single response? Spec says: "submit... store responses... run inference... mark complete". 
-        // Usually submit is for the whole session.
-
-        // Spec input: { session_id, responses: [{ interaction_id, raw_input }] }
+        const { sessionId, responses, userId } = await req.json();
 
         if (!sessionId || !responses || !Array.isArray(responses)) {
             return NextResponse.json({ error: 'Invalid Input' }, { status: 400 });
@@ -28,12 +37,17 @@ export async function POST(req: Request) {
             const responseId = resInsert.rows[0].response_id;
 
             // 2. Mock Encode
-            // Need to get interaction type/targets for heuristics
             const interactionRes = await query(`SELECT type, parameter_targets FROM interactions WHERE interaction_id = $1`, [interaction_id]);
             if (interactionRes.rows.length === 0) continue;
-            const interaction = interactionRes.rows[0];
 
-            const encoded = await encoderService.encode(raw_input, interaction.type, interaction.parameter_targets);
+            const interaction = interactionRes.rows[0];
+            const parameterTargets = interaction.parameter_targets as ParamKey[]; // STRICT CAST
+
+            const encoded = await encoderService.encode(raw_input, interaction.type, parameterTargets);
+
+            // Cast encoded outputs to record types
+            const signals = encoded.signals as Record<ParamKey, number>;
+            const uncertainty = encoded.uncertainty as Record<ParamKey, number>;
 
             // 3. Store Signals
             await query(`
@@ -42,10 +56,10 @@ export async function POST(req: Request) {
         `, [responseId, encoded.signals, encoded.uncertainty, encoded.confidence, encoded.flags, encoded.topics]);
 
             // 4. Update Inference
-            const targets = interaction.parameter_targets;
-            for (const t of targets) {
-                const val = encoded.signals[t];
-                const unc = encoded.uncertainty[t];
+            for (const t of parameterTargets) {
+                // Now t is strictly typed as ParamKey
+                const val = signals[t];
+                const unc = uncertainty[t];
 
                 await inferenceEngine.updateState(
                     userId,

@@ -6,6 +6,19 @@ import { aggregationService } from '../services/aggregationService';
 import { profileService } from '../services/profileService';
 import { encoderService } from '../services/encoderService';
 
+// Define ParamKey locally to match strict typing requirements
+type ParamKey =
+    | 'control'
+    | 'meaning'
+    | 'engagement'
+    | 'trust_peers'
+    | 'psych_safety'
+    | 'emotional_load'
+    | 'trust_leadership'
+    | 'adaptive_capacity'
+    | 'autonomy_friction'
+    | 'cognitive_dissonance';
+
 export class SyntheticDataGenerator {
     async generate() {
         console.log("Starting Deterministic Synthetic Data Generation...");
@@ -99,11 +112,14 @@ export class SyntheticDataGenerator {
                                `, [sessionId, iId, responseText, weekStart]);
 
                                 const encoded = await encoderService.encode(responseText, seed.type, seed.parameter_targets);
+                                const signals = encoded.signals as Record<ParamKey, number>;
+                                const uncertainty = encoded.uncertainty as Record<ParamKey, number>;
 
-                                for (const target of seed.parameter_targets) {
-                                    const val = encoded.signals[target as any];
-                                    const unc = encoded.uncertainty[target as any];
-                                    await inferenceEngine.updateState(userId, val, unc, target as any, encoded.confidence, encoded.flags.nonsense);
+                                for (const t of seed.parameter_targets) {
+                                    const target = t as ParamKey;
+                                    const val = signals[target];
+                                    const unc = uncertainty[target];
+                                    await inferenceEngine.updateState(userId, val, unc, target, encoded.confidence, encoded.flags.nonsense);
                                 }
                             }
                         }
