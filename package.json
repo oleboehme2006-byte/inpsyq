@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "@types/pg": "^8.16.0",
     "clsx": "^2.1.0",
     "framer-motion": "^11.0.0",
