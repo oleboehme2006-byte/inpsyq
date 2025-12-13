@@ -1,22 +1,20 @@
-import { Pool } from 'pg';
-import { config } from '../lib/config';
+import { Pool } from "pg";
+import { DATABASE_URL } from "../lib/config";
 
-// Singleton pool
 declare global {
-    var pgPool: Pool | undefined;
+  // eslint-disable-next-line no-var
+  var __pgPool: Pool | undefined;
 }
 
-let pool: Pool;
+export const pool =
+  global.__pgPool ??
+  new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : undefined,
+  });
 
-if (!global.pgPool) {
-    global.pgPool = new Pool(config.db);
-}
-pool = global.pgPool;
-
-export const query = async (text: string, params?: any[]) => {
-    return pool.query(text, params);
-};
-
-export const getClient = async () => {
-    return pool.connect();
+if (process.env.NODE_ENV !== "production") {
+  global.__pgPool = pool;
 }
