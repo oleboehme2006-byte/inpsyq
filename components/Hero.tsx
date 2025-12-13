@@ -48,18 +48,18 @@ export default function Hero() {
                 <div>
                     <div className="space-y-1 mb-6">
                         <FadeIn delay={0.1}>
-                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white/50 leading-tight">
-                                Psychological Insights
-                            </h1>
+                            <h3 className="text-lg md:text-xl font-medium tracking-wide text-white/60 mb-2 uppercase">
+                                Organizational Intelligence
+                            </h3>
                         </FadeIn>
                         <FadeIn delay={0.2}>
-                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white/50 leading-tight">
-                                Data-Driven Depth
+                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight">
+                                Psychological Insights
                             </h1>
                         </FadeIn>
                         <FadeIn delay={0.3}>
                             <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight">
-                                Organizational Intelligence
+                                Data-Driven Depth
                             </h1>
                         </FadeIn>
                     </div>
@@ -69,7 +69,9 @@ export default function Hero() {
                             InPsyq models organizational psychology as a system of evolving latent states — measured continuously, aggregated safely, and explained transparently.
                         </h2>
                         <p className="text-md text-text-muted mb-8 max-w-lg leading-relaxed">
-                            Weekly insights into psychological safety, trust gap, withdrawal risk, emotional load, cognitive dissonance, autonomy friction, engagement, meaning, leadership trust, adaptive capacity, strain index — and more.
+                            Weekly insights into psychological safety, trust gap, withdrawal risk, emotional load, cognitive dissonance, autonomy friction, engagement, meaning, leadership trust, adaptive capacity
+                            <br />
+                            — and more.
                         </p>
                     </FadeIn>
 
