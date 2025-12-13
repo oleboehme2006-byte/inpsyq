@@ -6,11 +6,11 @@ import { Menu, X } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 
 const navLinks = [
-    { name: "Features", href: "#features" },
-    { name: "How it Works", href: "#how-it-works" },
-    { name: "Use Cases", href: "#use-cases" },
-    { name: "Sample Report", href: "#sample-report" },
-    { name: "Early Access", href: "#early-access" },
+    { name: "Product", href: "#problem" }, // System purpose & problem (The Real Problem)
+    { name: "Method", href: "#how-it-works" }, // Inference & Bayesian pipeline (Inference Pipeline)
+    { name: "Insights", href: "#features" }, // Indices, profiles (Leaders See This)
+    { name: "Demo", href: "#sample-report" }, // Interactive report section
+    { name: "Access", href: "#footer" }, // Contact / footer
 ];
 
 export default function Navbar() {

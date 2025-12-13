@@ -2,54 +2,79 @@
 
 import FadeIn from "./ui/FadeIn";
 import { Layers, Unlock, Server } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function ExplainerSection() {
     return (
-        <section className="py-24 bg-[#050509] relative">
-            <div className="container mx-auto px-6 max-w-5xl">
-                <FadeIn>
-                    <div className="border border-accent-secondary/20 bg-accent-secondary/5 rounded-2xl p-8 md:p-12 mb-16">
-                        <h2 className="text-3xl font-bold text-white mb-6">What InPsyq Really Does</h2>
-                        <div className="space-y-6 text-lg text-gray-300 leading-relaxed">
-                            <p>
-                                InPsyq is not a traditional listening tool. It is a <strong className="text-accent-secondary">psychological signal extraction engine</strong> that processes large-scale, aggregated public discourse.
-                            </p>
-                            <p>
-                                Unlike standard sentiment analysis—which only tells you if posts are positive or negative—InPsyq uses advanced vectorization and clustering to detect deeper emotional structures: anxiety, trust, anger, hope, and specific narrative framings.
-                            </p>
-                            <p>
-                                We process minimal, non-identifiable data points from public streams to map how collective psychology shifts over time. This gives you the "Why" behind the "What", without ever profiling individuals.
-                            </p>
-                        </div>
-                    </div>
-                </FadeIn>
+        <section className="py-24 bg-[#050509] relative overflow-hidden">
+            <div className="container mx-auto px-6 max-w-6xl">
+                <div className="grid md:grid-cols-2 gap-12 items-center">
 
-                <div className="grid md:grid-cols-3 gap-8">
-                    <FadeIn delay={0.2}>
-                        <div className="bg-surface-dark p-6 rounded-xl border border-white/5 h-full">
-                            <Server className="w-8 h-8 text-accent-primary mb-4" />
-                            <h3 className="text-lg font-bold text-white mb-2">Aggregated Sources</h3>
-                            <p className="text-sm text-text-muted">
-                                We analyze public, topic-based data streams. Our engine filters out PII at the source, focusing solely on linguistic patterns and discourse dynamics.
-                            </p>
+                    {/* Text Content */}
+                    <FadeIn>
+                        <h2 className="text-3xl font-bold text-white mb-8">Depth without friction</h2>
+
+                        <div className="space-y-8">
+                            <div>
+                                <h3 className="text-lg font-bold text-white mb-2 flex items-center">
+                                    <span className="w-6 h-6 rounded-full bg-accent-primary/20 text-accent-primary flex items-center justify-center text-xs mr-3">1</span>
+                                    Temporal Depth
+                                </h3>
+                                <p className="text-text-muted text-sm ml-9 leading-relaxed">
+                                    Psychological states tracked as trajectories, not snapshots.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="text-lg font-bold text-white mb-2 flex items-center">
+                                    <span className="w-6 h-6 rounded-full bg-accent-secondary/20 text-accent-secondary flex items-center justify-center text-xs mr-3">2</span>
+                                    Explainability
+                                </h3>
+                                <p className="text-text-muted text-sm ml-9 leading-relaxed">
+                                    Every signal decomposable into parameters and contributors.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="text-lg font-bold text-white mb-2 flex items-center">
+                                    <span className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-xs mr-3">3</span>
+                                    Psychological Grounding
+                                </h3>
+                                <p className="text-text-muted text-sm ml-9 leading-relaxed">
+                                    Built on organizational psychology and statistical inference — not black-box scoring.
+                                </p>
+                            </div>
                         </div>
                     </FadeIn>
-                    <FadeIn delay={0.3}>
-                        <div className="bg-surface-dark p-6 rounded-xl border border-white/5 h-full">
-                            <Layers className="w-8 h-8 text-accent-secondary mb-4" />
-                            <h3 className="text-lg font-bold text-white mb-2">Deep Vectorization</h3>
-                            <p className="text-sm text-text-muted">
-                                Text is converted into high-dimensional vectors to measure semantic distance, allowing us to cluster subtle emotional variations that keyword matching misses.
-                            </p>
-                        </div>
-                    </FadeIn>
-                    <FadeIn delay={0.4}>
-                        <div className="bg-surface-dark p-6 rounded-xl border border-white/5 h-full">
-                            <Unlock className="w-8 h-8 text-white mb-4" />
-                            <h3 className="text-lg font-bold text-white mb-2">Actionable Strategy</h3>
-                            <p className="text-sm text-text-muted">
-                                Turn abstract psychological concepts into concrete communication strategies. Know exactly which narrative frames build trust vs. fear.
-                            </p>
+
+                    {/* Graphic: Three interlocking structures */}
+                    <FadeIn delay={0.2} className="relative h-[400px] flex items-center justify-center p-8 bg-surface-dark/50 rounded-xl border border-white/5">
+                        <div className="relative w-64 h-64">
+                            {/* Circle 1 */}
+                            <motion.div
+                                className="absolute top-0 left-0 w-40 h-40 border-2 border-accent-primary rounded-full mix-blend-screen bg-accent-primary/10"
+                                animate={{ y: [0, 10, 0], x: [0, 10, 0], rotate: [0, 5, 0] }}
+                                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                            {/* Circle 2 */}
+                            <motion.div
+                                className="absolute top-0 right-0 w-40 h-40 border-2 border-accent-secondary rounded-full mix-blend-screen bg-accent-secondary/10"
+                                animate={{ y: [0, 10, 0], x: [0, -10, 0], rotate: [0, -5, 0] }}
+                                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                            />
+                            {/* Circle 3 */}
+                            <motion.div
+                                className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-40 border-2 border-white rounded-full mix-blend-screen bg-white/5"
+                                animate={{ y: [0, -10, 0] }}
+                                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                            />
+
+                            {/* Center Connection Highlight */}
+                            <motion.div
+                                className="absolute inset-0 bg-white blur-3xl opacity-0"
+                                animate={{ opacity: [0, 0.1, 0] }}
+                                transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
+                            />
                         </div>
                     </FadeIn>
                 </div>

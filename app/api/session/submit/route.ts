@@ -5,66 +5,63 @@ import { inferenceEngine } from '@/services/inferenceService';
 
 export async function POST(req: Request) {
     try {
-        const { sessionId, interactionId, responseText, userId } = await req.json();
+        const { sessionId, responses, userId } = await req.json(); // Expecting list of responses now from full session? 
+        // Or single response? Spec says: "submit... store responses... run inference... mark complete". 
+        // Usually submit is for the whole session.
 
-        if (!sessionId || !interactionId || !responseText) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        // Spec input: { session_id, responses: [{ interaction_id, raw_input }] }
+
+        if (!sessionId || !responses || !Array.isArray(responses)) {
+            return NextResponse.json({ error: 'Invalid Input' }, { status: 400 });
         }
 
-        // 1. Save Raw Response
-        const responseRes = await query(`
-        INSERT INTO responses (session_id, interaction_id, raw_input, created_at)
-        VALUES ($1, $2, $3, NOW())
-        RETURNING response_id
-    `, [sessionId, interactionId, responseText]);
+        // Process each response
+        for (const r of responses) {
+            const { interaction_id, raw_input } = r;
 
-        const responseId = responseRes.rows[0].response_id;
+            // 1. Store
+            const resInsert = await query(`
+            INSERT INTO responses (session_id, interaction_id, raw_input, created_at)
+            VALUES ($1, $2, $3, NOW())
+            RETURNING response_id
+        `, [sessionId, interaction_id, raw_input]);
+            const responseId = resInsert.rows[0].response_id;
 
-        // 2. Encode
-        const encoded = await encoderService.encode(responseText);
+            // 2. Mock Encode
+            // Need to get interaction type/targets for heuristics
+            const interactionRes = await query(`SELECT type, parameter_targets FROM interactions WHERE interaction_id = $1`, [interaction_id]);
+            if (interactionRes.rows.length === 0) continue;
+            const interaction = interactionRes.rows[0];
 
-        // 3. Save Encoded Signals
-        await query(`
-        INSERT INTO encoded_signals (response_id, signals, uncertainty, confidence, flags, topics)
-        VALUES ($1, $2, $3, $4, $5, $6)
-    `, [responseId, encoded.signals, encoded.uncertainty, encoded.confidence, encoded.flags, encoded.topics]);
+            const encoded = await encoderService.encode(raw_input, interaction.type, interaction.parameter_targets);
 
-        // 4. Update Inference (Bayesian)
-        // Need interaction targets
-        const interaction = await query(`SELECT parameter_targets FROM interactions WHERE interaction_id = $1`, [interactionId]);
-        if (interaction.rows.length > 0) {
-            const targets = interaction.rows[0].parameter_targets as string[];
-            for (const target of targets) {
-                // Use specific signal for this target if available, or heuristic
-                // Mock encoder returns signals for ALL params currently
-                // We should use the one relevant to the target
+            // 3. Store Signals
+            await query(`
+             INSERT INTO encoded_signals (response_id, signals, uncertainty, confidence, flags, topics)
+             VALUES ($1, $2, $3, $4, $5, $6)
+        `, [responseId, encoded.signals, encoded.uncertainty, encoded.confidence, encoded.flags, encoded.topics]);
 
-                // Cast strictly for TS if needed, but 'target' is string key
-                const signalValue = encoded.signals[target as any];
-                const uncertaintyValue = encoded.uncertainty[target as any];
+            // 4. Update Inference
+            const targets = interaction.parameter_targets;
+            for (const t of targets) {
+                const val = encoded.signals[t];
+                const unc = encoded.uncertainty[t];
 
-                if (signalValue !== undefined) {
-                    await inferenceEngine.updateState(
-                        userId,
-                        signalValue,
-                        uncertaintyValue,
-                        target as any,
-                        encoded.confidence,
-                        encoded.flags.nonsense
-                    );
-                }
+                await inferenceEngine.updateState(
+                    userId,
+                    val,
+                    unc,
+                    t,
+                    encoded.confidence,
+                    encoded.flags.nonsense
+                );
             }
         }
 
         // 5. Close Session
-        const duration = 60; // Mock duration
-        await query(`
-        UPDATE sessions 
-        SET completed_at = NOW(), duration_seconds = $2
-        WHERE session_id = $1
-    `, [sessionId, duration]);
+        await query(`UPDATE sessions SET completed_at = NOW() WHERE session_id = $1`, [sessionId]);
 
-        return NextResponse.json({ success: true, analysis: encoded });
+        return NextResponse.json({ ok: true });
 
     } catch (error) {
         console.error(error);

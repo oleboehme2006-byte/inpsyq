@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS org_aggregates_weekly (
     parameter_means JSONB,
     parameter_uncertainty JSONB,
     indices JSONB,
+    contributions_breakdown JSONB,
     PRIMARY KEY (org_id, team_id, week_start)
 );
 
@@ -86,3 +87,23 @@ CREATE TABLE IF NOT EXISTS private_feedback (
     week_start DATE NOT NULL,
     content TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS employee_profiles (
+    user_id UUID REFERENCES users(user_id),
+    org_id UUID REFERENCES orgs(org_id),
+    team_id UUID REFERENCES teams(team_id),
+    week_start DATE NOT NULL,
+    parameter_means JSONB, -- 10 dimensions
+    parameter_uncertainty JSONB,
+    profile_type_scores JSONB, -- { WRP: number, OUC: number, TFP: number }
+    confidence FLOAT,
+    private_recommendation TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, week_start)
+);
+
+-- Ensure column exists if table was already created
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS contributions_breakdown JSONB;
+
+

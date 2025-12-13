@@ -15,7 +15,10 @@ export class InferenceEngine {
      * K = v / (v + R)
      */
     async updateState(userId: string, signalMean: number, signalUncertainty: number, parameter: Parameter, confidence: number, isNonsense: boolean) {
-        if (isNonsense) return; // Skip update
+        if (isNonsense) {
+            console.log(`[Inference] Skipping ${parameter} for user ${userId} due to NONSENSE flag.`);
+            return;
+        }
 
         // Get current state
         const res = await query(`
@@ -24,7 +27,7 @@ export class InferenceEngine {
         `, [userId, parameter]);
 
         let currentMean = 0.5;
-        let currentVariance = 0.25;
+        let currentVariance = 0.15; // Initial variance from spec
 
         if (res.rows.length > 0) {
             currentMean = res.rows[0].mean;
@@ -32,11 +35,9 @@ export class InferenceEngine {
         }
 
         // Calculate R (Observation Noise)
-        // Heuristic: If confidence is low, R is high.
-        // Base R could be signalUncertainty^2 or just signalUncertainty.
-        // Prompt says: If confidence < 0.55 -> R = R * 2.5
+        // R = sigma^2
+        let R = signalUncertainty * signalUncertainty;
 
-        let R = signalUncertainty; // Using uncertainty as base R
         if (confidence < 0.55) {
             R = R * R_MULTIPLIER;
         }
@@ -57,6 +58,12 @@ export class InferenceEngine {
 
         // Clamp Variance [0.0025, 0.25]
         newVariance = Math.max(MIN_VARIANCE, Math.min(MAX_VARIANCE, newVariance));
+
+        // DEBUG LOG
+        console.log(`[Inference] UID=${userId.slice(0, 8)} Param=${parameter}`);
+        console.log(`   PRIOR: m=${currentMean.toFixed(3)} v=${currentVariance.toFixed(3)}`);
+        console.log(`   OBS:   y=${signalMean.toFixed(3)} R=${R.toFixed(3)} (conf=${confidence})`);
+        console.log(`   POST:  m=${newMean.toFixed(3)} v=${newVariance.toFixed(3)}`);
 
         // Persist
         await query(`

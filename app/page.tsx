@@ -6,7 +6,6 @@ import HowItWorks from "@/components/HowItWorks";
 import FeaturesSection from "@/components/FeaturesSection";
 import UseCasesSection from "@/components/UseCasesSection";
 import SampleReportSection from "@/components/SampleReportSection";
-import EarlyAccessSection from "@/components/EarlyAccessSection";
 import Footer from "@/components/Footer";
 import BackgroundEffects from "@/components/BackgroundEffects";
 
@@ -18,14 +17,13 @@ export default function Home() {
             <BackgroundEffects />
             <Navbar />
             <Hero />
-            <ExplainerSection />
             <ProblemSection />
             <SolutionSection />
             <HowItWorks />
             <FeaturesSection />
             <UseCasesSection />
+            <ExplainerSection />
             <SampleReportSection />
-            <EarlyAccessSection />
             <Footer />
         </main>
     );

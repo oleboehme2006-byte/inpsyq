@@ -1,15 +1,16 @@
 [
     {
-        "type": "rating",
-        "prompt_text": "How much autonomy did you feel in your last project?",
+        "type": "slider",
+        "prompt_text": "On a scale of 1-7, how much autonomy do you feel you have in your daily tasks?",
         "parameter_targets": [
-            "autonomy_friction"
+            "autonomy_friction",
+            "control"
         ],
         "expected_signal_strength": 0.8
     },
     {
-        "type": "reflection",
-        "prompt_text": "Describe a recent interaction with your lead.",
+        "type": "text",
+        "prompt_text": "Describe a recent interaction with your lead that felt significant.",
         "parameter_targets": [
             "trust_leadership",
             "emotional_load"
@@ -17,28 +18,178 @@
         "expected_signal_strength": 0.6
     },
     {
-        "type": "rating",
-        "prompt_text": "I feel my work has meaning.",
+        "type": "slider",
+        "prompt_text": "I feel my work has meaning and contributes to the larger goal.",
         "parameter_targets": [
-            "meaning"
+            "meaning",
+            "engagement"
         ],
         "expected_signal_strength": 0.9
     },
     {
-        "type": "rating",
-        "prompt_text": "The team supports each other.",
+        "type": "slider",
+        "prompt_text": "The team supports each other during high-pressure moments.",
         "parameter_targets": [
-            "trust_peers"
+            "trust_peers",
+            "psych_safety"
         ],
         "expected_signal_strength": 0.7
     },
     {
-        "type": "rating",
-        "prompt_text": "I can handle the current workload.",
+        "type": "slider",
+        "prompt_text": "I can handle the current workload without feeling overwhelmed.",
         "parameter_targets": [
             "emotional_load",
             "adaptive_capacity"
         ],
         "expected_signal_strength": 0.8
+    },
+    {
+        "type": "choice",
+        "prompt_text": "When a new project starts, how is it usually structured?",
+        "parameter_targets": [
+            "control",
+            "autonomy_friction"
+        ],
+        "expected_signal_strength": 0.75,
+        "options": [
+            "A. I define the scope",
+            "B. We define it together",
+            "C. It is handed to me"
+        ]
+    },
+    {
+        "type": "text",
+        "prompt_text": "Reflect on a time you felt unsure about your role.",
+        "parameter_targets": [
+            "cognitive_dissonance",
+            "meaning"
+        ],
+        "expected_signal_strength": 0.5
+    },
+    {
+        "type": "dialog",
+        "prompt_text": "Chat about your week. How are you feeling?",
+        "parameter_targets": [
+            "emotional_load",
+            "engagement"
+        ],
+        "expected_signal_strength": 0.65
+    },
+    {
+        "type": "slider",
+        "prompt_text": "I trust my direct manager to make the right decisions.",
+        "parameter_targets": [
+            "trust_leadership"
+        ],
+        "expected_signal_strength": 0.9
+    },
+    {
+        "type": "slider",
+        "prompt_text": "I feel safe taking risks in this team.",
+        "parameter_targets": [
+            "psych_safety",
+            "trust_peers"
+        ],
+        "expected_signal_strength": 0.8
+    },
+    {
+        "type": "choice",
+        "prompt_text": "How do you handle conflicting priorities?",
+        "parameter_targets": [
+            "adaptive_capacity",
+            "cognitive_dissonance"
+        ],
+        "expected_signal_strength": 0.7,
+        "options": [
+            "A. I prioritize myself",
+            "B. I ask for help",
+            "C. I try to do everything (Stress)"
+        ]
+    },
+    {
+        "type": "text",
+        "prompt_text": "What is the biggest blocker to your productivity right now?",
+        "parameter_targets": [
+            "autonomy_friction",
+            "control"
+        ],
+        "expected_signal_strength": 0.6
+    },
+    {
+        "type": "slider",
+        "prompt_text": "I have the resources I need to do my job.",
+        "parameter_targets": [
+            "control",
+            "adaptive_capacity"
+        ],
+        "expected_signal_strength": 0.8
+    },
+    {
+        "type": "slider",
+        "prompt_text": "My values align with the organization's values.",
+        "parameter_targets": [
+            "meaning",
+            "cognitive_dissonance"
+        ],
+        "expected_signal_strength": 0.85
+    },
+    {
+        "type": "slider",
+        "prompt_text": "I feel logically recognized for my contributions.",
+        "parameter_targets": [
+            "meaning",
+            "engagement"
+        ],
+        "expected_signal_strength": 0.8
+    },
+    {
+        "type": "choice",
+        "prompt_text": "When things go wrong, the focus is usually on:",
+        "parameter_targets": [
+            "psych_safety",
+            "trust_leadership"
+        ],
+        "expected_signal_strength": 0.75,
+        "options": [
+            "A. Learning and fixing",
+            "B. Ignoring it",
+            "C. Blaming someone"
+        ]
+    },
+    {
+        "type": "text",
+        "prompt_text": "Tell us about a recent win.",
+        "parameter_targets": [
+            "engagement",
+            "meaning"
+        ],
+        "expected_signal_strength": 0.7
+    },
+    {
+        "type": "slider",
+        "prompt_text": "I can disconnect from work when I go home.",
+        "parameter_targets": [
+            "emotional_load",
+            "adaptive_capacity"
+        ],
+        "expected_signal_strength": 0.8
+    },
+    {
+        "type": "slider",
+        "prompt_text": "I feel free to express my opinions.",
+        "parameter_targets": [
+            "psych_safety",
+            "autonomy_friction"
+        ],
+        "expected_signal_strength": 0.8
+    },
+    {
+        "type": "slider",
+        "prompt_text": "My peers are reliable.",
+        "parameter_targets": [
+            "trust_peers"
+        ],
+        "expected_signal_strength": 0.85
     }
 ]

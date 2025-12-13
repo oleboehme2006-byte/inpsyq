@@ -1,75 +1,139 @@
 import { query } from '../db/client';
-import { Parameter, WRP_THRESHOLD, OUC_THRESHOLD, TFP_THRESHOLD } from '../lib/constants';
+import { recommendationEngine } from './recommendationEngine';
 
 export class ProfileService {
 
     /**
-     * Weekly profile detection
+     * Compute and Persist Weekly Profile for a Single Employee
+     */
+    async computeEmployeeProfile(userId: string, weekStart: Date) {
+        // 1. Fetch User Info and Latent States
+        const userRes = await query(`SELECT org_id, team_id FROM users WHERE user_id = $1`, [userId]);
+        if (userRes.rows.length === 0) return;
+        const { org_id, team_id } = userRes.rows[0];
+
+        const statesRes = await query(`SELECT parameter, mean, variance FROM latent_states WHERE user_id = $1`, [userId]);
+
+        const means: Record<string, number> = {};
+        const uncertainty: Record<string, number> = {};
+
+        statesRes.rows.forEach(r => {
+            means[r.parameter] = r.mean;
+            uncertainty[r.parameter] = r.variance;
+        });
+
+        const getM = (p: string) => means[p] || 0.5;
+
+        // 2. Calculate Profile Scores (Same Logic as Team, but individual)
+        // WRP (Withdrawal Risk) = Mean(D, 1-M, 1-E, 1-S)
+        const wrp_score = (
+            getM('cognitive_dissonance') +
+            (1 - getM('meaning')) +
+            (1 - getM('engagement')) +
+            (1 - getM('psych_safety'))
+        ) / 4;
+
+        // OUC (Overload-Under-Control) = Mean(L, 1-C, 1-S)
+        const ouc_score = (
+            getM('emotional_load') +
+            (1 - getM('control')) +
+            (1 - getM('psych_safety'))
+        ) / 3;
+
+        // TFP (Trust Fracture) = clamp01((trust_gap - 0.15)/0.6)
+        const trust_gap = getM('trust_peers') - getM('trust_leadership');
+        let tfp_score = (trust_gap - 0.15) / 0.6;
+        tfp_score = Math.max(0, Math.min(1, tfp_score));
+
+        // 3. Confidence
+        // Simple heuristic: Avg variance (uncertainty).
+        const avgVar = Object.values(uncertainty).reduce((a, b) => a + b, 0) / (Object.values(uncertainty).length || 1);
+        let confidence = 1.0 - (avgVar * 2);
+        confidence = Math.max(0.1, Math.min(1, confidence));
+
+        // 4. Recommendation
+        const scores = { WRP: wrp_score, OUC: ouc_score, TFP: tfp_score };
+        const recommendation = recommendationEngine.generatePrivateFeedback(scores, means);
+
+        // 5. Store
+        await query(`
+            INSERT INTO employee_profiles 
+            (user_id, org_id, team_id, week_start, parameter_means, parameter_uncertainty, profile_type_scores, confidence, private_recommendation)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (user_id, week_start)
+            DO UPDATE SET 
+                parameter_means = $5, 
+                parameter_uncertainty = $6, 
+                profile_type_scores = $7, 
+                confidence = $8, 
+                private_recommendation = $9,
+                updated_at = NOW()
+        `, [userId, org_id, team_id, weekStart, means, uncertainty, scores, confidence, recommendation]);
+
+        console.log(`[Profile] Computed Employee Profile for ${userId} Week ${weekStart.toISOString().slice(0, 10)}`);
+    }
+
+    /**
+     * Compute Weekly Profiles based on Aggregates (Team Level)
      */
     async detectProfiles(orgId: string, teamId: string, weekStart: Date) {
-        // Need aggregated data first. Assuming aggregates exist.
-        // This function would typically look at user latent states and aggregate them, 
-        // OR look at the 'org_aggregates_weekly' table if that's already computed.
 
-        // For foundation implementation, let's look at latest latent states of users in team
+        // 1. Get Aggregates
+        const aggRes = await query(`
+            SELECT parameter_means FROM org_aggregates_weekly
+            WHERE org_id = $1 AND team_id = $2 AND week_start = $3
+        `, [orgId, teamId, weekStart]);
 
-        const users = await query(`SELECT user_id FROM users WHERE team_id = $1`, [teamId]);
-        if (users.rows.length === 0) return;
-
-        // Fetch all latent states for these users
-        // This is expensive, but correct for "Detection".
-
-        // Simplified logic as per prompt requirements for WRP/OUC/TFP
-
-        // WRP (Withdrawal Risk): Low Meaning + High Friction
-        // OUC (Overload-Under-Control): High Load + Low Control
-        // TFP (Trust Fracture): Low Trust Leadership + Low Trust Peers
-
-        let activationScores = {
-            WRP: 0,
-            OUC: 0,
-            TFP: 0
-        };
-
-        let count = 0;
-
-        for (const user of users.rows) {
-            const states = await query(`SELECT parameter, mean FROM latent_states WHERE user_id = $1`, [user.user_id]);
-            const stateMap: Record<string, number> = {};
-            states.rows.forEach(r => stateMap[r.parameter] = r.mean);
-
-            // Check WRP
-            if ((stateMap['meaning'] || 0.5) < 0.4 && (stateMap['autonomy_friction'] || 0.5) > 0.6) {
-                activationScores.WRP++;
-            }
-
-            // Check OUC
-            if ((stateMap['emotional_load'] || 0.5) > 0.6 && (stateMap['control'] || 0.5) < 0.4) {
-                activationScores.OUC++;
-            }
-
-            // Check TFP
-            if ((stateMap['trust_leadership'] || 0.5) < 0.4 && (stateMap['trust_peers'] || 0.5) < 0.4) {
-                activationScores.TFP++;
-            }
-            count++;
+        if (aggRes.rows.length === 0) {
+            console.log(`[Profile] No aggregates found for team ${teamId} week ${weekStart}`);
+            return;
         }
 
-        const confidence = count > 5 ? 0.8 : 0.4; // Simple volume heuristic
+        const means = aggRes.rows[0].parameter_means;
+        const getM = (p: string) => means[p] || 0.5;
 
-        // Inser/Update Profiles
+        // 2. Calculate Profile Activation Scores (Team Level)
+        const wrp_score = (
+            getM('cognitive_dissonance') +
+            (1 - getM('meaning')) +
+            (1 - getM('engagement')) +
+            (1 - getM('psych_safety'))
+        ) / 4;
+
+        const ouc_score = (
+            getM('emotional_load') +
+            (1 - getM('control')) +
+            (1 - getM('psych_safety'))
+        ) / 3;
+
+        const trust_gap = getM('trust_peers') - getM('trust_leadership');
+        let tfp_score = (trust_gap - 0.15) / 0.6;
+        tfp_score = Math.max(0, Math.min(1, tfp_score));
+
+
+        // 3. Determine Confidence based on user count
+        const usersCountRes = await query(`SELECT COUNT(*) as c FROM users WHERE team_id = $1 AND is_active = TRUE`, [teamId]);
+        const count = parseInt(usersCountRes.rows[0].c);
+
+        let confidence = 0.3;
+        if (count >= 20) confidence = 0.85;
+        else if (count >= 10) confidence = 0.6;
+
+        // 4. Store Profiles
         const insertProfile = async (type: string, score: number) => {
-            const normalizedScore = count > 0 ? score / count : 0;
             await query(`
                 INSERT INTO org_profiles_weekly (org_id, team_id, week_start, profile_type, activation_score, confidence)
                 VALUES ($1, $2, $3, $4, $5, $6)
-             `, [orgId, teamId, weekStart, type, normalizedScore, confidence]);
+             `, [orgId, teamId, weekStart, type, score, confidence]);
         };
 
-        if (activationScores.WRP / count > 0.2) await insertProfile('WRP', activationScores.WRP); // Threshold to actually log it? Or log all? Prompt says "output... activation_score". I will log all.
-        await insertProfile('WRP', activationScores.WRP);
-        await insertProfile('OUC', activationScores.OUC);
-        await insertProfile('TFP', activationScores.TFP);
+        await query(`DELETE FROM org_profiles_weekly WHERE org_id=$1 AND team_id=$2 AND week_start=$3`, [orgId, teamId, weekStart]);
+
+        await insertProfile('WRP', wrp_score);
+        await insertProfile('OUC', ouc_score);
+        await insertProfile('TFP', tfp_score);
+
+        console.log(`[Profile] Generated Team Profiles WRP=${wrp_score.toFixed(2)} OUC=${ouc_score.toFixed(2)} TFP=${tfp_score.toFixed(2)}`);
     }
 }
 

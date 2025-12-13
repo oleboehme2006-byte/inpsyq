@@ -4,14 +4,30 @@ import { query } from '@/db/client';
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const teamId = searchParams.get('teamId');
+        const teamId = searchParams.get('team_id'); // snake_case
+        const orgId = searchParams.get('org_id');
+        const weekStart = searchParams.get('week_start');
 
-        const result = await query(`
-        SELECT * FROM org_profiles_weekly
-        WHERE team_id = $1
-        ORDER BY week_start DESC
-      `, [teamId]);
+        let q = `SELECT * FROM org_profiles_weekly WHERE 1=1`;
+        const params = [];
+        let idx = 1;
 
+        if (teamId) {
+            q += ` AND team_id = $${idx++}`;
+            params.push(teamId);
+        }
+        if (orgId) {
+            q += ` AND org_id = $${idx++}`;
+            params.push(orgId);
+        }
+        if (weekStart) {
+            q += ` AND week_start = $${idx++}`;
+            params.push(weekStart);
+        }
+
+        q += ` ORDER BY week_start DESC`;
+
+        const result = await query(q, params);
         return NextResponse.json(result.rows);
     } catch (error) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

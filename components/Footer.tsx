@@ -10,8 +10,9 @@ export default function Footer() {
                         <Link href="/" className="text-white hover:text-accent-primary transition-colors inline-block">
                             <BrandLogo className="text-white text-2xl" />
                         </Link>
-                        <p className="text-text-muted text-sm mt-2">
-                            Social Sentiment. Data-Driven Depth. Psychological Insights.
+                        <p className="text-text-muted text-sm mt-4 max-w-md leading-relaxed">
+                            InPsyq operates at the frontier of organizational psychology modeling —
+                            combining probabilistic inference, explainability, and aggregation-first privacy by design.
                         </p>
                     </div>
 

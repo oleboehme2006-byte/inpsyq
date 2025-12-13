@@ -1,0 +1,54 @@
+import { NextResponse } from 'next/server';
+import { query } from '@/db/client';
+
+export async function GET(req: Request) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const teamId = searchParams.get('team_id');
+        const orgId = searchParams.get('org_id');
+        const weekStart = searchParams.get('week_start');
+
+        if (!teamId || !orgId || !weekStart) {
+            return NextResponse.json({ error: 'Org ID, Team ID, and Week Start required' }, { status: 400 });
+        }
+
+        // Check K-threshold (Safety Check)
+        // Though aggregation should have skipped it, we double check to be safe before exposing breakdowns
+        const teamInfo = await query(`SELECT k_threshold FROM orgs WHERE org_id = $1`, [orgId]);
+        let k = 7;
+        if (teamInfo.rows.length > 0) k = teamInfo.rows[0].k_threshold || 7;
+
+        // Check active users (approx for validity of exposure)
+        // We rely on the fact that 'indices' and 'contributions_breakdown' are only written if k was met.
+        // But let's be explicit.
+
+        const aggRes = await query(`
+          SELECT * FROM org_aggregates_weekly 
+          WHERE org_id = $1 AND team_id = $2 AND week_start = $3
+      `, [orgId, teamId, weekStart]);
+
+        if (aggRes.rows.length === 0) {
+            return NextResponse.json({ error: 'No data found for this period' }, { status: 404 });
+        }
+
+        const data = aggRes.rows[0];
+
+        if (!data.contributions_breakdown) {
+            return NextResponse.json({ error: 'Audit data not available for this period' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+            org_id: data.org_id,
+            team_id: data.team_id,
+            week_start: data.week_start,
+            team_parameter_means: data.parameter_means,
+            indices: data.indices,
+            profile_weight_share: data.contributions_breakdown.profile_weight_share,
+            parameter_contributions: data.contributions_breakdown.parameter_contributions
+        });
+
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}

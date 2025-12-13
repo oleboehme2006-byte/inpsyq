@@ -4,21 +4,33 @@ import { query } from '@/db/client';
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const teamId = searchParams.get('teamId');
+        const teamId = searchParams.get('team_id'); // snake_case from spec
+        const orgId = searchParams.get('org_id');
+        const weekStart = searchParams.get('week_start');
 
-        // In a real app we'd filter by week, org, etc. 
-        // Minimal implementation: Get latent mean of all users in team (Real-time view)
-        // OR get the 'org_aggregates_weekly' table. 
-        // Let's return the aggregates table data for chart.
+        let q = `SELECT * FROM org_aggregates_weekly WHERE 1=1`;
+        const params = [];
+        let idx = 1;
 
-        const result = await query(`
-        SELECT * FROM org_aggregates_weekly 
-        WHERE team_id = $1
-        ORDER BY week_start ASC
-      `, [teamId]);
+        if (teamId) {
+            q += ` AND team_id = $${idx++}`;
+            params.push(teamId);
+        }
+        if (orgId) {
+            q += ` AND org_id = $${idx++}`;
+            params.push(orgId);
+        }
+        if (weekStart) {
+            q += ` AND week_start = $${idx++}`;
+            params.push(weekStart);
+        }
 
+        q += ` ORDER BY week_start ASC`;
+
+        const result = await query(q, params);
         return NextResponse.json(result.rows);
     } catch (error) {
+        console.error(error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
