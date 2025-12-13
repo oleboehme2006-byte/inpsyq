@@ -144,8 +144,12 @@ export class SyntheticDataGenerator {
             console.log("Synthetic Data Generation Complete.");
             return { orgId, teamAId, teamBId };
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("Error generating data", e);
+            const errString = String(e);
+            if (e.code === '42703' || errString.includes('does not exist') || errString.includes('team_id')) {
+                throw new Error("DATABASE SCHEMA MISMATCH: Run '/api/init' again to auto-fix.");
+            }
             throw e;
         } finally {
             client.release();

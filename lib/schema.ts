@@ -1,3 +1,4 @@
+export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS orgs (
     org_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -13,7 +14,7 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID REFERENCES orgs(org_id),
-    team_id UUID REFERENCES teams(id),
+    team_id UUID REFERENCES teams(team_id),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS latent_states (
 
 CREATE TABLE IF NOT EXISTS org_aggregates_weekly (
     org_id UUID REFERENCES orgs(org_id),
-    team_id UUID REFERENCES teams(id),
+    team_id UUID REFERENCES teams(team_id),
     week_start DATE NOT NULL,
     parameter_means JSONB,
     parameter_uncertainty JSONB,
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS org_aggregates_weekly (
 
 CREATE TABLE IF NOT EXISTS org_profiles_weekly (
     org_id UUID REFERENCES orgs(org_id),
-    team_id UUID REFERENCES teams(id),
+    team_id UUID REFERENCES teams(team_id),
     week_start DATE NOT NULL,
     profile_type TEXT NOT NULL, -- 'WRP', 'OUC', 'TFP'
     activation_score FLOAT,
@@ -91,7 +92,7 @@ CREATE TABLE IF NOT EXISTS private_feedback (
 CREATE TABLE IF NOT EXISTS employee_profiles (
     user_id UUID REFERENCES users(user_id),
     org_id UUID REFERENCES orgs(org_id),
-    team_id UUID REFERENCES teams(id),
+    team_id UUID REFERENCES teams(team_id),
     week_start DATE NOT NULL,
     parameter_means JSONB, -- 10 dimensions
     parameter_uncertainty JSONB,
@@ -102,8 +103,4 @@ CREATE TABLE IF NOT EXISTS employee_profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (user_id, week_start)
 );
-
--- Ensure column exists if table was already created
-ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS contributions_breakdown JSONB;
-
-
+`;
