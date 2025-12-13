@@ -48,18 +48,18 @@ export default function Hero() {
                 <div>
                     <div className="space-y-1 mb-6">
                         <FadeIn delay={0.1}>
-                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight">
-                                Social Sentiment
+                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white/50 leading-tight">
+                                Psychological Insights
                             </h1>
                         </FadeIn>
                         <FadeIn delay={0.2}>
-                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight">
+                            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white/50 leading-tight">
                                 Data-Driven Depth
                             </h1>
                         </FadeIn>
                         <FadeIn delay={0.3}>
                             <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-tight">
-                                Psychological Insights
+                                Organizational Intelligence
                             </h1>
                         </FadeIn>
                     </div>
@@ -69,7 +69,7 @@ export default function Hero() {
                             InPsyq models organizational psychology as a system of evolving latent states — measured continuously, aggregated safely, and explained transparently.
                         </h2>
                         <p className="text-md text-text-muted mb-8 max-w-lg leading-relaxed">
-                            Weekly insight into strain, trust, disengagement, and adaptive capacity — grounded in behavioral science and probabilistic inference.
+                            Weekly insights into psychological safety, trust gap, withdrawal risk, emotional load, cognitive dissonance, autonomy friction, engagement, meaning, leadership trust, adaptive capacity, strain index — and more.
                         </p>
                     </FadeIn>
 

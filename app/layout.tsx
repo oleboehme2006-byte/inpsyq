@@ -7,10 +7,11 @@ import PageLoader from "@/components/PageLoader";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-    title: "InPsyq - Social Sentiment & Psychological Insights",
+    title: "InPsyq – Psychological Insights for Organizations",
     description: "Deep analytics revealing the emotional drivers of public discourse.",
     icons: {
         icon: "/icon.svg",
+        apple: "/icon.svg",
     },
 };
 
