@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
+import { aggregationService } from '@/services/aggregationService';
 
 export async function GET(req: Request) {
     try {
@@ -22,19 +23,39 @@ export async function GET(req: Request) {
         // We rely on the fact that 'indices' and 'contributions_breakdown' are only written if k was met.
         // But let's be explicit.
 
-        const aggRes = await query(`
+        let aggRes = await query(`
           SELECT * FROM org_aggregates_weekly 
-          WHERE org_id = $1 AND team_id = $2 AND week_start = $3
+          WHERE org_id = $1 AND team_id = $2 
+          AND week_start >= ($3::date - 1) AND week_start <= ($3::date + 1)
+          LIMIT 1
       `, [orgId, teamId, weekStart]);
 
         if (aggRes.rows.length === 0) {
-            return NextResponse.json({ error: 'No data found for this period' }, { status: 404 });
+            console.log(`[Audit] Aggregates missing for ${weekStart}. Attempting auto-compute...`);
+            await aggregationService.runWeeklyAggregation(orgId, teamId, new Date(weekStart));
+
+            // Re-fetch
+            aggRes = await query(`
+                SELECT * FROM org_aggregates_weekly 
+                WHERE org_id = $1 AND team_id = $2 
+                AND week_start >= ($3::date - 1) AND week_start <= ($3::date + 1)
+                LIMIT 1
+            `, [orgId, teamId, weekStart]);
+
+            if (aggRes.rows.length === 0) {
+                return NextResponse.json({
+                    error: 'Compute Failed: Insufficient Data (k < 7) or no profiles.'
+                }, { status: 404 });
+            }
         }
 
         const data = aggRes.rows[0];
 
         if (!data.contributions_breakdown) {
-            return NextResponse.json({ error: 'Audit data not available for this period' }, { status: 404 });
+            console.log(`[Audit] Breakdown missing for ${weekStart}. Attempting re-compute...`);
+            await aggregationService.runWeeklyAggregation(orgId, teamId, new Date(weekStart));
+            // We won't re-fetch a second time to avoid loops, just warn user to refresh.
+            return NextResponse.json({ error: 'Audit data processing. Please refresh.' }, { status: 503 });
         }
 
         return NextResponse.json({

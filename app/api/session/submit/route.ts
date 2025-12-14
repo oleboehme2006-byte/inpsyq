@@ -1,20 +1,11 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
-import { encoderService } from '@/services/encoderService';
+import { normalizationService } from '@/services/normalizationService';
 import { inferenceEngine } from '@/services/inferenceService';
+import { Parameter } from '@/lib/constants';
 
 // Define valid parameter keys
-type ParamKey =
-    | 'control'
-    | 'meaning'
-    | 'engagement'
-    | 'trust_peers'
-    | 'psych_safety'
-    | 'emotional_load'
-    | 'trust_leadership'
-    | 'adaptive_capacity'
-    | 'autonomy_friction'
-    | 'cognitive_dissonance';
+type ParamKey = Parameter;
 
 export async function POST(req: Request) {
     try {
@@ -36,14 +27,14 @@ export async function POST(req: Request) {
         `, [sessionId, interaction_id, raw_input]);
             const responseId = resInsert.rows[0].response_id;
 
-            // 2. Mock Encode
+            // 2. Normalize / Encode
             const interactionRes = await query(`SELECT type, parameter_targets FROM interactions WHERE interaction_id = $1`, [interaction_id]);
             if (interactionRes.rows.length === 0) continue;
 
             const interaction = interactionRes.rows[0];
             const parameterTargets = interaction.parameter_targets as ParamKey[]; // STRICT CAST
 
-            const encoded = await encoderService.encode(raw_input, interaction.type, parameterTargets);
+            const encoded = await normalizationService.normalizeResponse(raw_input, interaction.type, parameterTargets);
 
             // Cast encoded outputs to record types
             const signals = encoded.signals as Record<ParamKey, number>;

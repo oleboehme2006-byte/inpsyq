@@ -1,5 +1,5 @@
 import { Pool, QueryResult, QueryResultRow, PoolClient } from "pg";
-import { DATABASE_URL } from "../lib/config";
+import { dbConfig } from "../lib/config";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -8,13 +8,7 @@ declare global {
 
 export const pool =
   global.__pgPool ??
-  new Pool({
-    connectionString: DATABASE_URL,
-    ssl:
-      process.env.NODE_ENV === "production"
-        ? { rejectUnauthorized: false }
-        : undefined,
-  });
+  new Pool(dbConfig);
 
 if (process.env.NODE_ENV !== "production") {
   global.__pgPool = pool;
