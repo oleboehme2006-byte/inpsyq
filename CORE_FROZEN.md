@@ -15,9 +15,11 @@ All core logic, database schema, and mathematical models are verified to be dete
 4.  **Aggregation:** Weekly rollups stored in `org_aggregates_weekly`.
 5.  **Seeding:** Deterministic generation via `/api/seed`.
 6.  **Audit:** Self-healing endpoint with robust date handling.
+7.  **Production Seeding:** Guarded against API time-outs; uses `npm run seed:prod`.
 
 ### Verification Evidence
 - **Local Smoke Test:** PASSED (`verify_standalone.js`)
+- **Seeding Script:** PASSED (`npm run seed:prod`)
 - **Counts:** 
     - Orgs: 1
     - Teams: 2
