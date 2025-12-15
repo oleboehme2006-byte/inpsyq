@@ -45,7 +45,6 @@ export class InteractionEngine {
         if (plan && plan.length > 0) {
             isLlm = true;
             // Persist Generated Interactions
-            // Persist Generated Interactions
             for (const gen of plan) {
                 // Serialize Spec into Prompt if needed
                 let prompt = gen.prompt_text;
@@ -65,43 +64,57 @@ export class InteractionEngine {
         } else {
             // Fallback to Legacy Logic
             console.log('[InteractionEngine] Using Legacy Fallback');
-            selectedInteractions = await this.getLegacyInteractions();
+            selectedInteractions = await this.getLegacyInteractions(count);
         }
 
         return {
             sessionId,
             interactions: selectedInteractions,
             meta: {
-                is_llm: isLlm
-            }
+                is_llm: isLlm,
+                question_count: selectedInteractions.length
+            },
+            // For API compatibility (optional, but good for debug)
+            llm_used: isLlm,
+            question_count: selectedInteractions.length
         };
     }
 
-    async getLegacyInteractions() {
+    async getLegacyInteractions(count: number = 3) {
         const allRes = await query(`SELECT * FROM interactions`);
         const all = allRes.rows;
 
-        // Filter out generated interactions (messy prompts with |||) if we want clean legacy? 
-        // Or assume legacy pool is cleaner. 
-        // Let's filter slightly to avoid showing broken JSON to users if fallback happens.
+        // Filter out generated interactions (messy prompts with |||) to keep legacy clean
         const candidates = all.filter(i => !i.prompt_text.includes('|||'));
+        if (candidates.length === 0) return [];
 
+        const selected = [];
         const sliders = candidates.filter(i => i.type === 'slider' || i.type === 'rating');
         const dialogs = candidates.filter(i => i.type === 'dialog');
         const others = candidates.filter(i => i.type !== 'slider' && i.type !== 'rating' && i.type !== 'dialog');
 
-        const selected = [];
+        // Heuristic mix for first few
         if (sliders.length > 0) selected.push(sliders[Math.floor(Math.random() * sliders.length)]);
-        if (Math.random() > 0.5 && dialogs.length > 0) {
-            selected.push(dialogs[Math.floor(Math.random() * dialogs.length)]);
-        }
-        while (selected.length < 3 && others.length > 0) {
-            const pick = others[Math.floor(Math.random() * others.length)];
-            if (!selected.find(s => s.interaction_id === pick.interaction_id)) {
+        if (dialogs.length > 0) selected.push(dialogs[Math.floor(Math.random() * dialogs.length)]);
+
+        // Fill the rest randomly
+        while (selected.length < count) {
+            // Pick from any pool to fill up
+            const pool = candidates;
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+
+            // Allow duplicates if pool is small, otherwise try to avoid
+            if (pool.length >= count) {
+                if (!selected.find(s => s.interaction_id === pick.interaction_id)) {
+                    selected.push(pick);
+                }
+            } else {
+                // Not enough unique questions, just push
                 selected.push(pick);
             }
         }
-        return selected;
+
+        return selected.slice(0, count);
     }
 
     async getInteractionById(interactionId: string) {

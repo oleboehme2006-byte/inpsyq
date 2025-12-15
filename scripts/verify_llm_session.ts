@@ -2,6 +2,9 @@
 
 
 export { };
+import { loadEnv } from '../lib/env/loadEnv';
+
+loadEnv();
 
 const BASE_URL = process.env.APP_URL || 'http://localhost:3001';
 
@@ -58,6 +61,9 @@ async function run() {
     // 3. Start Session
     const EXPECTED_COUNT = parseInt(process.env.SESSION_QUESTION_COUNT || '10');
     console.log(`3. Starting Session (Expected Questions: ${EXPECTED_COUNT})...`);
+    console.log(`   Detailed Diagnosis:`);
+    console.log(`   - KEY Present: ${!!process.env.OPENAI_API_KEY}`);
+    console.log(`   - MODEL: ${process.env.OPENAI_MODEL || 'gpt-5-mini'}`);
 
     const startRes = await fetch(`${BASE_URL}/api/session/start`, {
         method: 'POST',
@@ -73,7 +79,8 @@ async function run() {
     const session = await startRes.json();
     console.log(`   Session ID: ${session.sessionId}`);
     console.log(`   Interactions: ${session.interactions.length}`);
-    console.log(`   LLM Used: ${session.meta?.is_llm}`);
+    console.log(`   LLM Used: ${session.meta?.is_llm ?? session.llm_used}`);
+    console.log(`   Question Count: ${session.meta?.question_count ?? session.question_count}`);
 
     // Validate Length
     if (session.interactions.length < EXPECTED_COUNT) {
@@ -82,6 +89,8 @@ async function run() {
         } else {
             console.warn('   ⚠️ Fallback Mode Active (Legacy Count).');
         }
+    } else {
+        console.log('   ✅ Count Verified.');
     }
 
     // Print Questions

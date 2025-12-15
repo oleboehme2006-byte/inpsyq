@@ -1,6 +1,8 @@
 
 export { };
+import { loadEnv } from '../lib/env/loadEnv';
 
+loadEnv();
 
 import fs from 'fs';
 import path from 'path';
@@ -13,7 +15,7 @@ if (!fs.existsSync(path.join(process.cwd(), 'package.json')) && !fs.existsSync(p
     process.exit(1);
 }
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = process.env.APP_URL || 'http://localhost:3001';
 
 async function run() {
     console.log('--- Verifying Briefing Layer ---');
