@@ -81,6 +81,9 @@ async function run() {
     console.log(`   Interactions: ${session.interactions.length}`);
     console.log(`   LLM Used: ${session.meta?.is_llm ?? session.llm_used}`);
     console.log(`   Question Count: ${session.meta?.question_count ?? session.question_count}`);
+    if (session.meta?.llm_error) {
+        console.log(`   ❌ LLM Error:`, JSON.stringify(session.meta.llm_error, null, 2));
+    }
 
     // Validate Length
     if (session.interactions.length < EXPECTED_COUNT) {

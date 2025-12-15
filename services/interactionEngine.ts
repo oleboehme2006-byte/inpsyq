@@ -39,13 +39,18 @@ export class InteractionEngine {
         // 2. Try LLM Generation
         let selectedInteractions: any[] = [];
         const count = parseInt(process.env.SESSION_QUESTION_COUNT || '10');
-        const plan = await interactionGenerator.generateSessionPlan(userId, count);
-        let isLlm = false;
+        const genResult = await interactionGenerator.generateSessionPlan(userId, count);
 
-        if (plan && plan.length > 0) {
+        let isLlm = false;
+        let llmError = genResult.error || null;
+        let llmMode = 'fallback';
+
+        if (genResult.interactions && genResult.interactions.length > 0) {
             isLlm = true;
+            llmMode = 'openai';
+
             // Persist Generated Interactions
-            for (const gen of plan) {
+            for (const gen of genResult.interactions) {
                 // Serialize Spec into Prompt if needed
                 let prompt = gen.prompt_text;
                 if (gen.response_spec) {
@@ -57,13 +62,13 @@ export class InteractionEngine {
                     INSERT INTO interactions (type, prompt_text, parameter_targets, expected_signal_strength, cooldown_days)
                     VALUES ($1, $2, $3, $4, $5)
                     RETURNING interaction_id, type, prompt_text, parameter_targets
-                `, [gen.type, prompt, JSON.stringify(gen.targets), 0.8, 7]); // param_targets as JSON string for safety if column is JSONB
+                `, [gen.type, prompt, gen.targets, 0.8, 7]);
 
                 selectedInteractions.push(ins.rows[0]);
             }
         } else {
             // Fallback to Legacy Logic
-            console.log('[InteractionEngine] Using Legacy Fallback');
+            console.log('[InteractionEngine] Using Legacy Fallback', llmError ? `Error: ${llmError.reason}` : '(No Key/Other)');
             selectedInteractions = await this.getLegacyInteractions(count);
         }
 
@@ -72,9 +77,12 @@ export class InteractionEngine {
             interactions: selectedInteractions,
             meta: {
                 is_llm: isLlm,
+                llm_used: isLlm,
+                llm_mode: llmMode,
+                llm_error: llmError,
                 question_count: selectedInteractions.length
             },
-            // For API compatibility (optional, but good for debug)
+            // Legacy/Debug fields for top-level access
             llm_used: isLlm,
             question_count: selectedInteractions.length
         };
@@ -88,33 +96,35 @@ export class InteractionEngine {
         const candidates = all.filter(i => !i.prompt_text.includes('|||'));
         if (candidates.length === 0) return [];
 
+        // Shuffle candidates first for randomness
+        const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+
         const selected = [];
-        const sliders = candidates.filter(i => i.type === 'slider' || i.type === 'rating');
-        const dialogs = candidates.filter(i => i.type === 'dialog');
-        const others = candidates.filter(i => i.type !== 'slider' && i.type !== 'rating' && i.type !== 'dialog');
+        const sliders = shuffled.filter(i => i.type === 'slider' || i.type === 'rating');
+        const dialogs = shuffled.filter(i => i.type === 'dialog');
+        // Others (legacy text etc)
 
-        // Heuristic mix for first few
-        if (sliders.length > 0) selected.push(sliders[Math.floor(Math.random() * sliders.length)]);
-        if (dialogs.length > 0) selected.push(dialogs[Math.floor(Math.random() * dialogs.length)]);
+        // Ensure at least one slider and one dialog if available (heuristic)
+        if (sliders.length > 0) selected.push(sliders[0]);
+        if (dialogs.length > 0) selected.push(dialogs[0]);
 
-        // Fill the rest randomly
-        while (selected.length < count) {
-            // Pick from any pool to fill up
-            const pool = candidates;
-            const pick = pool[Math.floor(Math.random() * pool.length)];
+        // Fill remainder from general shuffled pool, avoiding duplicates
+        for (const item of shuffled) {
+            if (selected.length >= count) break;
+            if (!selected.find(s => s.interaction_id === item.interaction_id)) {
+                selected.push(item);
+            }
+        }
 
-            // Allow duplicates if pool is small, otherwise try to avoid
-            if (pool.length >= count) {
-                if (!selected.find(s => s.interaction_id === pick.interaction_id)) {
-                    selected.push(pick);
-                }
-            } else {
-                // Not enough unique questions, just push
+        // If still under count (small pool), allow duplicates but try to distance them
+        if (selected.length < count && candidates.length > 0) {
+            while (selected.length < count) {
+                const pick = candidates[Math.floor(Math.random() * candidates.length)];
                 selected.push(pick);
             }
         }
 
-        return selected.slice(0, count);
+        return selected;
     }
 
     async getInteractionById(interactionId: string) {
