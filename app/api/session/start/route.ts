@@ -5,8 +5,13 @@ export async function POST(req: Request) {
     try {
         const { userId } = await req.json();
 
-        if (!userId) {
-            return NextResponse.json({ error: 'UserId required' }, { status: 400 });
+        // Validate UUID format strictly to prevent Postgres invalid input syntax errors
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!userId || !uuidRegex.test(userId)) {
+            return NextResponse.json({
+                error: 'userId must be a valid UUID',
+                hint: 'Use /api/admin/employees to search for valid users by Org ID.'
+            }, { status: 400 });
         }
 
         const sessionData = await interactionEngine.buildSession(userId);

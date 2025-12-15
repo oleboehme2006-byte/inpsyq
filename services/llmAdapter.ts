@@ -7,12 +7,36 @@ export interface ParameterSignal {
     confidence: number; // 0-1
 }
 
+import { responseInterpreter } from './llm/interpreters';
+
 export class LLMAdapter {
     /**
      * Interpret text response into parameter signals.
-     * Currently a MOCK heuristic implementation.
+     * Uses OpenAI via ResponseInterpreter if configured, otherwise falls back to heuristics.
      */
     async interpretTextResponse(text: string, targets: Parameter[]): Promise<ParameterSignal[]> {
+
+        // Try LLM Interpreter
+        const interpretation = await responseInterpreter.interpret(text, targets);
+
+        if (interpretation) {
+            // Map structured result to ParameterSignal
+            return interpretation.signals.map(s => ({
+                parameter: s.parameter,
+                signal: s.value,
+                uncertainty: 1 - s.confidence,
+                confidence: s.confidence
+            }));
+        }
+
+        console.log('[LLM] No interpretation result (missing key or error). Using heuristics.');
+        return this.heuristicFallback(text, targets);
+    }
+
+    /**
+     * Deterministic Heuristic Fallback (Original Mock Logic)
+     */
+    private heuristicFallback(text: string, targets: Parameter[]): ParameterSignal[] {
         const lower = text.toLowerCase();
         const results: ParameterSignal[] = [];
 

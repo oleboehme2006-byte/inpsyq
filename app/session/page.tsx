@@ -18,6 +18,9 @@ interface Interaction {
 interface SessionData {
     sessionId: string;
     interactions: Interaction[];
+    meta?: {
+        is_llm?: boolean;
+    };
 }
 
 interface ResponsePayload {
@@ -279,6 +282,19 @@ export default function SessionPage() {
         const interaction = sessionData.interactions[currentIndex];
         const progress = ((currentIndex) / sessionData.interactions.length) * 100;
 
+        // PARSE METADATA (smuggled via |||)
+        let displayPrompt = interaction.prompt_text;
+        let metadata: any = {};
+        if (displayPrompt.includes('|||')) {
+            const parts = displayPrompt.split('|||');
+            displayPrompt = parts[0].trim();
+            try {
+                metadata = JSON.parse(parts[1].trim());
+            } catch (e) {
+                console.error('Failed to parse interaction metadata', e);
+            }
+        }
+
         return (
             <div className="min-h-screen bg-black flex flex-col">
                 {/* Progress Bar */}
@@ -296,21 +312,42 @@ export default function SessionPage() {
                         Reset User
                     </button>
 
+                    {/* Debug Info (Local/Dev Only) */}
+                    {process.env.NODE_ENV !== 'production' && (
+                        <>
+                            <div className="absolute top-4 left-4 text-xs text-slate-800 font-mono">
+                                <div>ID: {interaction.interaction_id.slice(0, 8)}</div>
+                                <div>Type: {interaction.type}</div>
+                            </div>
+                            <div className="fixed bottom-2 right-2 flex gap-2">
+                                <div className="text-[10px] text-zinc-600 bg-black/10 px-2 py-1 rounded select-all">
+                                    {(interaction?.prompt_text || '').split('|||')[0]} (ID: {interaction?.interaction_id})
+                                </div>
+                                <div className={`text-[10px] px-2 py-1 rounded font-bold ${sessionData?.meta?.is_llm ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
+                                    {sessionData?.meta?.is_llm ? 'LLM: OPENAI' : 'LLM: FALLBACK'}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                     {interaction.type === 'slider' || interaction.type === 'rating' ? (
                         <SliderInteraction
-                            prompt={interaction.prompt_text}
+                            prompt={displayPrompt}
+                            meta={metadata}
                             onSubmit={handleInteractionSubmit}
                             loading={status === 'submitting'}
                         />
                     ) : interaction.type === 'choice' ? (
                         <ChoiceInteraction
-                            prompt={interaction.prompt_text}
+                            prompt={displayPrompt}
+                            meta={metadata}
                             onSubmit={handleInteractionSubmit}
                             loading={status === 'submitting'}
                         />
                     ) : (
                         <TextInteraction
-                            prompt={interaction.prompt_text}
+                            prompt={displayPrompt}
+                            meta={metadata}
                             onSubmit={handleInteractionSubmit}
                             loading={status === 'submitting'}
                         />

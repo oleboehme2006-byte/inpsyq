@@ -2,13 +2,23 @@
 
 interface Props {
     prompt: string;
+    meta?: any;
     onSubmit: (value: string) => void;
     loading: boolean;
 }
 
-export default function ChoiceInteraction({ prompt, onSubmit, loading }: Props) {
-    const handleSelect = (key: string) => {
-        onSubmit(key);
+export default function ChoiceInteraction({ prompt, meta, onSubmit, loading }: Props) {
+    const choices = meta?.choices || [
+        "Positive / High Control",
+        "Neutral / Mixed",
+        "Negative / Stress"
+    ];
+
+    const labels = ["A", "B", "C", "D", "E", "F"];
+
+    const handleSelect = (text: string) => {
+        // Send the FULL text so Interpreter can analyze it
+        onSubmit(text);
     };
 
     return (
@@ -18,30 +28,17 @@ export default function ChoiceInteraction({ prompt, onSubmit, loading }: Props) 
             </h2>
 
             <div className="flex flex-col space-y-3">
-                <button
-                    onClick={() => handleSelect('A')}
-                    disabled={loading}
-                    className="p-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left transition-all disabled:opacity-50"
-                >
-                    <span className="font-bold text-blue-400 mr-2">A.</span>
-                    Positive / High Control
-                </button>
-                <button
-                    onClick={() => handleSelect('B')}
-                    disabled={loading}
-                    className="p-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left transition-all disabled:opacity-50"
-                >
-                    <span className="font-bold text-blue-400 mr-2">B.</span>
-                    Neutral / Mixed
-                </button>
-                <button
-                    onClick={() => handleSelect('C')}
-                    disabled={loading}
-                    className="p-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left transition-all disabled:opacity-50"
-                >
-                    <span className="font-bold text-blue-400 mr-2">C.</span>
-                    Negative / Stress
-                </button>
+                {choices.map((choice: string, idx: number) => (
+                    <button
+                        key={idx}
+                        onClick={() => handleSelect(choice)}
+                        disabled={loading}
+                        className="p-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-left transition-all disabled:opacity-50 flex items-start"
+                    >
+                        <span className="font-bold text-blue-400 mr-2 mt-0.5">{labels[idx] || idx + 1}.</span>
+                        <span className="text-slate-200">{choice}</span>
+                    </button>
+                ))}
             </div>
 
             <p className="text-xs text-center text-gray-500">

@@ -49,25 +49,34 @@ export class NormalizationService {
         else if (type === 'choice') {
             const char = responseText.trim().toUpperCase().charAt(0);
 
-            targets.forEach(t => uncertainty[t] = 0.12);
-
-            if (char === 'A') {
-                if (targets.includes('control')) signals.control = 0.8;
-                if (targets.includes('autonomy_friction')) signals.autonomy_friction = 0.2;
-                targets.forEach(t => { if (t !== 'control' && t !== 'autonomy_friction') signals[t] = 0.7; });
-            } else if (char === 'B') {
-                targets.forEach(t => signals[t] = 0.5);
-            } else if (char === 'C') {
-                if (targets.includes('control')) signals.control = 0.2;
-                if (targets.includes('autonomy_friction')) signals.autonomy_friction = 0.8;
-                targets.forEach(t => { if (t !== 'control' && t !== 'autonomy_friction') signals[t] = 0.3; });
+            // Legacy A/B/C Check (Single Char input)
+            if (responseText.trim().length === 1 && ['A', 'B', 'C'].includes(char)) {
+                targets.forEach(t => uncertainty[t] = 0.12);
+                if (char === 'A') {
+                    if (targets.includes('control')) signals.control = 0.8;
+                    if (targets.includes('autonomy_friction')) signals.autonomy_friction = 0.2;
+                    targets.forEach(t => { if (t !== 'control' && t !== 'autonomy_friction') signals[t] = 0.7; });
+                } else if (char === 'B') {
+                    targets.forEach(t => signals[t] = 0.5);
+                } else if (char === 'C') {
+                    if (targets.includes('control')) signals.control = 0.2;
+                    if (targets.includes('autonomy_friction')) signals.autonomy_friction = 0.8;
+                    targets.forEach(t => { if (t !== 'control' && t !== 'autonomy_friction') signals[t] = 0.3; });
+                }
             } else {
-                // If the choice key isn't recognized, mark as nonsense
-                // But sometimes choices are arbitrary ID strings. For now we assume the A/B/C heuristic from mock.
-                // If it's not A/B/C, maybe fallback to neutral?
-                // For safety:
-                flags.nonsense = true;
-                confidence = 0.2;
+                // Dynamic Choice (Full Text) -> Use LLM Adapter
+                const analysis = await llmAdapter.interpretTextResponse(responseText, targets);
+                analysis.forEach(a => {
+                    signals[a.parameter] = a.signal;
+                    uncertainty[a.parameter] = a.uncertainty;
+                });
+
+                // If LLM returned nothing or failed, we might want to flag nonsense, 
+                // but llmAdapter fallback heuristics usually cover it.
+                if (analysis.length === 0) {
+                    flags.nonsense = true;
+                    confidence = 0.2;
+                }
             }
         }
         // --- 3. TEXT ---

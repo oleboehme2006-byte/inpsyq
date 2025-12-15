@@ -4,11 +4,12 @@ import { useState } from 'react';
 
 interface Props {
     prompt: string;
+    meta?: any;
     onSubmit: (value: string) => void;
     loading: boolean;
 }
 
-export default function SliderInteraction({ prompt, onSubmit, loading }: Props) {
+export default function SliderInteraction({ prompt, meta, onSubmit, loading }: Props) {
     const [value, setValue] = useState(4); // Default to middle (1-7 scale)
 
     return (
@@ -34,8 +35,8 @@ export default function SliderInteraction({ prompt, onSubmit, loading }: Props) 
                 />
 
                 <div className="flex justify-between text-xs text-gray-400 px-1">
-                    <span>Strongly Disagree (1)</span>
-                    <span>Strongly Agree (7)</span>
+                    <span>{meta?.min_label || "Strongly Disagree"} (1)</span>
+                    <span>{meta?.max_label || "Strongly Agree"} (7)</span>
                 </div>
             </div>
 

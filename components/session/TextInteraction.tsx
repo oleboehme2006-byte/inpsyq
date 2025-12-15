@@ -4,11 +4,12 @@ import { useState } from 'react';
 
 interface Props {
     prompt: string;
+    meta?: any;
     onSubmit: (value: string) => void;
     loading: boolean;
 }
 
-export default function TextInteraction({ prompt, onSubmit, loading }: Props) {
+export default function TextInteraction({ prompt, meta, onSubmit, loading }: Props) {
     const [value, setValue] = useState('');
 
     return (

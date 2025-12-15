@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed:prod": "npx -y tsx scripts/seed_prod.ts"
+    "seed:prod": "npx -y tsx scripts/seed_prod.ts",
+    "verify:briefing": "npx tsx scripts/verify_briefing.ts",
+    "verify:llm_session": "npx tsx scripts/verify_llm_session.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -16,9 +18,11 @@
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.300.0",
     "next": "14.1.0",
+    "openai": "^6.10.0",
     "pg": "^8.16.3",
     "react": "^18",
     "react-dom": "^18",
+    "recharts": "^3.5.1",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
