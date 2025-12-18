@@ -1,5 +1,6 @@
 import { DiagnosticAlert } from './types';
 import { Construct } from '../measurement/constructs';
+import { safeToFixed, safePercent } from '@/lib/utils/safeNumber';
 
 export class DiagnosticsService {
 
@@ -27,7 +28,7 @@ export class DiagnosticsService {
             return {
                 type: 'entropy_decay',
                 severity: 'warning',
-                message: `Low Entropy (${entropy.toFixed(2)}). Model outputs are clustering excessively.`,
+                message: `Low Entropy (${safeToFixed(entropy, 2)}). Model outputs are clustering excessively.`,
                 metric_value: entropy
             };
         }
@@ -47,7 +48,7 @@ export class DiagnosticsService {
             return {
                 type: 'construct_saturation',
                 severity: 'critical',
-                message: `Construct '${construct}' is saturated (${(saturationRate * 100).toFixed(0)}% extremes). Governance adjustment needed.`,
+                message: `Construct '${construct}' is saturated (${safePercent(saturationRate)} extremes). Governance adjustment needed.`,
                 metric_value: saturationRate
             };
         }

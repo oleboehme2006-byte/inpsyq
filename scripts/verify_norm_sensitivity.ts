@@ -3,6 +3,7 @@ import { loadEnv } from '@/lib/env/loadEnv';
 loadEnv();
 
 import { normService } from '@/services/norms/service';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 import { CONSTRUCTS } from '@/services/measurement/constructs';
 
 async function verify() {
@@ -17,7 +18,7 @@ async function verify() {
     console.log('\n2. Testing Healthy Assessment...');
     const healthyScore = 0.75; // Mean is 0.7 for autonomy
     const assessmentH = normService.assessDeviation('autonomy', healthyScore, profile);
-    console.log(`Score: ${healthyScore}, Severity: ${assessmentH.severity}, Z: ${assessmentH.deviation_z_score.toFixed(2)}`);
+    console.log(`Score: ${healthyScore}, Severity: ${assessmentH.severity}, Z: ${safeToFixed(assessmentH.deviation_z_score, 2)}`);
 
     if (assessmentH.severity === 'normal') {
         console.log('✅ 0.75 is normal for mean 0.7 sigma 0.15');
@@ -29,7 +30,7 @@ async function verify() {
     console.log('\n3. Testing Risk Assessment...');
     const riskScore = 0.2; // Very low autonomy
     const assessmentR = normService.assessDeviation('autonomy', riskScore, profile);
-    console.log(`Score: ${riskScore}, Severity: ${assessmentR.severity}, Z: ${assessmentR.deviation_z_score.toFixed(2)}`);
+    console.log(`Score: ${riskScore}, Severity: ${assessmentR.severity}, Z: ${safeToFixed(assessmentR.deviation_z_score, 2)}`);
 
     if (assessmentR.severity === 'extreme_risk' || assessmentR.severity === 'risk_deviation') {
         console.log('✅ Low autonomy flagged as risk.');

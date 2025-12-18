@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
 import { normalizationService } from '@/services/normalizationService';
 import { inferenceEngine } from '@/services/inferenceService';
+import { safeToFixed, safeNumber } from '@/lib/utils/safeNumber';
 import { Parameter } from '@/lib/constants';
 
 // Define valid parameter keys
@@ -48,16 +49,27 @@ export async function POST(req: Request) {
 
             // 4. Update Inference
             for (const t of parameterTargets) {
-                // Now t is strictly typed as ParamKey
                 const val = signals[t];
                 const unc = uncertainty[t];
 
+                // Skip if signal not produced for this target
+                if (val === undefined || val === null) continue;
+
+                // Guard: Prevent Posterior Collapse
+                // Minimum uncertainty for single-item is ~0.2 (R=0.04). 
+                const guardedConf = Math.max(0.1, safeNumber(encoded.confidence));
+                const guardedUnc = Math.max(0.2, safeNumber(unc));
+                const guardedVal = safeNumber(val);
+
+                // Observability (Dev)
+                console.log(`[Submit] Inference Update: ${t} Val=${safeToFixed(guardedVal, 3)} Unc=${safeToFixed(guardedUnc, 3)} Conf=${safeToFixed(guardedConf, 2)}`);
+
                 await inferenceEngine.updateState(
                     userId,
-                    val,
-                    unc,
+                    guardedVal,
+                    guardedUnc,
                     t,
-                    encoded.confidence,
+                    guardedConf,
                     encoded.flags.nonsense
                 );
             }
@@ -68,8 +80,11 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ ok: true });
 
-    } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+
+
+
+    } catch (error: any) {
+        console.error('[API] /session/submit Failed:', error.message, error.stack);
+        return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
     }
 }

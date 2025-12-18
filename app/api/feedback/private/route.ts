@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { privateFeedbackService } from '@/services/privateFeedbackService';
 import { query } from '@/db/client';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(req: Request) {
     try {
         const { userId, content } = await req.json();

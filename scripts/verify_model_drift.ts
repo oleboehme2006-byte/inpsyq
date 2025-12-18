@@ -3,6 +3,7 @@ import { loadEnv } from '@/lib/env/loadEnv';
 loadEnv();
 
 import { diagnosticsService } from '@/services/model_diagnostics/tracker';
+import { safeToFixed, safePercent } from '@/lib/utils/safeNumber';
 
 async function verify() {
     console.log('--- Verifying Structural Model: Diagnostics ---');
@@ -14,7 +15,7 @@ async function verify() {
     const entAlert = diagnosticsService.checkEntropy(clustered);
 
     if (entAlert && entAlert.type === 'entropy_decay') {
-        console.log(`✅ Low Entropy flagged: ${entAlert.metric_value.toFixed(2)}`);
+        console.log(`✅ Low Entropy flagged: ${safeToFixed(entAlert.metric_value, 2)}`);
     } else {
         console.error('❌ Failed to flag low entropy.');
         process.exit(1);
@@ -27,7 +28,7 @@ async function verify() {
     const satAlert = diagnosticsService.checkSaturation('autonomy', extremes);
 
     if (satAlert && satAlert.type === 'construct_saturation') {
-        console.log(`✅ Saturation flagged: ${(satAlert.metric_value * 100).toFixed(0)}%`);
+        console.log(`✅ Saturation flagged: ${safePercent(satAlert.metric_value)}`);
     } else {
         console.error('❌ Failed to flag saturation.');
         process.exit(1);

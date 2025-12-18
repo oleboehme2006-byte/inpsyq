@@ -1,6 +1,7 @@
 
 import { AnalysedDriver } from './types';
 import { PARAM_INFLUENCE, IS_ACTIONABLE } from './constants';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 export function attributeDrivers(parameterMeans: Record<string, number>): { top_risks: AnalysedDriver[], top_strengths: AnalysedDriver[] } {
     const drivers: AnalysedDriver[] = [];
@@ -38,7 +39,7 @@ export function attributeDrivers(parameterMeans: Record<string, number>): { top_
         drivers.push({
             parameter: param,
             label: param.replace(/_/g, ' '),
-            impact: parseFloat(deviation.toFixed(2)),
+            impact: parseFloat(safeToFixed(deviation, 2)),
             direction: isNegative ? 'NEGATIVE' : 'POSITIVE', // Logic check: actually this field in Type means "Does it help or hurt". 
             // If it's a Risk, it hurts. If Strength, it helps.
             // Wait, "Risk" means it IS hurting. "Strength" means it IS helping.
@@ -49,7 +50,7 @@ export function attributeDrivers(parameterMeans: Record<string, number>): { top_
 
             influence_scope: PARAM_INFLUENCE[param] || 'SYSTEMIC',
             is_actionable: IS_ACTIONABLE[param] || false,
-            explanation: `${param.replace(/_/g, ' ')} is ${isNegative ? 'high' : 'low'} (${val.toFixed(2)}).`
+            explanation: `${param.replace(/_/g, ' ')} is ${isNegative ? 'high' : 'low'} (${safeToFixed(val, 2)}).`
         });
     }
 

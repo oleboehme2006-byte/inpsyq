@@ -1,5 +1,6 @@
 import { query } from '../db/client';
 import { Parameter, MIN_VARIANCE, MAX_VARIANCE, R_MULTIPLIER } from '../lib/constants';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 interface LatentState {
     mean: number;
@@ -61,9 +62,9 @@ export class InferenceEngine {
 
         // DEBUG LOG
         console.log(`[Inference] UID=${userId.slice(0, 8)} Param=${parameter}`);
-        console.log(`   PRIOR: m=${currentMean.toFixed(3)} v=${currentVariance.toFixed(3)}`);
-        console.log(`   OBS:   y=${signalMean.toFixed(3)} R=${R.toFixed(3)} (conf=${confidence})`);
-        console.log(`   POST:  m=${newMean.toFixed(3)} v=${newVariance.toFixed(3)}`);
+        console.log(`   PRIOR: m=${safeToFixed(currentMean, 3)} v=${safeToFixed(currentVariance, 3)}`);
+        console.log(`   OBS:   y=${safeToFixed(signalMean, 3)} R=${safeToFixed(R, 3)} (conf=${confidence})`);
+        console.log(`   POST:  m=${safeToFixed(newMean, 3)} v=${safeToFixed(newVariance, 3)}`);
 
         // Persist
         await query(`

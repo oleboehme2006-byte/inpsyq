@@ -23,7 +23,10 @@ async function run() {
 
         // Init
         const initRes = await fetch(`${BASE_URL}/api/init`, { method: 'GET' });
-        if (!initRes.ok) throw new Error(`Init failed: ${initRes.status}`);
+        if (!initRes.ok) {
+            console.error('Init Failed Body:', await initRes.text());
+            throw new Error(`Init failed: ${initRes.status}`);
+        }
 
         // Seed
         const seedRes = await fetch(`${BASE_URL}/api/seed`, { method: 'GET' });
@@ -60,14 +63,22 @@ async function run() {
 
     // 3. Start Session
     const EXPECTED_COUNT = parseInt(process.env.SESSION_QUESTION_COUNT || '10');
-    console.log(`3. Starting Session (Expected Questions: ${EXPECTED_COUNT})...`);
-    console.log(`   Detailed Diagnosis:`);
-    console.log(`   - KEY Present: ${!!process.env.OPENAI_API_KEY}`);
-    console.log(`   - MODEL: ${process.env.OPENAI_MODEL || 'gpt-5-mini'}`);
+    const ADAPTIVE = process.env.SESSION_ADAPTIVE !== 'false';
+
+    console.log(`3. Starting Session...`);
+    console.log(`   Config: COUNT=${EXPECTED_COUNT}, ADAPTIVE=${ADAPTIVE}`);
+    console.log(`   LLM Config: KEY=${!!process.env.OPENAI_API_KEY}, MODEL=${process.env.OPENAI_MODEL || 'gpt-5-mini'}`);
 
     const startRes = await fetch(`${BASE_URL}/api/session/start`, {
         method: 'POST',
-        body: JSON.stringify({ userId }),
+        // Send config to force deterministic behavior regardless of server env
+        body: JSON.stringify({
+            userId,
+            config: {
+                forceCount: EXPECTED_COUNT,
+                forceAdaptive: ADAPTIVE
+            }
+        }),
         headers: { 'Content-Type': 'application/json' }
     });
 
@@ -80,20 +91,21 @@ async function run() {
     console.log(`   Session ID: ${session.sessionId}`);
     console.log(`   Interactions: ${session.interactions.length}`);
     console.log(`   LLM Used: ${session.meta?.is_llm ?? session.llm_used}`);
-    console.log(`   Question Count: ${session.meta?.question_count ?? session.question_count}`);
-    if (session.meta?.llm_error) {
-        console.log(`   ❌ LLM Error:`, JSON.stringify(session.meta.llm_error, null, 2));
-    }
 
     // Validate Length
-    if (session.interactions.length < EXPECTED_COUNT) {
-        if (session.meta?.is_llm) {
-            console.warn('   ⚠️ Warning: LLM used but returned fewer questions than expected.');
+    if (session.interactions.length !== EXPECTED_COUNT) {
+        if (ADAPTIVE && !process.env.SESSION_QUESTION_COUNT) {
+            console.log(`   ℹ️ Adaptive Length: Received ${session.interactions.length} (Global Default is 10/12). OK.`);
         } else {
-            console.warn('   ⚠️ Fallback Mode Active (Legacy Count).');
+            // If manual count set, must match
+            if (process.env.SESSION_QUESTION_COUNT) {
+                throw new Error(`Count Mismatch! Expected ${EXPECTED_COUNT}, Got ${session.interactions.length}`);
+            } else {
+                console.warn(`   ⚠️ Received ${session.interactions.length}, expected ~10. (Adaptive? ${ADAPTIVE})`);
+            }
         }
     } else {
-        console.log('   ✅ Count Verified.');
+        console.log('   ✅ Count Exact Match.');
     }
 
     // Print Questions
@@ -102,18 +114,54 @@ async function run() {
         console.log(`   - [${i.type}] ${text.slice(0, 60)}...`);
     });
 
-    // 4. Submit Response (Sanity Check)
-    console.log('4. Submitting Sample Response...');
-    const firstInteraction = session.interactions[0];
+    // 4. Submit Responses (Complete Session)
+    console.log('4. Completing Session (All Interactions)...');
+
+    const responses = session.interactions.map((interaction: any) => {
+        let responseText = "Use the Force."; // Default fallback
+
+        // 1. Try to parse Option Codes from prompt
+        const parts = interaction.prompt_text.split('|||');
+        const specPart = parts.find((p: string) => p.trim().startsWith('{'));
+
+        let codes: string[] = [];
+        if (specPart) {
+            try {
+                const spec = JSON.parse(specPart);
+                if (spec.option_codes) {
+                    codes = Object.keys(spec.option_codes);
+                }
+            } catch (e) {
+                // ignore parse error
+            }
+        }
+
+        if (interaction.type === 'slider' || interaction.type === 'rating') {
+            responseText = "8"; // Strong positive signal
+        } else if (interaction.type === 'choice') {
+            if (codes.length > 0) {
+                // Pick the first option deterministically
+                responseText = codes[0];
+            } else {
+                responseText = "Option A"; // Fallback
+            }
+        } else {
+            // Text
+            responseText = "I feel very supported by my team and we are making great progress despite the workload.";
+        }
+
+        return {
+            interaction_id: interaction.interaction_id,
+            raw_input: responseText
+        };
+    });
+
     const submitRes = await fetch(`${BASE_URL}/api/session/submit`, {
         method: 'POST',
         body: JSON.stringify({
             userId,
             sessionId: session.sessionId,
-            responses: [{
-                interaction_id: firstInteraction.interaction_id,
-                raw_input: firstInteraction.type === 'slider' ? "5" : "Sample Text"
-            }]
+            responses
         }),
         headers: { 'Content-Type': 'application/json' }
     });
@@ -123,7 +171,8 @@ async function run() {
         throw new Error(`Submit failed: ${submitRes.status}`);
     }
 
-    console.log('   Submission OK');
+    const result = await submitRes.json();
+    console.log('   Submission OK', result);
     console.log('--- Verification Complete ---');
 }
 

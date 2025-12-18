@@ -1,5 +1,6 @@
 
 import { DecisionTrend, TrendDirection } from './types';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 export interface HistoryPoint {
     date: Date;
@@ -42,7 +43,7 @@ export function evaluateTrend(history: HistoryPoint[]): DecisionTrend {
     else if (slope < -THRESHOLD) direction = 'DETERIORATING';
 
     // Velocity is the slope
-    const velocity = parseFloat(slope.toFixed(3));
+    const velocity = parseFloat(safeToFixed(slope, 3));
 
     return {
         direction,

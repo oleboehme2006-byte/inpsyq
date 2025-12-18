@@ -4,6 +4,7 @@ loadEnv();
 
 import { interactionGenerator } from '@/services/llm/generators';
 import { normalizationService } from '@/services/normalizationService';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 import { LLM_CONFIG } from '@/services/llm/client';
 import { Parameter } from '@/lib/constants';
 
@@ -118,8 +119,8 @@ async function verify() {
     const mockSpecInv = { option_codes: { "Yes": [{ construct: "autonomy", direction: 1, strength: 0.9, confidence: 1, evidence_type: "self_report" }] } };
     const resChoice = await normalizationService.normalizeResponse("Yes", "choice", [], { prompt_text: `Control? ||| ${JSON.stringify(mockSpecInv)}` });
 
-    console.log(`Text Uncertainty (Control): ${resText.uncertainty.control.toFixed(4)}`);
-    console.log(`Choice Uncertainty (Control): ${resChoice.uncertainty.control.toFixed(4)}`);
+    console.log(`Text Uncertainty (Control): ${safeToFixed(resText.uncertainty.control, 4)}`);
+    console.log(`Choice Uncertainty (Control): ${safeToFixed(resChoice.uncertainty.control, 4)}`);
 
     if (resChoice.uncertainty.control < resText.uncertainty.control) {
         console.log('✅ Choice has lower uncertainty than Text (Invariance Success).');
@@ -146,7 +147,7 @@ async function verify() {
 
     const aggResult = measurementService.aggregate(conflictEvidence);
     const m = aggResult.autonomy;
-    console.log(`Conflict Aggregate: Mean=${m.mean.toFixed(2)}, Sigma=${m.sigma.toFixed(2)}`);
+    console.log(`Conflict Aggregate: Mean=${safeToFixed(m.mean, 2)}, Sigma=${safeToFixed(m.sigma, 2)}`);
 
     if (m.sigma > 0.5) { // Expected inflation
         console.log('✅ Sigma inflated due to conflict.');

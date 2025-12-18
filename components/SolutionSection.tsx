@@ -1,5 +1,7 @@
 "use client";
 
+import { safeToFixed } from '@/lib/utils/safeNumber';
+
 import FadeIn from "./ui/FadeIn";
 import { Heart, Database, Brain } from "lucide-react";
 import { motion } from "framer-motion";
@@ -61,7 +63,7 @@ export default function SolutionSection() {
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-sm text-gray-300 font-medium">{param}</span>
                                             <span className="text-xs text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                                                σ: {((i * 0.17 % 0.5) + 0.1).toFixed(2)}
+                                                σ: {safeToFixed((i * 0.17 % 0.5) + 0.1, 2)}
                                             </span>
                                         </div>
 

@@ -3,6 +3,7 @@ import { loadEnv } from '@/lib/env/loadEnv';
 loadEnv();
 
 import { rolePowerService } from '@/services/roles/service';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 async function verify() {
     console.log('--- Verifying Structural Model: Role Power ---');
@@ -12,8 +13,8 @@ async function verify() {
     const riskIC = rolePowerService.getSuppressionRisk('individual_contributor');
     const riskExec = rolePowerService.getSuppressionRisk('executive');
 
-    console.log(`IC Risk: ${riskIC.toFixed(2)}`);
-    console.log(`Exec Risk: ${riskExec.toFixed(2)}`);
+    console.log(`IC Risk: ${safeToFixed(riskIC, 2)}`);
+    console.log(`Exec Risk: ${safeToFixed(riskExec, 2)}`);
 
     if (riskIC > riskExec) {
         console.log('✅ IC Validation Risk > Exec Risk (Correct Power Asymmetry)');

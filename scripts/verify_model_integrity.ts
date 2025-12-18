@@ -3,6 +3,7 @@ import { loadEnv } from '@/lib/env/loadEnv';
 loadEnv();
 
 import { ontologyService } from '@/services/ontology';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 import { CONSTRUCTS } from '@/services/measurement/constructs';
 
 async function verify() {
@@ -26,7 +27,7 @@ async function verify() {
     // 2. Check Downstream Effects
     console.log('\n2. Testing Traversal (Autonomy -> ?)...');
     const effects = ontologyService.getDownstreamEffects('autonomy');
-    console.log('Downstream of Autonomy:', effects.map(e => `${e.type}->${e.construct} (${e.path_strength.toFixed(2)})`));
+    console.log('Downstream of Autonomy:', effects.map(e => `${e.type}->${e.construct} (${safeToFixed(e.path_strength, 2)})`));
 
     if (effects.find(e => e.construct === 'engagement')) {
         console.log('✅ Autonomy correctly links to Engagement (Depth > 1)');

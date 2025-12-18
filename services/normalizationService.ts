@@ -17,11 +17,11 @@ export class NormalizationService {
             try {
                 const parts = interaction.prompt_text.split('|||');
                 const specIndex = parts.findIndex((p: string) => p.trim().startsWith('{')); // Find JSON part
-                if (specIndex > -1) {
+                if (specIndex > -1 && parts[specIndex]) {
                     const spec = JSON.parse(parts[specIndex].trim());
 
                     // If we have option_codes, try to match
-                    if (spec.option_codes) {
+                    if (spec.option_codes && typeof spec.option_codes === 'object') {
                         // Exact match check (case insensitive trim)
                         const matchLabel = Object.keys(spec.option_codes).find(label =>
                             label.toLowerCase().trim() === responseText.toLowerCase().trim()

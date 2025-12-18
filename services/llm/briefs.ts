@@ -1,6 +1,7 @@
 import { getOpenAIClient, LLM_CONFIG } from './client';
 import { DecisionSnapshot } from '@/services/decision/types';
 import { BriefOutput } from './types';
+import { safePercent } from '@/lib/utils/safeNumber';
 
 export interface BriefInput {
     org_id: string;
@@ -133,13 +134,13 @@ export class BriefingService {
         const s = input.snapshot;
         return {
             headline: `${s.state.label} State: Priority is ${s.recommendation.primary.title}`,
-            state_summary: `Team state is currently ${s.state.label} with a health score of ${(s.state.score * 100).toFixed(0)}%. ${s.state.explanation}`,
+            state_summary: `Team state is currently ${s.state.label} with a health score of ${safePercent(s.state.score)}. ${s.state.explanation}`,
             trend_summary: `The trend is ${s.trend.direction} over the last few weeks.`,
             top_drivers: s.drivers.top_risks.slice(0, 3).map(d => ({
                 name: d.label,
                 scope: d.influence_scope,
                 why_it_matters: d.explanation,
-                evidence_from_data: `Impact score: ${(d.impact * 100).toFixed(0)}%`
+                evidence_from_data: `Impact score: ${safePercent(d.impact)}`
             })),
             influence_actions: [
                 {

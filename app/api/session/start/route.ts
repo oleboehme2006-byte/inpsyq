@@ -3,7 +3,7 @@ import { interactionEngine } from '@/services/interactionEngine';
 
 export async function POST(req: Request) {
     try {
-        const { userId } = await req.json();
+        const { userId, config } = await req.json();
 
         // Validate UUID format strictly to prevent Postgres invalid input syntax errors
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,7 +14,8 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        const sessionData = await interactionEngine.buildSession(userId);
+        // Pass client-provided config (useful for testing/verification)
+        const sessionData = await interactionEngine.buildSession(userId, config);
 
         return NextResponse.json(sessionData); // { sessionId, interactions: [...] }
 

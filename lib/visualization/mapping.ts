@@ -11,6 +11,8 @@
 // 1. Raw Payload Types (Strictly Typed)
 // ==========================================
 
+import { safePercent } from '@/lib/utils/safeNumber';
+
 export interface RawProfileRow {
     org_id: string;
     team_id: string;
@@ -222,7 +224,7 @@ export const getIndexZone = (metricId: string, rawValue: number): ZoneDefinition
 
 export const formatPercent = (val: number | undefined | null) => {
     if (val === undefined || val === null || isNaN(val)) return 'N/A';
-    return `${(val * 100).toFixed(0)}%`;
+    return safePercent(val);
 };
 
 // ==========================================

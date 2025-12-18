@@ -1,6 +1,7 @@
 
 import { DecisionState, StateLabel } from './types';
 import { THRESHOLDS } from './constants';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 export interface StateInput {
     // Normalized 0-1 inputs where 1 is "High presence of trait" (not necessarily good/bad yet)
@@ -65,11 +66,11 @@ export function evaluateState(metrics: StateInput): DecisionState {
     }
 
     // Severity: 1.0 = Worst (avgHealth = 0), 0.0 = Best (avgHealth = 1)
-    const severity = parseFloat((1 - avgHealth).toFixed(2));
+    const severity = parseFloat(safeToFixed(1 - avgHealth, 2));
 
     return {
         label,
-        score: parseFloat(avgHealth.toFixed(2)),
+        score: parseFloat(safeToFixed(avgHealth, 2)),
         severity,
         primary_metric: primary,
         explanation: `${explanation} Primary concern: ${primary}.`

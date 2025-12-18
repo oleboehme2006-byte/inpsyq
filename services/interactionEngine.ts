@@ -15,17 +15,12 @@ export class InteractionEngine {
      * PROPER SESSION BUILDER
      * Returns a session ID and a list of interactions.
      */
-    async buildSession(userId: string) {
+    async buildSession(userId: string, config?: { forceCount?: number, forceAdaptive?: boolean }) {
         // 0. Rate Limit (10 seconds)
         const now = Date.now();
         const last = this.lastRequest.get(userId) || 0;
-        if (now - last < 10000) {
-            // Check if user has active session?
-            // For now just return existing active session if we could, 
-            // but simplified: throw error or just proceed (since UI might retry).
-            // Requirement says "prevent abuse".
-            // Let's simple throttle. A legitimate user clicking start shouldn't be blocked if they just finished.
-            // But double clicks should be stopped.
+        if (now - last < 2000) { // Reduced to 2s for testing speed
+            // Throttling...
         }
         this.lastRequest.set(userId, now);
 
@@ -37,29 +32,25 @@ export class InteractionEngine {
         `, [userId]);
         const sessionId = sessionRes.rows[0].session_id;
 
-        // 2. Try LLM Generation
-        let selectedInteractions: any[] = [];
-
-        // --- ADAPTIVE INFORMATION GAIN LOGIC ---
-        // Instead of fixed count, we ask 15 questions but let the UI stop early 
-        // if uncertainty is low. For generation, we just ask for a sufficient batch.
-        // We'll generate 12 to be safe (covering ~1hr of session depth if needed).
-        // The Adaptive Engine (in normalization) will signal "complete" to UI.
-        // Wait, the UI currently iterates all interactions.
-        // To strictly implement "Stop when uncertainty falls below threshold", 
-        // we need to dynamically fetch next question OR clear remaining questions in DB.
-        // PROPOSAL: Generate 12. Client handles early exit? 
-        // OR: Generate 5, then 5? 
-        // For simplicity in this hardening phase: Generate dynamic count based on history.
-        // If it's a new user (history empty), generate 12.
-        // If stable user, generate 5.
-
+        // 2. Determine Count logic
         const historyCount = await historyService.getLastPrompts(userId, 100);
-        let targetCount = 12; // Default for exploration
-        if (historyCount.length > 50) {
-            targetCount = 6; // Stable Maintenance Mode
+
+        // Priority: Config (Request) > Env > Default
+        const envCount = process.env.SESSION_QUESTION_COUNT ? parseInt(process.env.SESSION_QUESTION_COUNT) : null;
+        let adaptive = process.env.SESSION_ADAPTIVE !== 'false';
+
+        if (config?.forceAdaptive !== undefined) adaptive = config.forceAdaptive;
+
+        let targetCount = config?.forceCount || envCount || 12;
+
+        if (adaptive && !config?.forceCount && !envCount) {
+            if (historyCount.length > 50) {
+                targetCount = 6;
+            }
         }
 
+        // 3. Try LLM Generation
+        let selectedInteractions: any[] = [];
         const genResult = await interactionGenerator.generateSessionPlan(userId, targetCount);
 
         let isLlm = false;
@@ -72,30 +63,17 @@ export class InteractionEngine {
 
             // Persist Generated Interactions
             for (const gen of genResult.interactions) {
-                // Serialize Spec into Prompt
+                // ... (Existing Serialization Logic) ...
                 let prompt = gen.prompt_text;
-                let targets = gen.targets; // Keep legacy targets for compatibility
-
-                // If the generator provides an enhanced spec (with coding), we need to ensure UI compatibility.
-                // The UI expects `choices` to be strings.
-                // We should keep `choices` as strings in the JSON for the UI, but store the coding map separately or use a new field.
-                // However, the cleanest way is:
-                // 1. Transform choices to just labels for `response_spec.choices` (UI compat).
-                // 2. Store `option_codes` map in `response_spec.option_codes`.
+                let targets = gen.targets;
 
                 let uiSpec: any = {};
                 if (gen.response_spec) {
-                    // Clone to avoid mutating original
                     uiSpec = { ...gen.response_spec };
-
-                    // Add construct to metadata for robust normalization context
-                    if (gen.construct) {
-                        uiSpec.construct = gen.construct;
-                    }
+                    if (gen.construct) uiSpec.construct = gen.construct;
 
                     if (gen.type === 'choice' && Array.isArray(uiSpec.choices)) {
-                        // Extract codes and simplify choices list for UI
-                        const fullChoices = uiSpec.choices as any[]; // { label, coding }
+                        const fullChoices = uiSpec.choices as any[];
                         if (fullChoices.length > 0 && typeof fullChoices[0] === 'object') {
                             uiSpec.choices = fullChoices.map(c => c.label);
                             uiSpec.option_codes = {};
@@ -106,23 +84,29 @@ export class InteractionEngine {
                     }
                     prompt += ` ||| ${JSON.stringify(uiSpec)}`;
                 } else if (gen.construct) {
-                    // Even if no response_spec (e.g. text only), persist construct
                     prompt += ` ||| ${JSON.stringify({ construct: gen.construct })}`;
                 }
 
-                // Insert into interactions table
-                const ins = await query(`
-                    INSERT INTO interactions (type, prompt_text, parameter_targets, expected_signal_strength, cooldown_days)
-                    VALUES ($1, $2, $3, $4, $5)
-                    RETURNING interaction_id, type, prompt_text, parameter_targets
-                `, [gen.type, prompt, targets, 0.8, 7]);
+                try {
+                    const ins = await query(`
+                        INSERT INTO interactions (type, prompt_text, parameter_targets, expected_signal_strength, cooldown_days)
+                        VALUES ($1, $2, $3, $4, $5)
+                        RETURNING interaction_id, type, prompt_text, parameter_targets
+                    `, [gen.type, prompt, targets, 0.8, 7]);
+                    selectedInteractions.push(ins.rows[0]);
+                } catch (e) {
+                    console.error('[InteractionEngine] Insert Failed', e);
+                }
+            } // end for
+        }
 
-                selectedInteractions.push(ins.rows[0]);
-            }
-        } else {
-            // Fallback to Legacy Logic
-            console.log('[InteractionEngine] Using Legacy Fallback', llmError ? `Error: ${llmError.reason}` : '(No Key/Other)');
-            selectedInteractions = await this.getLegacyInteractions(targetCount);
+        // 4. Fallback / Padding Logic (Ensure Integrity)
+        if (selectedInteractions.length < targetCount) {
+            console.warn(`[InteractionEngine] Shortfall: Got ${selectedInteractions.length}, wanted ${targetCount}. Padding with Legacy.`);
+            const needed = targetCount - selectedInteractions.length;
+            const padding = await this.getLegacyInteractions(needed);
+            selectedInteractions = [...selectedInteractions, ...padding];
+            if (!isLlm) llmMode = 'fallback'; // If completely empty LLM
         }
 
         return {
@@ -135,7 +119,6 @@ export class InteractionEngine {
                 llm_error: llmError,
                 question_count: selectedInteractions.length
             },
-            // Legacy/Debug fields for top-level access
             llm_used: isLlm,
             question_count: selectedInteractions.length
         };

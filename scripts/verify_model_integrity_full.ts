@@ -13,6 +13,7 @@ import { counterfactualEngine } from '@/services/counterfactuals/engine';
 import { rolePowerService } from '@/services/roles/service';
 import { riskAssessor } from '@/services/risk/assessor';
 import { diagnosticsService } from '@/services/model_diagnostics/tracker';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 async function verify() {
     console.log('--- Full Model Integrity Integration Check (8 Layers) ---');
@@ -35,7 +36,7 @@ async function verify() {
 
     // 7. Roles & Power
     const roleRisk = rolePowerService.getSuppressionRisk('individual_contributor');
-    console.log(`7. Role Power: IC Suppression Risk = ${roleRisk.toFixed(2)}`);
+    console.log(`7. Role Power: IC Suppression Risk = ${safeToFixed(roleRisk, 2)}`);
 
     // 8. Risk Vector
     const risk = riskAssessor.assessRisk(0.1, [], 'executive', 10);

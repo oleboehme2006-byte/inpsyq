@@ -1,4 +1,5 @@
 import { getOpenAIClient, LLM_CONFIG } from './client';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 import { CodingResult } from '@/services/measurement/evidence';
 import { Parameter } from '@/lib/constants';
 import { CONSTRUCTS } from '@/services/measurement/constructs';
@@ -16,7 +17,7 @@ export class ResponseInterpreter {
             let temporalContext = "None";
             if (context.history && context.history.significant_history.length > 0) {
                 temporalContext = context.history.significant_history
-                    .map(h => `- ${h.construct}: Trend=${h.trend}, Volatility=${h.volatility.toFixed(2)}`)
+                    .map(h => `- ${h.construct}: Trend=${h.trend}, Volatility=${safeToFixed(h.volatility, 2)}`)
                     .join('\n');
             }
 

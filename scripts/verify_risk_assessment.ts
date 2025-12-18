@@ -3,6 +3,7 @@ import { loadEnv } from '@/lib/env/loadEnv';
 loadEnv();
 
 import { riskAssessor } from '@/services/risk/assessor';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 async function verify() {
     console.log('--- Verifying Structural Model: Risk Assessment ---');
@@ -10,7 +11,7 @@ async function verify() {
     // 1. Epistemic Risk (High Sigma)
     console.log('\n1. Testing Epistemic Risk (Sigma 0.6)...');
     const risk1 = riskAssessor.assessRisk(0.6, [], 'individual_contributor', 10);
-    console.log(`Vector: E=${risk1.vector.epistemic.toFixed(2)}, Eth=${risk1.vector.ethical}, Org=${risk1.vector.organizational}`);
+    console.log(`Vector: E=${safeToFixed(risk1.vector.epistemic, 2)}, Eth=${risk1.vector.ethical}, Org=${risk1.vector.organizational}`);
     console.log(`Level: ${risk1.overall_level}, Blocking: ${risk1.blocking}`);
 
     if (risk1.blocking && risk1.vector.epistemic > 0.5) {
@@ -23,7 +24,7 @@ async function verify() {
     // 2. Ethical Risk (Severe Burnout Signal)
     console.log('\n2. Testing Ethical Risk (Severe Emotional Load)...');
     const risk2 = riskAssessor.assessRisk(0.1, [{ construct: 'emotional_load', severity: 'extreme_risk' }], 'individual_contributor', 10);
-    console.log(`Vector: E=${risk2.vector.epistemic.toFixed(2)}, Eth=${risk2.vector.ethical.toFixed(2)}`);
+    console.log(`Vector: E=${safeToFixed(risk2.vector.epistemic, 2)}, Eth=${safeToFixed(risk2.vector.ethical, 2)}`);
 
     if (risk2.vector.ethical > 0.5) {
         console.log('✅ Severe Burnout triggered Ethical Risk.');

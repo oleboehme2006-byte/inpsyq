@@ -3,6 +3,7 @@ import { loadEnv } from '@/lib/env/loadEnv';
 loadEnv();
 
 import { counterfactualEngine } from '@/services/counterfactuals/engine';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 
 async function verify() {
     console.log('--- Verifying Structural Model: Counterfactuals ---');
@@ -14,7 +15,7 @@ async function verify() {
     // Check Engagement (Should Increase)
     const engagement = sim1.predicted_effects.find(e => e.target_construct === 'engagement');
     if (engagement && engagement.direction === 'increase') {
-        console.log(`✅ Autonomy -> Engagement: ${engagement.direction} (Conf: ${engagement.confidence.toFixed(2)})`);
+        console.log(`✅ Autonomy -> Engagement: ${engagement.direction} (Conf: ${safeToFixed(engagement.confidence, 2)})`);
     } else {
         console.error('❌ Failed to predict Autonomy -> Engagement Increase');
         console.log(sim1.predicted_effects);
@@ -27,7 +28,7 @@ async function verify() {
     const dissonance = sim2.predicted_effects.find(e => e.target_construct === 'cognitive_dissonance');
 
     if (dissonance && dissonance.direction === 'decrease') {
-        console.log(`✅ Role Clarity -> Dissonance: ${dissonance.direction} (Conf: ${dissonance.confidence.toFixed(2)})`);
+        console.log(`✅ Role Clarity -> Dissonance: ${dissonance.direction} (Conf: ${safeToFixed(dissonance.confidence, 2)})`);
     } else {
         console.error('❌ Failed to predict Role Clarity -> Dissonance Decrease');
         process.exit(1);

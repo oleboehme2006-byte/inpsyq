@@ -1,4 +1,5 @@
 import { query } from '../db/client';
+import { safeToFixed } from '@/lib/utils/safeNumber';
 import { recommendationEngine } from './recommendationEngine';
 
 export class ProfileService {
@@ -133,7 +134,7 @@ export class ProfileService {
         await insertProfile('OUC', ouc_score);
         await insertProfile('TFP', tfp_score);
 
-        console.log(`[Profile] Generated Team Profiles WRP=${wrp_score.toFixed(2)} OUC=${ouc_score.toFixed(2)} TFP=${tfp_score.toFixed(2)}`);
+
     }
 }
 

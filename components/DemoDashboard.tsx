@@ -1,5 +1,7 @@
 "use client";
 
+import { safeToFixed } from '@/lib/utils/safeNumber';
+
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, Users, Calendar, BarChart2, Info, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
@@ -35,17 +37,17 @@ const generateData = (team: Theme): WeekData[] => {
 
         return {
             strain: {
-                value: Number((isEng ? 7.2 * factor : 5.5 * factor).toFixed(1)),
+                value: Number(safeToFixed(isEng ? 7.2 * factor : 5.5 * factor, 1)),
                 delta: isEng ? -0.2 : 0.4,
                 trend: isEng ? "down" : "up"
             },
             withdrawal: {
-                value: Number((isEng ? 3.5 * factor : 6.2 * factor).toFixed(1)),
+                value: Number(safeToFixed(isEng ? 3.5 * factor : 6.2 * factor, 1)),
                 delta: 0.1,
                 trend: "flat"
             },
             trustGap: {
-                value: Number((isEng ? 4.8 * factor : 2.1 * factor).toFixed(1)),
+                value: Number(safeToFixed(isEng ? 4.8 * factor : 2.1 * factor, 1)),
                 delta: isEng ? -0.5 : 0.1,
                 trend: isEng ? "down" : "flat"
             },
