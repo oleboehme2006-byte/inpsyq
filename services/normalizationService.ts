@@ -1,109 +1,69 @@
-import { Parameter, PARAMETERS } from '@/lib/constants';
+import { Parameter } from '@/lib/constants';
 import { llmAdapter } from './llmAdapter';
+import { Evidence } from '@/services/measurement/evidence';
+import { measurementService } from '@/services/measurement/measurement';
+import { mapMeasurementsToSignals, EncodedSignal } from '@/services/measurement/param_map';
 
-export interface EncodedSignal {
-    signals: Record<Parameter, number>;
-    uncertainty: Record<Parameter, number>;
-    confidence: number;
-    flags: {
-        too_short: boolean;
-        nonsense: boolean;
-        self_harm_risk: boolean;
-    };
-    topics: string[];
-}
+export type { EncodedSignal };
 
 export class NormalizationService {
 
-    async normalizeResponse(responseText: string, type: string, targets: Parameter[]): Promise<EncodedSignal> {
-        const signals: any = {};
-        const uncertainty: any = {};
-        const flags = {
-            too_short: false,
-            nonsense: false,
-            self_harm_risk: false
-        };
-        let confidence = 0.8;
+    async normalizeResponse(responseText: string, type: string, targets: Parameter[], interaction?: any): Promise<EncodedSignal> {
+        let evidenceList: Evidence[] = [];
 
-        // Initialize defaults
-        PARAMETERS.forEach(p => {
-            signals[p] = 0.5;
-            uncertainty[p] = 0.22;
-        });
+        // --- 1. Deterministic Choice (Option Codes) ---
+        // Metadata format: prompt_text ||| META_JSON
+        if (type === 'choice' && interaction?.prompt_text?.includes('|||')) {
+            try {
+                const parts = interaction.prompt_text.split('|||');
+                const specIndex = parts.findIndex((p: string) => p.trim().startsWith('{')); // Find JSON part
+                if (specIndex > -1) {
+                    const spec = JSON.parse(parts[specIndex].trim());
 
-        // --- 1. SLIDER / RATING ---
-        if (type === 'slider' || type === 'rating') {
-            const val = parseInt(responseText);
-            if (!isNaN(val) && val >= 1 && val <= 7) {
-                const normalized = (val - 1) / 6; // 0..1
-                targets.forEach(t => {
-                    signals[t] = normalized;
-                    uncertainty[t] = 0.10;
-                });
-            } else {
-                flags.nonsense = true;
-                confidence = 0.1;
-            }
-        }
-        // --- 2. CHOICE ---
-        else if (type === 'choice') {
-            const char = responseText.trim().toUpperCase().charAt(0);
+                    // If we have option_codes, try to match
+                    if (spec.option_codes) {
+                        // Exact match check (case insensitive trim)
+                        const matchLabel = Object.keys(spec.option_codes).find(label =>
+                            label.toLowerCase().trim() === responseText.toLowerCase().trim()
+                        );
 
-            // Legacy A/B/C Check (Single Char input)
-            if (responseText.trim().length === 1 && ['A', 'B', 'C'].includes(char)) {
-                targets.forEach(t => uncertainty[t] = 0.12);
-                if (char === 'A') {
-                    if (targets.includes('control')) signals.control = 0.8;
-                    if (targets.includes('autonomy_friction')) signals.autonomy_friction = 0.2;
-                    targets.forEach(t => { if (t !== 'control' && t !== 'autonomy_friction') signals[t] = 0.7; });
-                } else if (char === 'B') {
-                    targets.forEach(t => signals[t] = 0.5);
-                } else if (char === 'C') {
-                    if (targets.includes('control')) signals.control = 0.2;
-                    if (targets.includes('autonomy_friction')) signals.autonomy_friction = 0.8;
-                    targets.forEach(t => { if (t !== 'control' && t !== 'autonomy_friction') signals[t] = 0.3; });
+                        if (matchLabel) {
+                            // Found deterministic evidence
+                            evidenceList = spec.option_codes[matchLabel] as Evidence[];
+                        }
+                    }
                 }
-            } else {
-                // Dynamic Choice (Full Text) -> Use LLM Adapter
-                const analysis = await llmAdapter.interpretTextResponse(responseText, targets);
-                analysis.forEach(a => {
-                    signals[a.parameter] = a.signal;
-                    uncertainty[a.parameter] = a.uncertainty;
-                });
-
-                // If LLM returned nothing or failed, we might want to flag nonsense, 
-                // but llmAdapter fallback heuristics usually cover it.
-                if (analysis.length === 0) {
-                    flags.nonsense = true;
-                    confidence = 0.2;
-                }
-            }
-        }
-        // --- 3. TEXT ---
-        else {
-            // Length Check
-            if (responseText.length < 10) {
-                flags.too_short = true;
-                confidence = 0.4;
-                // High uncertainty
-                targets.forEach(t => uncertainty[t] = 0.29);
-            } else {
-                // Use LLM Adapter
-                const analysis = await llmAdapter.interpretTextResponse(responseText, targets);
-                analysis.forEach(a => {
-                    signals[a.parameter] = a.signal;
-                    uncertainty[a.parameter] = a.uncertainty;
-                });
+            } catch (e) {
+                console.warn('[Normalization] Failed to parse option codes', e);
             }
         }
 
-        return {
-            signals,
-            uncertainty,
-            confidence,
-            flags,
-            topics: ['normalized']
-        };
+        // --- 2. Fallback / Text Coding ---
+        // If no evidence found yet (e.g. Text response, or Choice mismatch/legacy)
+        if (evidenceList.length === 0) {
+            const context = {
+                prompt: interaction?.prompt_text?.split('|||')[0].trim() || 'Unknown',
+                construct: interaction?.construct || interaction?.targets?.[0] || 'unknown'
+            };
+
+            try {
+                // LLM Adapter (or Heuristic Fallback)
+                evidenceList = await llmAdapter.codeResponse(responseText, type, context);
+            } catch (e) {
+                console.error('[Normalization] LLM Coding Failed', e);
+                evidenceList = []; // Will result in neutral measurement
+            }
+        }
+
+        // --- 3. Measurement Aggregation ---
+        // Aggregates raw evidence (potentially conflicting/noisy) into stable Construct Measurements (Mean/Sigma)
+        const measurements = measurementService.aggregate(evidenceList);
+
+        // --- 4. Parameter Mapping ---
+        // Maps Construct Measurements to core Frozen Parameters
+        const result = mapMeasurementsToSignals(measurements);
+
+        return result;
     }
 }
 

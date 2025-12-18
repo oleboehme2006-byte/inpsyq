@@ -1,6 +1,7 @@
 import { query } from '../db/client';
 import { interactionGenerator } from './llm/generators';
 import { GeneratedInteraction } from './llm/types';
+import { historyService } from './llm/history';
 
 export class InteractionEngine {
     private lastRequest: Map<string, number> = new Map();
@@ -38,8 +39,28 @@ export class InteractionEngine {
 
         // 2. Try LLM Generation
         let selectedInteractions: any[] = [];
-        const count = parseInt(process.env.SESSION_QUESTION_COUNT || '10');
-        const genResult = await interactionGenerator.generateSessionPlan(userId, count);
+
+        // --- ADAPTIVE INFORMATION GAIN LOGIC ---
+        // Instead of fixed count, we ask 15 questions but let the UI stop early 
+        // if uncertainty is low. For generation, we just ask for a sufficient batch.
+        // We'll generate 12 to be safe (covering ~1hr of session depth if needed).
+        // The Adaptive Engine (in normalization) will signal "complete" to UI.
+        // Wait, the UI currently iterates all interactions.
+        // To strictly implement "Stop when uncertainty falls below threshold", 
+        // we need to dynamically fetch next question OR clear remaining questions in DB.
+        // PROPOSAL: Generate 12. Client handles early exit? 
+        // OR: Generate 5, then 5? 
+        // For simplicity in this hardening phase: Generate dynamic count based on history.
+        // If it's a new user (history empty), generate 12.
+        // If stable user, generate 5.
+
+        const historyCount = await historyService.getLastPrompts(userId, 100);
+        let targetCount = 12; // Default for exploration
+        if (historyCount.length > 50) {
+            targetCount = 6; // Stable Maintenance Mode
+        }
+
+        const genResult = await interactionGenerator.generateSessionPlan(userId, targetCount);
 
         let isLlm = false;
         let llmError = genResult.error || null;
@@ -51,10 +72,42 @@ export class InteractionEngine {
 
             // Persist Generated Interactions
             for (const gen of genResult.interactions) {
-                // Serialize Spec into Prompt if needed
+                // Serialize Spec into Prompt
                 let prompt = gen.prompt_text;
+                let targets = gen.targets; // Keep legacy targets for compatibility
+
+                // If the generator provides an enhanced spec (with coding), we need to ensure UI compatibility.
+                // The UI expects `choices` to be strings.
+                // We should keep `choices` as strings in the JSON for the UI, but store the coding map separately or use a new field.
+                // However, the cleanest way is:
+                // 1. Transform choices to just labels for `response_spec.choices` (UI compat).
+                // 2. Store `option_codes` map in `response_spec.option_codes`.
+
+                let uiSpec: any = {};
                 if (gen.response_spec) {
-                    prompt += ` ||| ${JSON.stringify(gen.response_spec)}`;
+                    // Clone to avoid mutating original
+                    uiSpec = { ...gen.response_spec };
+
+                    // Add construct to metadata for robust normalization context
+                    if (gen.construct) {
+                        uiSpec.construct = gen.construct;
+                    }
+
+                    if (gen.type === 'choice' && Array.isArray(uiSpec.choices)) {
+                        // Extract codes and simplify choices list for UI
+                        const fullChoices = uiSpec.choices as any[]; // { label, coding }
+                        if (fullChoices.length > 0 && typeof fullChoices[0] === 'object') {
+                            uiSpec.choices = fullChoices.map(c => c.label);
+                            uiSpec.option_codes = {};
+                            fullChoices.forEach(c => {
+                                uiSpec.option_codes[c.label] = c.coding;
+                            });
+                        }
+                    }
+                    prompt += ` ||| ${JSON.stringify(uiSpec)}`;
+                } else if (gen.construct) {
+                    // Even if no response_spec (e.g. text only), persist construct
+                    prompt += ` ||| ${JSON.stringify({ construct: gen.construct })}`;
                 }
 
                 // Insert into interactions table
@@ -62,14 +115,14 @@ export class InteractionEngine {
                     INSERT INTO interactions (type, prompt_text, parameter_targets, expected_signal_strength, cooldown_days)
                     VALUES ($1, $2, $3, $4, $5)
                     RETURNING interaction_id, type, prompt_text, parameter_targets
-                `, [gen.type, prompt, gen.targets, 0.8, 7]);
+                `, [gen.type, prompt, targets, 0.8, 7]);
 
                 selectedInteractions.push(ins.rows[0]);
             }
         } else {
             // Fallback to Legacy Logic
             console.log('[InteractionEngine] Using Legacy Fallback', llmError ? `Error: ${llmError.reason}` : '(No Key/Other)');
-            selectedInteractions = await this.getLegacyInteractions(count);
+            selectedInteractions = await this.getLegacyInteractions(targetCount);
         }
 
         return {

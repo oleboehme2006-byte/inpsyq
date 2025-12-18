@@ -9,7 +9,9 @@
     "lint": "next lint",
     "seed:prod": "npx -y tsx scripts/seed_prod.ts",
     "verify:briefing": "npx tsx scripts/verify_briefing.ts",
-    "verify:llm_session": "npx tsx scripts/verify_llm_session.ts"
+    "verify:llm_session": "npx tsx scripts/verify_llm_session.ts",
+    "verify:measurement_layer": "npx tsx scripts/verify_measurement_layer.ts",
+    "verify:full": "npx tsx scripts/verify_model_integrity_full.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

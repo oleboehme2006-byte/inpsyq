@@ -1,46 +1,32 @@
-import { Parameter } from '@/lib/constants';
-
-export interface ParameterSignal {
-    parameter: Parameter;
-    signal: number; // 0-1
-    uncertainty: number; // 0-1
-    confidence: number; // 0-1
-}
-
 import { responseInterpreter } from './llm/interpreters';
+import { Evidence } from '@/services/measurement/evidence';
+import { Construct, CONSTRUCTS } from '@/services/measurement/constructs';
 
 export class LLMAdapter {
     /**
-     * Interpret text response into parameter signals.
+     * Code text response into Evidence signals.
      * Uses OpenAI via ResponseInterpreter if configured, otherwise falls back to heuristics.
      */
-    async interpretTextResponse(text: string, targets: Parameter[]): Promise<ParameterSignal[]> {
-
+    async codeResponse(text: string, type: string, context: { prompt?: string, construct?: string }): Promise<Evidence[]> {
         // Try LLM Interpreter
-        const interpretation = await responseInterpreter.interpret(text, targets);
+        const result = await responseInterpreter.code(text, context);
 
-        if (interpretation) {
-            // Map structured result to ParameterSignal
-            return interpretation.signals.map(s => ({
-                parameter: s.parameter,
-                signal: s.value,
-                uncertainty: 1 - s.confidence,
-                confidence: s.confidence
-            }));
+        if (result && result.evidence) {
+            return result.evidence;
         }
 
-        console.log('[LLM] No interpretation result (missing key or error). Using heuristics.');
-        return this.heuristicFallback(text, targets);
+        console.log('[LLM] No coding result (missing key or error). Using heuristics.');
+        return this.heuristicEvidenceFallback(text, context.construct as Construct);
     }
 
     /**
-     * Deterministic Heuristic Fallback (Original Mock Logic)
+     * Deterministic Heuristic Fallback (Evidence-based)
      */
-    private heuristicFallback(text: string, targets: Parameter[]): ParameterSignal[] {
+    private heuristicEvidenceFallback(text: string, constructHint: Construct): Evidence[] {
         const lower = text.toLowerCase();
-        const results: ParameterSignal[] = [];
+        const evidence: Evidence[] = [];
 
-        // 1. Keyword Sentiment Analysis
+        // Simple Sentiment Mapping
         const positiveKeywords = ['good', 'great', 'happy', 'love', 'support', 'trust', 'safe', 'clear', 'help'];
         const negativeKeywords = ['bad', 'stress', 'hard', 'tired', 'confused', 'alone', 'fear', 'angry', 'fail'];
 
@@ -48,42 +34,34 @@ export class LLMAdapter {
         positiveKeywords.forEach(k => { if (lower.includes(k)) sentiment += 1; });
         negativeKeywords.forEach(k => { if (lower.includes(k)) sentiment -= 1; });
 
-        // 2. Base Signal Calculation for Targets
-        for (const target of targets) {
-            let base = 0.5;
-            if (sentiment > 0) base = 0.7 + (Math.min(sentiment, 3) * 0.05);
-            if (sentiment < 0) base = 0.3 + (Math.max(sentiment, -3) * 0.05);
+        // If no sentiment and text is short, return empty (neutral)
+        if (sentiment === 0 && text.length < 10) return [];
 
-            // 3. Specific Overrides
-            let val = Math.max(0, Math.min(1, base));
-            let unc = 0.15; // default uncertainty
+        const direction = sentiment >= 0 ? 1 : -1;
+        const strength = Math.min(Math.abs(sentiment) * 0.3 + 0.3, 1.0); // 0.3 base + boost
 
-            if (target === 'emotional_load' && (lower.includes('stress') || lower.includes('overwhelm'))) {
-                val = 0.9;
-                unc = 0.1;
-            }
-            if (target === 'autonomy_friction' && (lower.includes('micromanage') || lower.includes('blocker'))) {
-                val = 0.9;
-                unc = 0.1;
-            }
-            if (target === 'meaning' && (lower.includes('meaning') || lower.includes('purpose'))) {
-                val = 0.85;
-                unc = 0.1;
-            }
-            if (target === 'control' && (lower.includes('micromanage'))) {
-                val = 0.2;
-                unc = 0.1;
-            }
+        // Use context construct if valid, otherwise fallback to 'engagement' (generic)
+        let validConstruct: Construct = 'engagement'; // Default
 
-            results.push({
-                parameter: target,
-                signal: val,
-                uncertainty: unc,
-                confidence: 0.8 // high confidence in heuristics for now
-            });
+        // Check if constructHint is valid
+        // We cast because constructHint comes from untyped legacy sources sometimes
+        if (CONSTRUCTS.includes(constructHint as Construct)) {
+            validConstruct = constructHint;
+        } else if (constructHint === 'trust' as any) {
+            // Legacy mapping
+            validConstruct = 'trust_leadership';
         }
 
-        return results;
+        evidence.push({
+            construct: validConstruct,
+            direction,
+            strength,
+            confidence: 0.6, // Moderate confidence for heuristic
+            evidence_type: 'self_report',
+            explanation_short: 'Heuristic keyword analysis'
+        });
+
+        return evidence;
     }
 }
 

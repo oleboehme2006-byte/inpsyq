@@ -1,4 +1,5 @@
 import { Parameter } from '@/lib/constants';
+import { Construct } from '@/services/measurement/constructs';
 
 export type InteractionType = 'slider' | 'rating' | 'choice' | 'text' | 'dialog';
 
@@ -6,11 +7,12 @@ export type InteractionType = 'slider' | 'rating' | 'choice' | 'text' | 'dialog'
 export interface GeneratedInteraction {
     type: InteractionType;
     prompt_text: string;
+    construct?: Construct; // Primary construct
     targets: Parameter[];
     response_spec?: {
         min_label?: string;
         max_label?: string;
-        choices?: string[]; // For 'choice' type
+        choices?: string[] | { label: string, coding: any[] }[]; // For 'choice' type (Strings for legacy, Objects for evidence)
         guidance?: string;
     };
     psych_rationale: string;

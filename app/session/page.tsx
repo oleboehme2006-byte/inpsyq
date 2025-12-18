@@ -305,54 +305,6 @@ export default function SessionPage() {
                     />
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 flex items-center justify-center relative">
-                    {/* Logout/Reset Helper (Top Right) */}
-                    <button onClick={handleLogout} className="absolute top-4 right-4 text-xs text-slate-700 hover:text-slate-500">
-                        Reset User
-                    </button>
-
-                    {/* Debug Info (Local/Dev Only) */}
-                    {process.env.NODE_ENV !== 'production' && (
-                        <>
-                            <div className="absolute top-4 left-4 text-xs text-slate-800 font-mono">
-                                <div>ID: {interaction.interaction_id.slice(0, 8)}</div>
-                                <div>Type: {interaction.type}</div>
-                            </div>
-                            <div className="fixed bottom-2 right-2 flex gap-2">
-                                <div className="text-[10px] text-zinc-600 bg-black/10 px-2 py-1 rounded select-all">
-                                    {(interaction?.prompt_text || '').split('|||')[0]} (ID: {interaction?.interaction_id})
-                                </div>
-                                <div className={`text-[10px] px-2 py-1 rounded font-bold ${sessionData?.meta?.is_llm ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
-                                    {sessionData?.meta?.is_llm ? 'LLM: OPENAI' : 'LLM: FALLBACK'}
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    {interaction.type === 'slider' || interaction.type === 'rating' ? (
-                        <SliderInteraction
-                            prompt={displayPrompt}
-                            meta={metadata}
-                            onSubmit={handleInteractionSubmit}
-                            loading={status === 'submitting'}
-                        />
-                    ) : interaction.type === 'choice' ? (
-                        <ChoiceInteraction
-                            prompt={displayPrompt}
-                            meta={metadata}
-                            onSubmit={handleInteractionSubmit}
-                            loading={status === 'submitting'}
-                        />
-                    ) : (
-                        <TextInteraction
-                            prompt={displayPrompt}
-                            meta={metadata}
-                            onSubmit={handleInteractionSubmit}
-                            loading={status === 'submitting'}
-                        />
-                    )}
-                </div>
 
                 <div className="p-4 text-center text-gray-600 text-xs uppercase tracking-widest">
                     InPsyq Secure Session | {currentIndex + 1} OF {sessionData.interactions.length}
