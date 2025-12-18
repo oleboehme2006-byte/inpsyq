@@ -20,6 +20,14 @@ interface SessionData {
     interactions: Interaction[];
     meta?: {
         is_llm?: boolean;
+        target_count?: number;
+        actual_count?: number;
+        padded?: boolean;
+        padding_count?: number;
+        adaptive_stop?: boolean;
+        adaptive_reason?: string;
+        selector_mode?: string;
+        user_has_history?: boolean;
     };
 }
 
@@ -280,11 +288,25 @@ export default function SessionPage() {
 
     if (sessionData && (status === 'active' || status === 'submitting')) {
         const interaction = sessionData.interactions[currentIndex];
+
+        // --- SAFE RENDERING GUARD ---
+        if (!interaction) {
+            // Fallback if index out of bounds or data corruption
+            return (
+                <div className="min-h-screen bg-black flex flex-col items-center justify-center text-rose-500">
+                    <p>Interaction Error: Index {currentIndex} invalid.</p>
+                    <button onClick={() => setCurrentIndex(0)} className="underline mt-2">Reset</button>
+                </div>
+            );
+        }
+
         const progress = ((currentIndex) / sessionData.interactions.length) * 100;
 
         // PARSE METADATA (smuggled via |||)
-        let displayPrompt = interaction.prompt_text;
+        let displayPrompt = interaction.prompt_text || "";
         let metadata: any = {};
+        let parseError = false;
+
         if (displayPrompt.includes('|||')) {
             const parts = displayPrompt.split('|||');
             displayPrompt = parts[0].trim();
@@ -292,8 +314,78 @@ export default function SessionPage() {
                 metadata = JSON.parse(parts[1].trim());
             } catch (e) {
                 console.error('Failed to parse interaction metadata', e);
+                parseError = true;
             }
         }
+
+        // --- RENDER COMPONENT SELECTOR ---
+        const renderInteraction = () => {
+            // If parse error or missing prompt, show fallback
+            if (!displayPrompt || parseError) {
+                return (
+                    <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center space-y-4">
+                        <div className="text-zinc-500 uppercase tracking-widest text-xs">System Message</div>
+                        <h3 className="text-xl text-zinc-300">Activity Unavailable</h3>
+                        <p className="text-zinc-500">This interaction could not be loaded due to a validation error.</p>
+                        <button
+                            onClick={() => handleInteractionSubmit("SKIPPED_ERROR")}
+                            className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
+                        >
+                            Skip to Next
+                        </button>
+                    </div>
+                );
+            }
+
+            // Dispatch based on Type
+            try {
+                switch (interaction.type) {
+                    case 'slider':
+                    case 'rating':
+                        return <SliderInteraction
+                            prompt={displayPrompt}
+                            meta={metadata}
+                            onSubmit={handleInteractionSubmit}
+                            loading={status === 'submitting'}
+                        />;
+                    case 'choice':
+                        return <ChoiceInteraction
+                            prompt={displayPrompt}
+                            meta={{ choices: metadata.choices }}
+                            onSubmit={handleInteractionSubmit}
+                            loading={status === 'submitting'}
+                        />;
+                    case 'text':
+                        return <TextInteraction
+                            prompt={displayPrompt}
+                            meta={metadata}
+                            onSubmit={handleInteractionSubmit}
+                            loading={status === 'submitting'}
+                        />;
+                    default:
+                        // Fallback for unknown type
+                        return <TextInteraction
+                            prompt={displayPrompt}
+                            meta={metadata}
+                            onSubmit={handleInteractionSubmit}
+                            loading={status === 'submitting'}
+                        />;
+                }
+            } catch (err) {
+                console.error("Render Crash", err);
+                return (
+                    <div className="w-full max-w-2xl bg-rose-950/20 border border-rose-900 rounded-xl p-8 text-center space-y-4">
+                        <h3 className="text-xl text-rose-400">Rendering Error</h3>
+                        <button
+                            onClick={() => handleInteractionSubmit("SKIPPED_RENDER_ERROR")}
+                            className="px-6 py-2 bg-rose-900 hover:bg-rose-800 text-white rounded transition-colors"
+                        >
+                            Proceed
+                        </button>
+                    </div>
+                );
+            }
+        };
 
         return (
             <div className="min-h-screen bg-black flex flex-col">
@@ -305,9 +397,26 @@ export default function SessionPage() {
                     />
                 </div>
 
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col items-center justify-center p-4">
+                    {renderInteraction()}
+                </div>
 
-                <div className="p-4 text-center text-gray-600 text-xs uppercase tracking-widest">
-                    InPsyq Secure Session | {currentIndex + 1} OF {sessionData.interactions.length}
+
+                {/* Footer with Debug Badge (DEV only) */}
+                <div className="p-4 text-center text-gray-600 text-xs uppercase tracking-widest space-y-1">
+                    <div>InPsyq Secure Session | {currentIndex + 1} OF {sessionData.interactions.length}</div>
+
+                    {/* DEV DEBUG BADGE - Hidden in Production */}
+                    {process.env.NODE_ENV !== 'production' && sessionData.meta && (
+                        <div className="font-mono text-[10px] text-slate-700 bg-slate-900/50 px-3 py-1 rounded inline-block">
+                            COUNT={sessionData.meta.target_count ?? '?'} |
+                            PADDED={sessionData.meta.padded ? 'true' : 'false'} |
+                            SELECTOR={sessionData.meta.selector_mode ?? 'unknown'} |
+                            ADAPTIVE={sessionData.meta.adaptive_stop ? sessionData.meta.adaptive_reason : 'false'}
+                            {sessionData.meta.user_has_history && ' | ⚠️ HISTORY'}
+                        </div>
+                    )}
                 </div>
             </div>
         );

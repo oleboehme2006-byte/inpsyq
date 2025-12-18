@@ -11,7 +11,11 @@
     "verify:briefing": "npx tsx scripts/verify_briefing.ts",
     "verify:llm_session": "npx tsx scripts/verify_llm_session.ts",
     "verify:measurement_layer": "npx tsx scripts/verify_measurement_layer.ts",
-    "verify:full": "npx tsx scripts/verify_model_integrity_full.ts"
+    "verify:full": "npx tsx scripts/verify_model_integrity_full.ts",
+    "itembank:build": "npx tsx scripts/build_item_bank.ts",
+    "itembank:stats": "npx tsx scripts/stats_item_bank.ts",
+    "itembank:lint": "npx tsx scripts/lint_item_bank.ts",
+    "verify:voice_layer": "npx tsx scripts/verify_voice_layer.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

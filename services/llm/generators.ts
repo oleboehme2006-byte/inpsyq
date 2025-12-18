@@ -20,15 +20,16 @@ export class InteractionGenerator {
             Goal: Generate ${count} valid measurement items (interactions) for an employee check-in.
             
             Canonical Constructs: ${constructsList}.
-
+            
             Plan Requirements:
             1. **Coverage**: Ensure at least 5 distict constructs are measured in this session.
             2. **Form Factor**: Mix 'rating' (Likert), 'choice' (Situational), and 'text' (Open-ended).
             3. **Anti-Repetition**: Do NOT reuse themes from: ${history.slice(0, 5).join('; ')}.
+            4. **Construct Validity**: You MUST use one of the exact Canonical Constructs listed above.
             
             CRITICAL - OPTION CODING:
-            - For 'choice' type, you MUST provide 'option_codes'.
-            - Each option needs a specific 'coding': List of Evidence signals it implies.
+            - For 'choice' type, you MUST provide 'option_codes' in the response_spec.
+            - Each choice label MUST have a corresponding coding: List of Evidence signals it implies.
             - Evidence schema: { construct, direction (1 or -1), strength (0.1-1.0), confidence (0.1-1.0), explanation }.
             
             Output strictly valid JSON obeying the schema.
