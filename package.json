@@ -15,7 +15,8 @@
     "itembank:build": "npx tsx scripts/build_item_bank.ts",
     "itembank:stats": "npx tsx scripts/stats_item_bank.ts",
     "itembank:lint": "npx tsx scripts/lint_item_bank.ts",
-    "verify:voice_layer": "npx tsx scripts/verify_voice_layer.ts"
+    "verify:voice_layer": "npx tsx scripts/verify_voice_layer.ts",
+    "verify:prod_parity": "npx tsx scripts/verify_prod_parity.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

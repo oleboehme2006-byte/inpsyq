@@ -8,11 +8,19 @@ import { selectItemsForSession } from './measurement/contextual_item_selector';
 import { ITEM_BANK } from './measurement/item_bank';
 import { voiceService } from './voice/voiceService';
 import { sessionLogger } from './diagnostics/sessionLogger';
+import { getSessionConfig, SessionConfig } from '../lib/runtime/sessionConfig';
 
-// Session Meta (B2 Hardening)
+// Session Meta (B3 Hardening)
 export interface SessionMeta {
+    // Config values
+    config_target_count: number;
+    // Pipeline values
+    planner_returned_count: number;
+    final_count: number;
+    // Legacy (backward compat)
     target_count: number;
     actual_count: number;
+    // Flags
     padded: boolean;
     padding_count: number;
     adaptive_stop: boolean;
@@ -20,7 +28,7 @@ export interface SessionMeta {
     selector_mode: 'contextual' | 'llm' | 'legacy';
     is_llm: boolean;
     llm_mode: string;
-    llm_error?: any;
+    llm_error?: string;
     user_has_history: boolean;
 }
 
@@ -33,17 +41,19 @@ export class InteractionEngine {
     }
 
     /**
-     * PROPER SESSION BUILDER (B2 Hardened)
-     * Returns a session ID and a list of interactions.
+     * PROPER SESSION BUILDER (B3 Hardened)
      * 
      * PIPELINE ORDER (Strict):
-     * 1. Contextual Selector (Item Bank)
-     * 2. LLM Generation (if enabled/fallback)
-     * 3. Voice/Framing Rewrite
-     * 4. Quality Validators
-     * 5. COUNT ENFORCEMENT + PADDING (Final Step)
+     * 1. Compute Config via Canonical Resolver
+     * 2. Contextual Selector (Item Bank)
+     * 3. LLM Generation (if enabled/fallback)
+     * 4. Voice/Framing Rewrite
+     * 5. Quality Validators
+     * 6. COUNT ENFORCEMENT + PADDING (Final Step - ALWAYS enforces target)
      */
-    async buildSession(userId: string, config?: { forceCount?: number, forceAdaptive?: boolean }) {
+    async buildSession(userId: string, requestConfig?: { forceCount?: number, forceAdaptive?: boolean }) {
+        const startTime = Date.now();
+
         // 0. Rate Limit (2 seconds)
         const now = Date.now();
         const last = this.lastRequest.get(userId) || 0;
@@ -53,34 +63,42 @@ export class InteractionEngine {
         this.lastRequest.set(userId, now);
 
         // 1. Create Session
+        const dbStartTime = Date.now();
         const sessionRes = await query(`
              INSERT INTO sessions (user_id, started_at)
              VALUES ($1, NOW())
              RETURNING session_id
         `, [userId]);
         const sessionId = sessionRes.rows[0].session_id;
+        const dbCreateMs = Date.now() - dbStartTime;
 
-        // Start Diagnostics
+        // 2. Get User History for Adaptive Metadata
         const historyCount = await historyService.getLastPrompts(userId, 100);
         const userHasHistory = historyCount.length > 0;
 
-        // 2. Determine Target Count
-        const envCount = process.env.SESSION_QUESTION_COUNT ? parseInt(process.env.SESSION_QUESTION_COUNT) : null;
-        let adaptive = process.env.SESSION_ADAPTIVE !== 'false';
+        // 3. CANONICAL CONFIG RESOLUTION (B3)
+        // requestConfig.forceCount overrides everything
+        // Otherwise, use canonical resolver which defaults to 10, adaptive=false
+        const config = getSessionConfig({
+            targetCount: requestConfig?.forceCount,
+            adaptive: requestConfig?.forceAdaptive,
+        });
 
-        if (config?.forceAdaptive !== undefined) adaptive = config.forceAdaptive;
+        const targetCount = config.targetCount;
+        const adaptive = config.adaptive;
+        const forceCount = config.forceCount;
 
-        let targetCount = config?.forceCount || envCount || 10; // Default to 10 for consistency
+        // Adaptive metadata (NEVER reduces count when forceCount=true)
         let adaptiveStop = false;
         let adaptiveReason: SessionMeta['adaptive_reason'] = 'none';
 
-        // Adaptive adjustment (if enabled and no forced count)
-        if (adaptive && !config?.forceCount && !envCount) {
-            if (historyCount.length > 50) {
-                targetCount = 6;
-                adaptiveStop = true;
-                adaptiveReason = 'stable';
-            }
+        // Record if adaptive WOULD have triggered (for observability)
+        // But do NOT change targetCount
+        if (adaptive && historyCount.length > 50) {
+            adaptiveStop = true;
+            adaptiveReason = 'stable';
+            // NOTE: We do NOT reduce targetCount. Adaptive only affects WHICH items, not HOW MANY.
+            console.log(`[InteractionEngine] Adaptive would trigger (stable), but forceCount=${forceCount} prevents count reduction.`);
         }
 
         sessionLogger.start(sessionId, userId, targetCount);
@@ -88,19 +106,18 @@ export class InteractionEngine {
             sessionLogger.logAdaptiveStop(sessionId, adaptiveReason, targetCount);
         }
 
-        // 3. Selection Strategy
+        // 4. Selection Strategy
         let rawInteractions: any[] = [];
         let selectedInteractions: any[] = [];
         let selectorMode: SessionMeta['selector_mode'] = 'legacy';
         let isLlm = false;
-        let llmError = null;
+        let llmError: string | undefined = undefined;
         let llmMode = 'none';
 
-        // FEATURE FLAG: Contextual Selection Mode
-        const useContextualParams = process.env.CONTEXTUAL_SELECTION_MODE === 'true';
+        const selectStartTime = Date.now();
 
-        // ========== STEP 1: CONTEXTUAL SELECTOR ==========
-        if (useContextualParams) {
+        // FEATURE FLAG: Contextual Selection Mode
+        if (config.contextualSelectionEnabled) {
             console.log(`[InteractionEngine] Using Contextual Item Selector for ${userId}`);
             selectorMode = 'contextual';
             try {
@@ -134,7 +151,7 @@ export class InteractionEngine {
 
                 sessionLogger.logSelection(sessionId, 'contextual', initialSelectedItems.length);
 
-                // D. VOICE LAYER (STEP 3)
+                // D. VOICE LAYER
                 const voiceProcessedItems = initialSelectedItems.map(item => voiceService.applyVoiceLayer(item));
                 const rewriteCount = voiceProcessedItems.filter((item: any) => item.original_text).length;
                 sessionLogger.logVoiceRewrite(sessionId, rewriteCount);
@@ -154,7 +171,7 @@ export class InteractionEngine {
                         uiSpec.interpretation_hint = item.text_spec.interpretation_hint;
                     }
 
-                    // AUDIT TRAIL: Preserve original text in hidden metadata if modified
+                    // AUDIT TRAIL
                     if ((item as any).original_text) {
                         uiSpec.original_text = (item as any).original_text;
                         uiSpec.voice_rewrite = true;
@@ -175,86 +192,96 @@ export class InteractionEngine {
 
             } catch (e) {
                 console.error('[InteractionEngine] Contextual Selection Failed', e);
-                llmError = e;
-                sessionLogger.log(sessionId, 'error', `Contextual selection failed: ${(e as Error).message}`);
+                llmError = (e as Error).message;
+                sessionLogger.log(sessionId, 'error', `Contextual selection failed: ${llmError}`);
             }
         }
 
-        // ========== STEP 2: LLM GENERATION (Fallback) ==========
+        const selectMs = Date.now() - selectStartTime;
+
+        // ========== LLM GENERATION (Fallback) ==========
+        const llmStartTime = Date.now();
         if (rawInteractions.length === 0 && !llmError) {
             selectorMode = 'llm';
-            const genResult = await interactionGenerator.generateSessionPlan(userId, targetCount);
 
-            if (genResult.interactions && genResult.interactions.length > 0) {
-                isLlm = true;
-                llmMode = 'openai';
-                sessionLogger.logSelection(sessionId, 'llm', genResult.interactions.length);
+            try {
+                const genResult = await interactionGenerator.generateSessionPlan(userId, targetCount);
 
-                if (genResult.interactions.length < targetCount) {
-                    sessionLogger.logLlmUndergeneration(sessionId, targetCount, genResult.interactions.length);
-                }
+                if (genResult.interactions && genResult.interactions.length > 0) {
+                    isLlm = true;
+                    llmMode = 'openai';
+                    sessionLogger.logSelection(sessionId, 'llm', genResult.interactions.length);
 
-                for (const gen of genResult.interactions) {
-                    let prompt = gen.prompt_text;
-                    let targets = gen.targets;
+                    if (genResult.interactions.length < targetCount) {
+                        sessionLogger.logLlmUndergeneration(sessionId, targetCount, genResult.interactions.length);
+                    }
 
-                    let uiSpec: any = {};
-                    if (gen.response_spec) {
-                        uiSpec = { ...gen.response_spec };
-                        if (gen.construct) uiSpec.construct = gen.construct;
+                    for (const gen of genResult.interactions) {
+                        let prompt = gen.prompt_text;
+                        let targets = gen.targets;
 
-                        if (gen.type === 'choice' && Array.isArray(uiSpec.choices)) {
-                            const fullChoices = uiSpec.choices as any[];
-                            if (fullChoices.length > 0 && typeof fullChoices[0] === 'object') {
-                                uiSpec.choices = fullChoices.map(c => c.label);
-                                uiSpec.option_codes = {};
-                                fullChoices.forEach(c => {
-                                    uiSpec.option_codes[c.label] = c.coding;
-                                });
+                        let uiSpec: any = {};
+                        if (gen.response_spec) {
+                            uiSpec = { ...gen.response_spec };
+                            if (gen.construct) uiSpec.construct = gen.construct;
+
+                            if (gen.type === 'choice' && Array.isArray(uiSpec.choices)) {
+                                const fullChoices = uiSpec.choices as any[];
+                                if (fullChoices.length > 0 && typeof fullChoices[0] === 'object') {
+                                    uiSpec.choices = fullChoices.map(c => c.label);
+                                    uiSpec.option_codes = {};
+                                    fullChoices.forEach(c => {
+                                        uiSpec.option_codes[c.label] = c.coding;
+                                    });
+                                }
                             }
+                            prompt += ` ||| ${JSON.stringify(uiSpec)}`;
+                        } else if (gen.construct) {
+                            prompt += ` ||| ${JSON.stringify({ construct: gen.construct })}`;
                         }
-                        prompt += ` ||| ${JSON.stringify(uiSpec)}`;
-                    } else if (gen.construct) {
-                        prompt += ` ||| ${JSON.stringify({ construct: gen.construct })}`;
-                    }
 
-                    try {
-                        const ins = await query(`
-                                INSERT INTO interactions (type, prompt_text, parameter_targets, expected_signal_strength, cooldown_days)
-                                VALUES ($1, $2, $3, $4, $5)
-                                RETURNING interaction_id, type, prompt_text, parameter_targets
-                            `, [gen.type, prompt, targets, 0.8, 7]);
-                        rawInteractions.push(ins.rows[0]);
-                    } catch (e) {
-                        console.error('[InteractionEngine] Insert Failed', e);
+                        try {
+                            const ins = await query(`
+                                    INSERT INTO interactions (type, prompt_text, parameter_targets, expected_signal_strength, cooldown_days)
+                                    VALUES ($1, $2, $3, $4, $5)
+                                    RETURNING interaction_id, type, prompt_text, parameter_targets
+                                `, [gen.type, prompt, targets, 0.8, 7]);
+                            rawInteractions.push(ins.rows[0]);
+                        } catch (e) {
+                            console.error('[InteractionEngine] Insert Failed', e);
+                        }
                     }
                 }
+            } catch (e) {
+                console.error('[InteractionEngine] LLM Generation Failed', e);
+                llmError = (e as Error).message;
             }
         }
+        const llmMs = Date.now() - llmStartTime;
 
-        // ========== STEP 4: QUALITY VALIDATORS ==========
-        // For now, all items pass. Future: filter by validators here.
+        // ========== QUALITY VALIDATORS ==========
         selectedInteractions = [...rawInteractions];
+        const plannerReturnedCount = selectedInteractions.length;
 
-        // ========== STEP 5: COUNT ENFORCEMENT + PADDING (FINAL STEP) ==========
+        // ========== COUNT ENFORCEMENT + PADDING (FINAL STEP) ==========
+        const padStartTime = Date.now();
         let padded = false;
         let paddingCount = 0;
 
         if (selectedInteractions.length < targetCount) {
             const needed = targetCount - selectedInteractions.length;
-            sessionLogger.logPadding(sessionId, needed, 0); // Will update after padding
+            sessionLogger.logPadding(sessionId, needed, 0);
 
             let retryCount = 0;
             const maxRetries = 2;
 
             while (selectedInteractions.length < targetCount && retryCount < maxRetries) {
                 const stillNeeded = targetCount - selectedInteractions.length;
-                console.warn(`[InteractionEngine] Shortfall: Got ${selectedInteractions.length}, wanted ${targetCount}. Padding with Legacy (Attempt ${retryCount + 1}).`);
+                console.warn(`[InteractionEngine] Shortfall: Got ${selectedInteractions.length}, wanted ${targetCount}. Padding (Attempt ${retryCount + 1}).`);
 
                 try {
                     const padding = await this.getLegacyInteractions(stillNeeded);
 
-                    // Add unique items only
                     for (const p of padding) {
                         if (!selectedInteractions.find(s => s.interaction_id === p.interaction_id)) {
                             selectedInteractions.push(p);
@@ -268,9 +295,9 @@ export class InteractionEngine {
                 retryCount++;
             }
 
-            // Final Desperate Fill (Allow Duplicates if critical)
+            // Final Desperate Fill (Allow Duplicates)
             if (selectedInteractions.length < targetCount) {
-                console.error(`[InteractionEngine] CRITICAL: Still short after padding. Duplicating items to fill.`);
+                console.error(`[InteractionEngine] CRITICAL: Still short. Duplicating items.`);
                 const pool = [...selectedInteractions];
                 if (pool.length === 0) {
                     throw new Error("No interactions available to build session.");
@@ -284,15 +311,25 @@ export class InteractionEngine {
 
             padded = paddingCount > 0;
             if (padded) {
-                selectorMode = selectorMode === 'contextual' || selectorMode === 'llm' ? selectorMode : 'legacy';
                 sessionLogger.logPadding(sessionId, needed, paddingCount);
             }
         }
+        const padMs = Date.now() - padStartTime;
+        const totalMs = Date.now() - startTime;
 
-        // Build Rich Meta (B2)
+        // Performance logging
+        console.log(`[Perf] session_start total_ms=${totalMs}, select_ms=${selectMs}, llm_ms=${llmMs}, db_create_ms=${dbCreateMs}, pad_ms=${padMs}`);
+
+        // Build Rich Meta (B3)
         const meta: SessionMeta = {
+            // B3 fields
+            config_target_count: targetCount,
+            planner_returned_count: plannerReturnedCount,
+            final_count: selectedInteractions.length,
+            // Legacy (backward compat)
             target_count: targetCount,
             actual_count: selectedInteractions.length,
+            // Flags
             padded,
             padding_count: paddingCount,
             adaptive_stop: adaptiveStop,
@@ -300,7 +337,7 @@ export class InteractionEngine {
             selector_mode: selectorMode,
             is_llm: isLlm,
             llm_mode: llmMode,
-            llm_error: llmError ? (llmError as Error).message : undefined,
+            llm_error: llmError,
             user_has_history: userHasHistory
         };
 
@@ -308,7 +345,7 @@ export class InteractionEngine {
             sessionId,
             interactions: selectedInteractions,
             meta,
-            // Legacy fields for backward compatibility
+            // Legacy fields
             llm_used: isLlm,
             question_count: selectedInteractions.length
         };
@@ -318,22 +355,18 @@ export class InteractionEngine {
         const allRes = await query(`SELECT * FROM interactions`);
         const all = allRes.rows;
 
-        // Filter out generated interactions (messy prompts with |||) to keep legacy clean
         const candidates = all.filter(i => !i.prompt_text.includes('|||'));
         if (candidates.length === 0) return [];
 
-        // Shuffle candidates first for randomness
         const shuffled = [...candidates].sort(() => 0.5 - Math.random());
 
-        const selected = [];
+        const selected: any[] = [];
         const sliders = shuffled.filter(i => i.type === 'slider' || i.type === 'rating');
         const dialogs = shuffled.filter(i => i.type === 'dialog');
 
-        // Ensure at least one slider and one dialog if available (heuristic)
         if (sliders.length > 0) selected.push(sliders[0]);
         if (dialogs.length > 0) selected.push(dialogs[0]);
 
-        // Fill remainder from general shuffled pool, avoiding duplicates
         for (const item of shuffled) {
             if (selected.length >= count) break;
             if (!selected.find(s => s.interaction_id === item.interaction_id)) {
@@ -341,7 +374,6 @@ export class InteractionEngine {
             }
         }
 
-        // If still under count (small pool), allow duplicates
         if (selected.length < count && candidates.length > 0) {
             while (selected.length < count) {
                 const pick = candidates[Math.floor(Math.random() * candidates.length)];
