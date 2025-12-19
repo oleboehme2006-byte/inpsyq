@@ -4,21 +4,54 @@ import { normalizationService } from '@/services/normalizationService';
 import { inferenceEngine } from '@/services/inferenceService';
 import { safeToFixed, safeNumber } from '@/lib/utils/safeNumber';
 import { Parameter } from '@/lib/constants';
+import { isValidUUID, generateRequestId, createValidationError } from '@/lib/api/validation';
+import { requestLogger } from '@/lib/api/requestLogger';
 
-// Define valid parameter keys
+export const runtime = 'nodejs';
+
 type ParamKey = Parameter;
 
 export async function POST(req: Request) {
-    try {
-        const { sessionId, responses, userId } = await req.json();
+    const requestId = generateRequestId();
+    const startTime = Date.now();
 
-        if (!sessionId || !responses || !Array.isArray(responses)) {
-            return NextResponse.json({ error: 'Invalid Input' }, { status: 400 });
+    try {
+        const body = await req.json();
+        const { sessionId, responses, userId } = body;
+
+        // Strict UUID Validation for sessionId
+        if (!isValidUUID(sessionId)) {
+            return NextResponse.json(
+                createValidationError('sessionId', 'sessionId must be a valid UUID', requestId),
+                { status: 400 }
+            );
+        }
+
+        // Strict UUID Validation for userId
+        if (!isValidUUID(userId)) {
+            return NextResponse.json(
+                createValidationError('userId', 'userId must be a valid UUID', requestId),
+                { status: 400 }
+            );
+        }
+
+        // Validate responses array
+        if (!responses || !Array.isArray(responses)) {
+            return NextResponse.json(
+                createValidationError('responses', 'responses must be a non-empty array', requestId),
+                { status: 400 }
+            );
         }
 
         // Process each response
         for (const r of responses) {
             const { interaction_id, raw_input } = r;
+
+            // Validate interaction_id
+            if (!isValidUUID(interaction_id)) {
+                console.warn(`[Submit] Skipping invalid interaction_id: ${interaction_id}`);
+                continue;
+            }
 
             // 1. Store
             const resInsert = await query(`
@@ -33,11 +66,11 @@ export async function POST(req: Request) {
             if (interactionRes.rows.length === 0) continue;
 
             const interaction = interactionRes.rows[0];
-            const parameterTargets = interaction.parameter_targets as ParamKey[]; // STRICT CAST
+            const parameterTargets = interaction.parameter_targets as ParamKey[];
 
             const encoded = await normalizationService.normalizeResponse(raw_input, interaction.type, parameterTargets);
 
-            // Cast encoded outputs to record types
+            // Cast encoded outputs
             const signals = encoded.signals as Record<ParamKey, number>;
             const uncertainty = encoded.uncertainty as Record<ParamKey, number>;
 
@@ -52,16 +85,13 @@ export async function POST(req: Request) {
                 const val = signals[t];
                 const unc = uncertainty[t];
 
-                // Skip if signal not produced for this target
                 if (val === undefined || val === null) continue;
 
                 // Guard: Prevent Posterior Collapse
-                // Minimum uncertainty for single-item is ~0.2 (R=0.04). 
                 const guardedConf = Math.max(0.1, safeNumber(encoded.confidence));
                 const guardedUnc = Math.max(0.2, safeNumber(unc));
                 const guardedVal = safeNumber(val);
 
-                // Observability (Dev)
                 console.log(`[Submit] Inference Update: ${t} Val=${safeToFixed(guardedVal, 3)} Unc=${safeToFixed(guardedUnc, 3)} Conf=${safeToFixed(guardedConf, 2)}`);
 
                 await inferenceEngine.updateState(
@@ -78,13 +108,46 @@ export async function POST(req: Request) {
         // 5. Close Session
         await query(`UPDATE sessions SET completed_at = NOW() WHERE session_id = $1`, [sessionId]);
 
-        return NextResponse.json({ ok: true });
+        const duration = Date.now() - startTime;
 
+        // Log success
+        requestLogger.log({
+            request_id: requestId,
+            route: '/api/session/submit',
+            method: 'POST',
+            duration_ms: duration,
+            status: 200,
+            user_id: userId,
+            session_id: sessionId,
+            item_count: responses.length,
+            timestamp: new Date().toISOString(),
+        });
 
-
+        return NextResponse.json({
+            ok: true,
+            request_id: requestId,
+            duration_ms: duration,
+            processed: responses.length,
+        });
 
     } catch (error: any) {
+        const duration = Date.now() - startTime;
         console.error('[API] /session/submit Failed:', error.message, error.stack);
-        return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+
+        requestLogger.log({
+            request_id: requestId,
+            route: '/api/session/submit',
+            method: 'POST',
+            duration_ms: duration,
+            status: 500,
+            llm_error: error.message,
+            timestamp: new Date().toISOString(),
+        });
+
+        return NextResponse.json({
+            error: 'Internal Server Error',
+            code: 'INTERNAL_ERROR',
+            request_id: requestId,
+        }, { status: 500 });
     }
 }
