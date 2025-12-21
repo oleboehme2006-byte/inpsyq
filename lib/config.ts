@@ -1,6 +1,10 @@
 // lib/config.ts
 
-// Resolution Order: DATABASE_URL > POSTGRES_URL > DATABASE_URL_UNPOOLED
+/**
+ * Database Configuration
+ * 
+ * Resolution Order: DATABASE_URL > POSTGRES_URL > DATABASE_URL_UNPOOLED
+ */
 export function getDatabaseConfig() {
   const url =
     process.env.DATABASE_URL ||
@@ -8,8 +12,16 @@ export function getDatabaseConfig() {
     process.env.DATABASE_URL_UNPOOLED;
 
   if (!url) {
+    const context = process.env.VERCEL ? 'Vercel' : 'local development';
+    const instruction = process.env.VERCEL
+      ? 'Set DATABASE_URL in Vercel Environment Variables (Neon integration).'
+      : 'Create .env.local with DATABASE_URL="postgresql://..." or run: npm run seed:dev after setup.';
+
     throw new Error(
-      "DATABASE_URL is missing. Set DATABASE_URL in Vercel Environment Variables (Neon)."
+      `DATABASE_URL is missing.\n` +
+      `  Context: ${context}\n` +
+      `  Fix: ${instruction}\n` +
+      `  Checked: DATABASE_URL, POSTGRES_URL, DATABASE_URL_UNPOOLED`
     );
   }
 
@@ -31,5 +43,16 @@ export function getDatabaseConfig() {
   };
 }
 
-export const dbConfig = getDatabaseConfig();
+// Lazy initialization - don't call getDatabaseConfig at import time for scripts
+let _dbConfig: ReturnType<typeof getDatabaseConfig> | null = null;
 
+export function getDbConfig() {
+  if (!_dbConfig) {
+    _dbConfig = getDatabaseConfig();
+  }
+  return _dbConfig;
+}
+
+// For backwards compatibility - will be evaluated at import time
+// Only use in Next.js context where env is already loaded
+export const dbConfig = getDatabaseConfig();

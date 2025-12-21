@@ -43,7 +43,11 @@ export async function buildTeamDashboardDTO(params: BuildDashboardParams): Promi
         ]);
 
         if (!snapshotResult) {
-            return createEmptyTeamDashboardDTO(requestId);
+            // Even without decision data, include real audit counts
+            const emptyDto = createEmptyTeamDashboardDTO(requestId);
+            emptyDto.audit = auditResult;
+            emptyDto.meta.duration_ms = Date.now() - startTime;
+            return emptyDto;
         }
 
         // Build state block

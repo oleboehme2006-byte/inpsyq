@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed:prod": "npx -y tsx scripts/seed_prod.ts",
+    "seed:dev": "npx tsx scripts/seed_dev.ts",
+    "bootstrap:dev": "npx tsx scripts/bootstrap_dev.ts",
     "verify:briefing": "npx tsx scripts/verify_briefing.ts",
     "verify:llm_session": "npx tsx scripts/verify_llm_session.ts",
     "verify:measurement_layer": "npx tsx scripts/verify_measurement_layer.ts",
@@ -18,7 +20,17 @@
     "verify:voice_layer": "npx tsx scripts/verify_voice_layer.ts",
     "verify:prod_parity": "npx tsx scripts/verify_prod_parity.ts",
     "verify:prod_session": "npx tsx scripts/verify_prod_session.ts",
-    "verify:dashboard": "npx tsx scripts/verify_dashboard.ts"
+    "verify:parity": "npx tsx scripts/verify_parity.ts",
+    "sim:dev": "npx tsx scripts/simulate_sessions_dev.ts",
+    "sim:dev:small": "npx tsx scripts/simulate_sessions_dev.ts --small",
+    "agg:dev": "npx tsx scripts/rebuild_aggregates_dev.ts",
+    "sim:dev:ready": "npm run seed:dev && npm run sim:dev && npm run agg:dev && npm run verify:sim && npm run verify:dashboard",
+    "verify:sim": "npx tsx scripts/verify_simulation_ready.ts",
+    "verify:dashboard": "npx tsx scripts/verify_dashboard_ready.ts",
+    "verify:temporal": "npx tsx scripts/verify_temporal_sim.ts",
+    "verify:dashboard_ui": "npx tsx scripts/verify_dashboard_ui.ts",
+    "ids": "node -e \"fetch('http://localhost:3001/api/internal/ids').then(r=>r.json()).then(console.log)\"",
+    "ids:prod": "node -e \"fetch('https://www.inpsyq.com/api/internal/ids',{headers:{'x-inpsyq-admin-secret':process.env.INTERNAL_ADMIN_SECRET}}).then(r=>r.json()).then(console.log)\""
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
