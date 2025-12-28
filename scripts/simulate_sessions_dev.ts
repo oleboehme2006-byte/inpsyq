@@ -9,8 +9,8 @@
  *   npx tsx scripts/simulate_sessions_dev.ts --weeks 12 --users 15
  */
 
-import { loadEnv } from '../lib/env/loadEnv';
-loadEnv();
+import './_bootstrap';
+// Env loaded by bootstrap
 
 import { query } from '../db/client';
 import { randomUUID, createHash } from 'crypto';

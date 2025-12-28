@@ -103,4 +103,16 @@ CREATE TABLE IF NOT EXISTS employee_profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (user_id, week_start)
 );
+
+CREATE TABLE IF NOT EXISTS memberships (
+    membership_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    org_id UUID NOT NULL REFERENCES orgs(org_id),
+    team_id UUID REFERENCES teams(team_id),
+    role TEXT NOT NULL CHECK (role IN ('ADMIN', 'EXECUTIVE', 'TEAMLEAD', 'EMPLOYEE')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (user_id, org_id)
+);
+CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_org ON memberships(org_id);
 `;

@@ -7,8 +7,8 @@
  * Usage: npm run bootstrap:dev
  */
 
-import { loadEnv } from '../lib/env/loadEnv';
-loadEnv();
+import './_bootstrap';
+// Env loaded by bootstrap
 
 import { query } from '../db/client';
 import { randomUUID } from 'crypto';

@@ -1,29 +1,23 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import clsx from "clsx";
-import PageLoader from "@/components/PageLoader";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+import '@/app/globals.css';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: "InPsyq – Psychological Insights",
-    description: "Deep analytics revealing the emotional drivers of public discourse.",
-    icons: {
-        icon: "/icon.svg",
-        apple: "/icon.svg",
-    },
+    title: 'inPsyq - Psychological Analytics Platform',
+    description: 'Instrument-grade psychological analytics for organizational health',
 };
 
 export default function RootLayout({
     children,
-}: Readonly<{
+}: {
     children: React.ReactNode;
-}>) {
+}) {
     return (
-        <html lang="en" className="scroll-smooth">
-            <body className={clsx(inter.variable, "font-sans bg-[#050509] antialiased text-gray-100")}>
-                <PageLoader />
+        <html lang="en" className="dark">
+            <head>
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            </head>
+            <body className="bg-bg-base text-text-primary antialiased">
                 {children}
             </body>
         </html>

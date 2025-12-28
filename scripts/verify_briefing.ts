@@ -1,8 +1,8 @@
 
 export { };
-import { loadEnv } from '../lib/env/loadEnv';
+import './_bootstrap';
 
-loadEnv();
+// Env loaded by bootstrap
 
 import fs from 'fs';
 import path from 'path';

@@ -1,8 +1,8 @@
 
 export { };
-import { loadEnv } from '../lib/env/loadEnv';
+import './_bootstrap';
 
-loadEnv();
+// Env loaded by bootstrap
 
 const PROD_URL = process.env.PROD_URL || 'https://www.inpsyq.com';
 const USER_ID = process.env.TEST_USER_ID || '';

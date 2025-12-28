@@ -5,8 +5,8 @@
  * Usage: npm run verify:parity
  */
 
-import { loadEnv } from '../lib/env/loadEnv';
-loadEnv();
+import './_bootstrap';
+// Env loaded by bootstrap
 
 interface Endpoint {
     name: string;

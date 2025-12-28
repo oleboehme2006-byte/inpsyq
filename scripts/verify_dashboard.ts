@@ -1,8 +1,8 @@
 
 export { };
-import { loadEnv } from '../lib/env/loadEnv';
+import './_bootstrap';
 
-loadEnv();
+// Env loaded by bootstrap
 
 const BASE_URL = process.env.APP_URL || 'http://localhost:3001';
 

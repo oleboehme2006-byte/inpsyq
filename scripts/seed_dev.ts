@@ -8,8 +8,8 @@
  */
 
 // CRITICAL: loadEnv MUST be called before any other imports
-import { loadEnv } from '../lib/env/loadEnv';
-loadEnv();
+import './_bootstrap';
+// Env loaded by bootstrap
 
 // Now safe to import modules that use process.env
 import { query } from '../db/client';

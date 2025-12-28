@@ -7,8 +7,8 @@
  * Usage: npm run agg:dev
  */
 
-import { loadEnv } from '../lib/env/loadEnv';
-loadEnv();
+import './_bootstrap';
+// Env loaded by bootstrap
 
 import { query } from '../db/client';
 import { DEV_ORG_ID, DEV_TEAM_ID, getUsersForTeam } from '../lib/dev/fixtures';

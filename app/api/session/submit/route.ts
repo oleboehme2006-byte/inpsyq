@@ -6,6 +6,7 @@ import { safeToFixed, safeNumber } from '@/lib/utils/safeNumber';
 import { Parameter } from '@/lib/constants';
 import { isValidUUID, generateRequestId, createValidationError } from '@/lib/api/validation';
 import { requestLogger } from '@/lib/api/requestLogger';
+import { requireSelfOrAdmin } from '@/lib/access/guards';
 
 export const runtime = 'nodejs';
 
@@ -33,6 +34,12 @@ export async function POST(req: Request) {
                 createValidationError('userId', 'userId must be a valid UUID', requestId),
                 { status: 400 }
             );
+        }
+
+        // Guard: User can only operate on their own data
+        const guardResult = await requireSelfOrAdmin(req, userId);
+        if (!guardResult.ok) {
+            return guardResult.response;
         }
 
         // Validate responses array

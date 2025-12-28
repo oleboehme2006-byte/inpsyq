@@ -1,0 +1,22 @@
+/**
+ * SCHEMA MIGRATION — Pipeline V2 Columns
+ * 
+ * Adds new columns to org_aggregates_weekly for Phase 3+4 data.
+ * Safe migration: uses IF NOT EXISTS.
+ */
+
+export const PIPELINE_MIGRATION_SQL = `
+-- Add pipeline v2 columns to org_aggregates_weekly
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS compute_version TEXT;
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS input_hash TEXT;
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS team_state JSONB;
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS series JSONB;
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS attribution JSONB;
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS quality JSONB;
+ALTER TABLE org_aggregates_weekly ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+`;
+
+/**
+ * Current compute version for idempotency tracking.
+ */
+export const COMPUTE_VERSION = 'v2.0.0';

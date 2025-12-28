@@ -1,40 +1,468 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Roboto+Mono:wght@300;400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================
+   CSS CUSTOM PROPERTIES
+   ========================================== */
+
 :root {
-  --foreground-rgb: 229, 231, 235; /* #E5E7EB */
-  --background-start-rgb: 5, 5, 9; /* #050509 */
-  --background-end-rgb: 5, 7, 10; /* #05070A */
+    /* Background Layers */
+    --bg-base: #0a0a0b;
+    --bg-elevated: #111113;
+    --bg-surface: #18181b;
+    --bg-hover: #27272a;
+
+    /* Text Hierarchy */
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+
+    /* Semantic: Strain (higher = worse) */
+    --color-strain: #ef4444;
+    --color-strain-low: #22c55e;
+    --color-strain-high: #db2777;
+    --color-strain-muted: rgba(239, 68, 68, 0.15);
+
+    /* Semantic: Withdrawal Risk (higher = worse) */
+    --color-withdrawal: #f59e0b;
+    --color-withdrawal-low: #22c55e;
+    --color-withdrawal-high: #ea580c;
+    --color-withdrawal-muted: rgba(245, 158, 11, 0.15);
+
+    /* Semantic: Trust Gap (higher = worse) */
+    --color-trust-gap: #06b6d4;
+    --color-trust-gap-low: #22c55e;
+    --color-trust-gap-high: #0284c7;
+    --color-trust-gap-muted: rgba(6, 182, 212, 0.15);
+
+    /* Semantic: Engagement (higher = better) */
+    --color-engagement: #10b981;
+    --color-engagement-low: #ef4444;
+    --color-engagement-high: #14b8a6;
+    --color-engagement-muted: rgba(16, 185, 129, 0.15);
+
+    /* Meta/Confidence */
+    --color-meta: #8b5cf6;
+    --color-meta-muted: rgba(139, 92, 246, 0.15);
+
+    /* Chart Uncertainty Band Alpha */
+    --uncertainty-alpha: 0.2;
+
+    /* Motion Preferences */
+    --motion-duration-fast: 150ms;
+    --motion-duration-normal: 300ms;
+    --motion-duration-slow: 600ms;
+    --motion-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+/* ==========================================
+   BASE STYLES
+   ========================================== */
+
+@layer base {
+    html {
+        @apply antialiased;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+
+    body {
+        @apply bg-bg-base text-text-primary font-body;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+
+    /* Typography Base */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        @apply font-display font-semibold tracking-tight;
+    }
+
+    h1 {
+        @apply text-4xl md:text-5xl;
+    }
+
+    h2 {
+        @apply text-3xl md:text-4xl;
+    }
+
+    h3 {
+        @apply text-2xl md:text-3xl;
+    }
+
+    h4 {
+        @apply text-xl md:text-2xl;
+    }
+
+    h5 {
+        @apply text-lg md:text-xl;
+    }
+
+    h6 {
+        @apply text-base md:text-lg;
+    }
+
+    /* Ensure minimum 14px for all text */
+    p,
+    span,
+    div,
+    li,
+    td,
+    th,
+    label,
+    input,
+    textarea,
+    select,
+    button {
+        font-size: max(0.875rem, 14px);
+    }
+
+    /* Selection */
+    ::selection {
+        @apply bg-accent-primary/30 text-text-primary;
+    }
+
+    /* Scrollbar styling for dark theme */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-bg-elevated;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-border-accent rounded-full;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-text-tertiary;
+    }
 }
+
+/* ==========================================
+   COMPONENT UTILITIES
+   ========================================== */
+
+@layer components {
+
+    /* Card Base */
+    .card {
+        @apply bg-bg-surface border border-border rounded-lg p-6;
+    }
+
+    .card-elevated {
+        @apply bg-bg-elevated border border-border rounded-lg p-6 shadow-glow-sm;
+    }
+
+    /* Glass Effect */
+    .glass {
+        @apply bg-bg-surface/80 backdrop-blur-md border border-border/50;
+    }
+
+    /* Signal Card - For key metrics display */
+    .signal-card {
+        @apply bg-bg-surface border border-border rounded-xl p-6;
+        @apply transition-all duration-300;
+    }
+
+    .signal-card:hover {
+        @apply border-accent-primary/30 shadow-glow-sm;
+    }
+
+    /* Semantic Value Displays */
+    .value-strain {
+        color: var(--color-strain);
+    }
+
+    .value-strain-high {
+        color: var(--color-strain-high);
+    }
+
+    .value-withdrawal {
+        color: var(--color-withdrawal);
+    }
+
+    .value-trust-gap {
+        color: var(--color-trust-gap);
+    }
+
+    .value-engagement {
+        color: var(--color-engagement);
+    }
+
+    .value-meta {
+        color: var(--color-meta);
+    }
+
+    /* Qualitative State Badges */
+    .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-critical {
+        @apply bg-strain-muted text-strain-high;
+    }
+
+    .badge-warning {
+        @apply bg-withdrawal-muted text-withdrawal;
+    }
+
+    .badge-healthy {
+        @apply bg-engagement-muted text-engagement;
+    }
+
+    .badge-neutral {
+        @apply bg-bg-hover text-text-secondary;
+    }
+
+    /* Section Headers */
+    .section-title {
+        @apply font-display font-semibold text-xl text-text-primary mb-4;
+    }
+
+    .section-subtitle {
+        @apply font-mono text-sm text-text-tertiary uppercase tracking-wider mb-2;
+    }
+
+    /* Trend Indicators */
+    .trend-up {
+        @apply text-engagement;
+    }
+
+    .trend-down {
+        @apply text-strain;
+    }
+
+    .trend-stable {
+        @apply text-text-tertiary;
+    }
+
+    /* Interpretation Panel */
+    .interpretation-panel {
+        @apply bg-bg-elevated/50 border border-border/50 rounded-xl p-6;
+    }
+
+    .interpretation-panel p {
+        @apply text-text-secondary leading-relaxed text-sm;
+    }
+
+    /* Governance Indicators */
+    .confidence-bar {
+        @apply h-2 rounded-full bg-bg-hover overflow-hidden;
+    }
+
+    .confidence-bar-fill {
+        @apply h-full rounded-full transition-all duration-500;
+    }
+}
+
+/* ==========================================
+   CHART STYLING
+   ========================================== */
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+
+    /* Recharts overrides for dark theme */
+    .recharts-cartesian-grid-horizontal line,
+    .recharts-cartesian-grid-vertical line {
+        stroke: var(--bg-hover);
+        stroke-opacity: 0.5;
+    }
+
+    .recharts-cartesian-axis-line {
+        stroke: var(--bg-hover);
+    }
+
+    .recharts-cartesian-axis-tick-line {
+        stroke: var(--bg-hover);
+    }
+
+    .recharts-cartesian-axis-tick-value {
+        fill: var(--text-tertiary);
+        font-family: 'Roboto Mono', monospace;
+        font-size: 12px;
+    }
+
+    .recharts-tooltip-wrapper {
+        @apply !pointer-events-none;
+    }
+
+    .recharts-default-tooltip {
+        @apply !bg-bg-surface !border-border !rounded-lg !shadow-glow-sm;
+    }
+
+    .recharts-tooltip-label {
+        @apply !text-text-primary !font-medium;
+    }
+
+    .recharts-tooltip-item {
+        @apply !text-text-secondary;
+    }
+
+    /* Uncertainty band styling */
+    .uncertainty-band {
+        fill-opacity: var(--uncertainty-alpha);
+    }
+
+    /* Semantic Y-axis labels */
+    .semantic-axis-optimal {
+        fill: var(--color-engagement);
+    }
+
+    .semantic-axis-good {
+        fill: var(--color-engagement);
+        opacity: 0.7;
+    }
+
+    .semantic-axis-neutral {
+        fill: var(--text-tertiary);
+    }
+
+    .semantic-axis-risk {
+        fill: var(--color-withdrawal);
+    }
+
+    .semantic-axis-critical {
+        fill: var(--color-strain);
+    }
 }
 
-/* Custom Scrollbar for dark theme */
-::-webkit-scrollbar {
-  width: 8px;
+/* ==========================================
+   MOTION & ANIMATION
+   ========================================== */
+
+@layer utilities {
+
+    /* Reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+
+    /* Atmospheric Background Gradients */
+    .atmospheric-gradient {
+        background: radial-gradient(ellipse 80% 50% at 50% 50%,
+                rgba(139, 92, 246, 0.08) 0%,
+                rgba(6, 182, 212, 0.04) 40%,
+                transparent 70%);
+    }
+
+    .atmospheric-glow {
+        background: radial-gradient(circle at 30% 30%,
+                rgba(139, 92, 246, 0.15) 0%,
+                transparent 50%);
+    }
+
+    /* Pulse animations for data updates */
+    .pulse-on-update {
+        animation: pulseUpdate 0.6s ease-out;
+    }
+
+    @keyframes pulseUpdate {
+        0% {
+            box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+        }
+
+        100% {
+            box-shadow: 0 0 20px 10px rgba(139, 92, 246, 0);
+        }
+    }
 }
-::-webkit-scrollbar-track {
-  background: #050509; 
+
+/* ==========================================
+   DASHBOARD SPECIFIC
+   ========================================== */
+
+@layer components {
+
+    /* Dashboard Layout */
+    .dashboard-container {
+        @apply min-h-screen bg-bg-base;
+        @apply px-6 py-8 md:px-8 lg:px-12;
+        @apply max-w-[1600px] mx-auto;
+    }
+
+    /* Dashboard Sections */
+    .dashboard-section {
+        @apply mb-12;
+    }
+
+    .dashboard-section-header {
+        @apply flex items-center justify-between mb-6;
+    }
+
+    /* Overview Grid */
+    .overview-grid {
+        @apply grid gap-6;
+        @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-4;
+    }
+
+    /* Deep Dive Sections */
+    .deep-dive-section {
+        @apply py-8 border-t border-border/30;
+    }
+
+    /* Driver Lists */
+    .driver-list {
+        @apply space-y-3;
+    }
+
+    .driver-item {
+        @apply flex items-center justify-between p-3 rounded-lg bg-bg-elevated/50;
+        @apply transition-colors duration-200;
+    }
+
+    .driver-item:hover {
+        @apply bg-bg-hover;
+    }
+
+    /* Impact Bars */
+    .impact-bar {
+        @apply h-2 rounded-full overflow-hidden bg-bg-hover;
+    }
+
+    .impact-bar-positive {
+        @apply bg-gradient-to-r from-engagement to-engagement-high;
+    }
+
+    .impact-bar-negative {
+        @apply bg-gradient-to-r from-strain to-strain-high;
+    }
 }
-::-webkit-scrollbar-thumb {
-  background: #1f2937; 
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #374151; 
+
+/* ==========================================
+   LANDING PAGE SPECIFIC
+   ========================================== */
+
+@layer components {
+
+    /* Hero Section */
+    .hero-section {
+        @apply relative min-h-screen flex items-center justify-center;
+        @apply overflow-hidden;
+    }
+
+    /* Demo Dashboard Preview */
+    .demo-preview {
+        @apply relative rounded-2xl overflow-hidden;
+        @apply border border-border/50 shadow-glow;
+    }
+
+    .demo-preview-inner {
+        @apply bg-bg-surface/90 backdrop-blur-sm;
+    }
 }
