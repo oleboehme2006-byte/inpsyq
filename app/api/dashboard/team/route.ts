@@ -8,7 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTeamDashboardData } from '@/services/dashboard/teamReader';
 import { requireTeamAccess } from '@/lib/access/guards';
-import { buildCacheKey, getFromCache, setCache } from '@/services/dashboard/cache';
+import { buildCacheKey, getFromCache, setCache, isCacheValid } from '@/services/dashboard/cache';
+import { measure } from '@/lib/diagnostics/timing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -38,9 +39,14 @@ export async function GET(req: NextRequest) {
         }
 
         // Check cache
-        const cacheKey = buildCacheKey('team', orgId, teamId, 'latest', 'v2');
+        // Check cache (Verify hash first for strict correctness)
+        // Check cache with correct hash
+        const { valid, currentHash } = await isCacheValid(orgId, teamId, 'latest');
+        const computedHash = currentHash || 'none';
+        const cacheKey = buildCacheKey('team', orgId, teamId, 'latest', 'v2', computedHash);
+
         const cached = getFromCache<any>(cacheKey);
-        if (cached) {
+        if (cached && valid) {
             return NextResponse.json({
                 ...cached.data,
                 meta: {
@@ -53,28 +59,54 @@ export async function GET(req: NextRequest) {
         }
 
         // Fetch fresh data
-        const data = await getTeamDashboardData(orgId, teamId, weeks);
+        const data = await measure('dashboard.team.read', () =>
+            getTeamDashboardData(orgId, teamId, weeks)
+        );
 
         if (!data) {
             return NextResponse.json({
                 error: 'No data available for this team',
                 code: 'NO_DATA',
+                status: 'FAILED',
                 request_id: requestId,
                 suggestion: 'Run pipeline:dev:rebuild to generate weekly products',
             }, { status: 404 });
         }
 
-        // Cache result
-        setCache(cacheKey, data, data.meta.latestWeek);
+        // Check interpretation status for "Staleness/Degraded" check
+        // We do this AFTER fetching data to avoid overhead if no data
+        // We import query locally or use a lightweight check
+        // For simplicity, we assume "DEGRADED" if no active interpretation
+        // We'll perform a quick DB check. 
+        // Note: This adds a query. But for "Operational Visibility" it's required.
+        // We can optimize by joining in teamReader later if needed.
+        const { rows: interpRows } = await import('@/db/client').then(m => m.query(
+            `SELECT created_at FROM weekly_interpretations 
+             WHERE org_id = $1 AND team_id = $2 AND week_start = $3 AND is_active = true`,
+            [orgId, teamId, data.meta.latestWeek]
+        ));
 
-        return NextResponse.json({
+        const interpretationExists = interpRows.length > 0;
+        const status = interpretationExists ? 'OK' : 'DEGRADED';
+
+        if (interpretationExists) {
+            data.meta.lastInterpretationAt = new Date(interpRows[0].created_at).toISOString();
+        }
+
+        const responseData = {
             ...data,
+            status, // Top-level status
             meta: {
                 ...data.meta,
                 request_id: requestId,
                 duration_ms: Date.now() - startTime,
-            },
-        });
+            }
+        };
+
+        // Cache result
+        setCache(cacheKey, responseData, data.meta.latestWeek);
+
+        return NextResponse.json(responseData);
 
     } catch (error: any) {
         console.error('[API] /dashboard/team failed:', error.message);

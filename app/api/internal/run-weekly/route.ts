@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runWeekly } from '@/services/weeklyRunner/runner';
 import { RunMode } from '@/services/weeklyRunner/types';
+import { measure } from '@/lib/diagnostics/timing';
 
 const CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
 
@@ -86,13 +87,13 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-        const result = await runWeekly({
+        const result = await measure('runWeekly', () => runWeekly({
             orgId,
             teamId,
             weekStart,
             weekOffset,
             options: { dryRun, mode },
-        });
+        }));
 
         // Check if we got locked out
         if (result.error?.startsWith('LOCKED:')) {

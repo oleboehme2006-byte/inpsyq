@@ -10,6 +10,7 @@ import { createInviteToken } from '@/lib/access/invite';
 import { requireRole } from '@/lib/access/guards';
 import { isValidRole, Role } from '@/lib/access/roles';
 import { query } from '@/db/client';
+import { SECURITY_LIMITS } from '@/lib/security/limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -72,6 +73,24 @@ export async function POST(req: Request) {
             role: role as Role,
             email,
         });
+
+        // Extract signature for tracking
+        const signature = inviteToken.split('.')[1];
+
+        // 1. Enforce Max Outstanding Invites
+        const countRes = await query(`SELECT COUNT(*) as count FROM active_invites WHERE org_id = $1`, [orgId]);
+        if (parseInt(countRes.rows[0].count, 10) >= SECURITY_LIMITS.MAX_INVITES_PER_ORG) {
+            return NextResponse.json(
+                { error: 'Max outstanding invites limit reached', code: 'LIMIT_EXCEEDED', request_id: requestId },
+                { status: 429 }
+            );
+        }
+
+        // 2. Track Active Invite
+        await query(`
+            INSERT INTO active_invites (payload_signature, org_id, created_by, expires_at)
+            VALUES ($1, $2, $3, NOW() + INTERVAL '72 hours')
+        `, [signature, orgId, (req as any).auth?.userId]); // auth user might be undefined in strict typing but guards checks it
 
         return NextResponse.json({
             inviteToken,

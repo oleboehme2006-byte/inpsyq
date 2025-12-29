@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrCreateTeamInterpretation } from '@/services/interpretation/service';
 import { requireTeamAccess } from '@/lib/access/guards';
+import { measure } from '@/lib/diagnostics/timing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -45,7 +46,10 @@ export async function GET(req: NextRequest) {
         }
 
         // Get or create interpretation
-        const result = await getOrCreateTeamInterpretation(orgId, teamId, weekStart);
+        // Get or create interpretation
+        const result = await measure('interpretation.team.getOrCreate', () =>
+            getOrCreateTeamInterpretation(orgId, teamId, weekStart)
+        );
 
         return NextResponse.json({
             request_id: requestId,

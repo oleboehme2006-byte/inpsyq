@@ -35,8 +35,22 @@ export async function POST(req: Request) {
                 { status: 400 }
             );
         }
-
         const { orgId, teamId, role, email } = parsed.payload;
+
+        // One-Time Use Enforcement
+        const signature = inviteToken.split('.')[1];
+        const consumeRes = await query(`
+            DELETE FROM active_invites 
+            WHERE payload_signature = $1 
+            RETURNING payload_signature
+        `, [signature]);
+
+        if (consumeRes.rows.length === 0) {
+            return NextResponse.json(
+                { error: 'Invite token already used or expired', code: 'TOKEN_CONSUMED', request_id: requestId },
+                { status: 409 }
+            );
+        }
 
         // Determine userId: from auth or from body
         let userId: string;

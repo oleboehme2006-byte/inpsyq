@@ -9,6 +9,7 @@ import { ITEM_BANK } from './measurement/item_bank';
 import { voiceService } from './voice/voiceService';
 import { sessionLogger } from './diagnostics/sessionLogger';
 import { getSessionConfig, SessionConfig } from '../lib/runtime/sessionConfig';
+import { SECURITY_LIMITS } from '@/lib/security/limits';
 
 // Session Meta (B3 Hardening)
 export interface SessionMeta {
@@ -61,6 +62,9 @@ export class InteractionEngine {
             // Throttling...
         }
         this.lastRequest.set(userId, now);
+
+        // Security: Check Active Sessions Limit
+        await this.enforceSessionLimit(userId);
 
         // 1. Create Session
         const dbStartTime = Date.now();
@@ -387,6 +391,23 @@ export class InteractionEngine {
     async getInteractionById(interactionId: string) {
         const result = await query(`SELECT * FROM interactions WHERE interaction_id = $1`, [interactionId]);
         return result.rows[0];
+    }
+    /**
+     * Enforce strict session limits per week.
+     */
+    private async enforceSessionLimit(userId: string): Promise<void> {
+        const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+        const result = await query(`
+            SELECT COUNT(*) as count 
+            FROM sessions 
+            WHERE user_id = $1 
+              AND started_at > NOW() - INTERVAL '7 days'
+        `, [userId]);
+
+        const count = parseInt(result.rows[0].count, 10);
+        if (count >= SECURITY_LIMITS.MAX_SESSIONS_PER_WEEK) {
+            throw new Error(`Session limit exceeded (${count}/${SECURITY_LIMITS.MAX_SESSIONS_PER_WEEK} this week).`);
+        }
     }
 }
 

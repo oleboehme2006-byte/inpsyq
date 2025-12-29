@@ -1,11 +1,12 @@
 /**
  * DASHBOARD CACHE — Simple Server-Side Cache
  * 
- * Cache key: (org_id, team_id, week_start, compute_version)
+ * Cache key: (org_id, team_id, week_start, compute_version, hash)
  * Invalidates when input_hash changes.
  */
 
 import { query } from '@/db/client';
+import { assertCacheKeyScoped } from '@/lib/tenancy/assertions';
 
 // ============================================================================
 // Types
@@ -32,9 +33,12 @@ export function buildCacheKey(
     orgId: string,
     teamId: string | null,
     weekStart: string,
-    computeVersion: string
+    computeVersion: string,
+    hash: string
 ): string {
-    return `${type}:${orgId}:${teamId || 'all'}:${weekStart}:${computeVersion}`;
+    const key = `${type}:${orgId}:${teamId || 'all'}:${weekStart}:${computeVersion}:${hash}`;
+    assertCacheKeyScoped(key, orgId);
+    return key;
 }
 
 /**

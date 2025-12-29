@@ -6,10 +6,11 @@
  */
 
 import './_bootstrap';
+import { getVerifyBaseUrl, fetchJson } from './_verifyBaseUrl';
 
 export { }; // Make this a module
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = getVerifyBaseUrl();
 const CRON_SECRET = process.env.INTERNAL_CRON_SECRET || 'test-cron-secret';
 
 let passed = 0;
@@ -26,32 +27,42 @@ function test(name: string, condition: boolean, detail?: string): void {
 }
 
 async function runWeeklyWithOffset(weekOffset: number): Promise<any> {
-    const res = await fetch(`${BASE_URL}/api/internal/run-weekly`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-cron-secret': CRON_SECRET,
+    const url = `${BASE_URL}/api/internal/run-weekly`;
+    const { json } = await fetchJson(
+        url,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-cron-secret': CRON_SECRET,
+            },
+            body: JSON.stringify({ week_offset: weekOffset, dry_run: true }),
         },
-        body: JSON.stringify({ week_offset: weekOffset, dry_run: true }),
-    });
-    return res.json();
+        `backfill-offset-${weekOffset}`
+    );
+    return json;
 }
 
 async function main() {
     console.log('=== Phase 12 Backfill Verification ===\n');
+    console.log(`Base URL: ${BASE_URL}`);
+    console.log(`INTERNAL_CRON_SECRET: ${CRON_SECRET ? 'SET' : 'NOT SET'}\n`);
 
     // Test 1: Current week (offset 0)
     console.log('--- Current Week (offset 0) ---');
+    console.log(`  POST ${BASE_URL}/api/internal/run-weekly (week_offset=0)`);
     try {
         const result = await runWeeklyWithOffset(0);
         console.log(`  Week: ${result.week_start} (${result.week_label})`);
         test('Current week runs', result.success || result.run_id);
     } catch (e: any) {
+        console.error(`  Error: ${e.message}`);
         test('Current week', false, e.message);
     }
 
     // Test 2: Previous week (offset -1)
     console.log('\n--- Previous Week (offset -1) ---');
+    console.log(`  POST ${BASE_URL}/api/internal/run-weekly (week_offset=-1)`);
     try {
         const result = await runWeeklyWithOffset(-1);
         console.log(`  Week: ${result.week_start} (${result.week_label})`);
@@ -61,16 +72,19 @@ async function main() {
         const current = await runWeeklyWithOffset(0);
         test('Different from current', result.week_start !== current.week_start);
     } catch (e: any) {
+        console.error(`  Error: ${e.message}`);
         test('Previous week', false, e.message);
     }
 
     // Test 3: Two weeks ago (offset -2)
     console.log('\n--- Two Weeks Ago (offset -2) ---');
+    console.log(`  POST ${BASE_URL}/api/internal/run-weekly (week_offset=-2)`);
     try {
         const result = await runWeeklyWithOffset(-2);
         console.log(`  Week: ${result.week_start} (${result.week_label})`);
         test('Two weeks ago runs', result.success || result.run_id);
     } catch (e: any) {
+        console.error(`  Error: ${e.message}`);
         test('Two weeks ago', false, e.message);
     }
 

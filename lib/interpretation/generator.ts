@@ -37,7 +37,7 @@ export interface GeneratorResult {
 // Main Generator
 // ============================================================================
 
-export async function generateWeeklyInterpretation(
+export async function generateDeterministicInterpretation(
     input: WeeklyInterpretationInput,
     opts: GeneratorOptions = {}
 ): Promise<GeneratorResult> {

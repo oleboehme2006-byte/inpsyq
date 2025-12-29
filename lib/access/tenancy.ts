@@ -6,6 +6,7 @@
 
 import { query } from '@/db/client';
 import { Role, isValidRole } from './roles';
+import { assertSameOrg } from '@/lib/tenancy/assertions';
 
 // ============================================================================
 // Types
@@ -53,7 +54,12 @@ export async function getMembershipForOrg(
     );
 
     if (result.rows.length === 0) return null;
-    return mapRow(result.rows[0]);
+    const membership = mapRow(result.rows[0]);
+
+    // Strict Assertion: Ensure the returned membership actually matches requested Org
+    assertSameOrg(orgId, membership.orgId, 'getMembershipForOrg');
+
+    return membership;
 }
 
 /**

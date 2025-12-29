@@ -3,6 +3,7 @@
  * 
  * Entry points for getting or creating interpretations.
  * Implements idempotency via input_hash checking.
+ * Orchestrates LLM generation with deterministic fallbacks.
  */
 
 import { query } from '@/db/client';
@@ -16,11 +17,19 @@ import {
     buildInterpretationInput
 } from '@/lib/interpretation/input';
 import { computeInterpretationHash } from '@/lib/interpretation/hash';
-import { generateWeeklyInterpretation } from '@/lib/interpretation/generator';
-import { validateAll } from '@/lib/interpretation/validate';
+import { generateDeterministicInterpretation } from '@/lib/interpretation/generator';
+import { validateAll, validateNumericSpam, InterpretationValidationError } from '@/lib/interpretation/validate';
 import { evaluatePolicy } from '@/lib/interpretation/policy';
 import { INTERPRETATION_SCHEMA_SQL } from '@/lib/interpretation/schema';
 import { getTeamDashboardData } from '@/services/dashboard/teamReader';
+import { GroundingMap, assertGroundingMap } from '@/lib/interpretation/grounding';
+import { getLLMConfig } from '@/services/llm/config';
+import { OpenAIProvider } from '@/services/llm/openai';
+import { DisabledProvider } from '@/services/llm/disabled';
+import { LLMProvider } from '@/services/llm/types';
+import { SECURITY_LIMITS } from '@/lib/security/limits';
+import { logAuditEvent } from '@/services/audit/events';
+import { logInterpretationUsage, checkTokenBudget } from '@/services/monitoring/usage';
 
 // ============================================================================
 // Schema Enforcement
@@ -36,6 +45,39 @@ async function ensureSchema(): Promise<void> {
         schemaEnsured = true;
     }
 }
+
+// ============================================================================
+// Concurrency Control
+// ============================================================================
+
+class ConcurrencyLimiter {
+    private active = 0;
+    private queue: Array<() => void> = [];
+
+    constructor(private max: number) { }
+
+    async acquire(): Promise<void> {
+        if (this.active < this.max) {
+            this.active++;
+            return;
+        }
+        return new Promise<void>(resolve => {
+            this.queue.push(resolve);
+        });
+    }
+
+    release(): void {
+        this.active--;
+        if (this.queue.length > 0) {
+            this.active++;
+            const next = this.queue.shift();
+            if (next) next();
+        }
+    }
+}
+
+const llmConfig = getLLMConfig();
+const concurrencyLimiter = new ConcurrencyLimiter(llmConfig.concurrency);
 
 // ============================================================================
 // Service Entry Points
@@ -70,33 +112,7 @@ export async function getOrCreateTeamInterpretation(
     const input = buildInterpretationInput(dashboardData, inputHash);
     input.weekStart = targetWeek;
 
-    // Compute interpretation-specific hash
-    const interpHash = computeInterpretationHash(input);
-
-    // Check cache
-    const cached = await getActiveInterpretation(orgId, teamId, targetWeek);
-    if (cached && cached.inputHash === interpHash) {
-        return { record: cached, cacheHit: true, generated: false };
-    }
-
-    // Generate new interpretation
-    const result = await generateWeeklyInterpretation(input);
-
-    // Validate
-    const validated = validateAll(result.sections, input, result.policy);
-
-    // Store (atomic: deactivate old, insert new)
-    const record = await storeInterpretation({
-        orgId,
-        teamId,
-        weekStart: targetWeek,
-        inputHash: interpHash,
-        modelId: result.modelId,
-        promptVersion: result.promptVersion,
-        sectionsJson: validated,
-    });
-
-    return { record, cacheHit: false, generated: true };
+    return getOrCreateInterpretationCommon(orgId, teamId, targetWeek, input);
 }
 
 /**
@@ -109,7 +125,7 @@ export async function getOrCreateOrgInterpretation(
     await ensureSchema();
 
     // For org-level, we need to aggregate across teams
-    // For now, use the first team's data as proxy
+    // For now, use the first team's data as proxy (Phase 9 logic)
     const teamsResult = await query(
         `SELECT team_id FROM teams WHERE org_id = $1 LIMIT 1`,
         [orgId]
@@ -134,31 +150,225 @@ export async function getOrCreateOrgInterpretation(
     input.teamId = null;
     input.weekStart = targetWeek;
 
+    return getOrCreateInterpretationCommon(orgId, null, targetWeek, input);
+}
+
+// Common orchestration logic
+async function getOrCreateInterpretationCommon(
+    orgId: string,
+    teamId: string | null,
+    targetWeek: string,
+    input: WeeklyInterpretationInput
+): Promise<InterpretationResult> {
     const interpHash = computeInterpretationHash(input);
 
     // Check cache
-    const cached = await getActiveInterpretation(orgId, null, targetWeek);
+    const cached = await getActiveInterpretation(orgId, teamId, targetWeek);
+    const config = getLLMConfig();
+
+    // STRICT PROVIDER MODE CHECK
+    let cacheValid = false;
     if (cached && cached.inputHash === interpHash) {
+        if (config.provider === 'disabled') {
+            // Must be deterministic
+            if (cached.modelId === 'interaction_deterministic_v1') {
+                cacheValid = true;
+            }
+        } else {
+            // Provider enabled. 
+            // Prefer cached if hash matches, even if deterministic fallback from before.
+            // But if we have LLM available, we might want to upgrade?
+            // For stability/cost, sticking to valid cache is preferred.
+            cacheValid = true;
+        }
+    }
+
+    if (cacheValid && cached) {
         return { record: cached, cacheHit: true, generated: false };
     }
 
-    // Generate
-    const result = await generateWeeklyInterpretation(input);
-    const validated = validateAll(result.sections, input, result.policy);
+    // Generate new interpretation (LLM or Deterministic)
 
-    // Store
+    // Security: Check Generation Limits (Cost Control)
+    if (teamId) {
+        const startOfWeek = new Date();
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Sunday
+        const limitRes = await query(`
+            SELECT COUNT(*) as count 
+            FROM audit_events 
+            WHERE org_id = $1 
+              AND team_id = $2
+              AND event_type = 'INTERPRETATION_GENERATED'
+              AND created_at > $3
+        `, [orgId, teamId, startOfWeek]);
+
+        const genCount = parseInt(limitRes.rows[0].count, 10);
+        if (genCount >= SECURITY_LIMITS.MAX_GENERATIONS_PER_WEEK) {
+            throw new Error(`Generation limit exceeded (${genCount}/${SECURITY_LIMITS.MAX_GENERATIONS_PER_WEEK} this week)`);
+        }
+    }
+
+    // Security: Check Token Budget (Soft Limit)
+    // If budget exceeded, force fallback
+    let forceDeterministic = false;
+    const isBudgetOk = await checkTokenBudget(orgId, 200000); // 200k tokens/week hardcoded limit
+    if (!isBudgetOk) {
+        forceDeterministic = true;
+    }
+
+    const context = { orgId, teamId, weekStart: targetWeek, inputHash: interpHash };
+    const result = await generateOrchestrated(input, context, forceDeterministic);
+
+    // Audit Log
+    const eventType = result.deterministicFallback ? 'INTERPRETATION_FALLBACK' : 'INTERPRETATION_GENERATED';
+    logAuditEvent(orgId, teamId, eventType, {
+        modelId: result.modelId,
+        promptVersion: result.promptVersion,
+        inputHash: interpHash
+    }).catch(console.error);
+
+    // Store (atomic: deactivate old, insert new)
     const record = await storeInterpretation({
         orgId,
-        teamId: null,
+        teamId,
         weekStart: targetWeek,
         inputHash: interpHash,
         modelId: result.modelId,
         promptVersion: result.promptVersion,
-        sectionsJson: validated,
+        sectionsJson: result.sections,
+        groundingMap: result.groundingMap
     });
 
     return { record, cacheHit: false, generated: true };
 }
+
+// ============================================================================
+// Generation Orchestrator
+// ============================================================================
+
+interface OrchestratedResult {
+    sections: WeeklyInterpretationSections;
+    modelId: string;
+    promptVersion: string;
+    groundingMap?: GroundingMap;
+    deterministicFallback: boolean;
+}
+
+interface GenerationContext {
+    orgId: string;
+    teamId: string | null;
+    weekStart: string;
+    inputHash: string;
+}
+
+async function generateOrchestrated(
+    input: WeeklyInterpretationInput,
+    context?: GenerationContext,
+    forceDeterministic: boolean = false
+): Promise<OrchestratedResult> {
+    const config = getLLMConfig();
+    const useLLM = !forceDeterministic && config.provider !== 'disabled' && !!config.apiKey;
+
+    if (useLLM) {
+        try {
+            await concurrencyLimiter.acquire();
+            const provider: LLMProvider = new OpenAIProvider();
+
+            // Build system prompt
+            const systemPrompt = `You are an expert organizational psychologist generating an interpretation of weekly team metrics.
+Rules:
+1. Output MUST be valid JSON matching the WeeklyInterpretationSections schema.
+2. Output MUST include a "grounding_map" array.
+3. Do NOT invent numbers. 
+4. Do NOT hallucinate metric names.
+5. Max numeric values mentioned: ${config.numericCap}.
+6. Forbidden phrases: "burnout", "toxic", "crisis".
+7. Focus on constructive analysis.`;
+
+            // Create user prompt from input
+            const userPrompt = JSON.stringify(input);
+
+            const startTime = Date.now();
+            const result = await provider.generateJSON<{
+                interpretation: WeeklyInterpretationSections;
+                grounding_map: GroundingMap;
+            }>(
+                systemPrompt,
+                userPrompt
+            );
+            const latencyMs = Date.now() - startTime;
+
+            if (result.ok) {
+                const { interpretation, grounding_map } = result.json;
+
+                // Validate everything
+                const policy = evaluatePolicy(input);
+                const validated = validateAll(interpretation, input, policy);
+                assertGroundingMap(grounding_map, input);
+
+                // Log Usage
+                if (context) {
+                    await logInterpretationUsage({
+                        orgId: context.orgId,
+                        teamId: context.teamId,
+                        weekStart: context.weekStart,
+                        inputHash: context.inputHash,
+                        modelId: result.model,
+                        promptTokens: result.usage?.inputTokens || 0,
+                        completionTokens: result.usage?.outputTokens || 0,
+                        latencyMs,
+                        provider: result.provider || config.provider as string,
+                        isFallback: false
+                    });
+                }
+
+                return {
+                    sections: validated,
+                    modelId: result.model,
+                    promptVersion: PROMPT_VERSION,
+                    groundingMap: grounding_map,
+                    deterministicFallback: false
+                };
+            } else {
+                console.warn('LLM Generation failed:', result.error);
+                throw new Error(`LLM Error: ${result.error.code}`);
+            }
+        } catch (e: any) {
+            console.error('LLM Failed, falling back to deterministic:', e.message);
+            // Fallthrough to deterministic
+        } finally {
+            concurrencyLimiter.release();
+        }
+    }
+
+    // Deterministic Fallback
+    const startTimeDet = Date.now();
+    const result = await generateDeterministicInterpretation(input);
+    const latencyMsDet = Date.now() - startTimeDet;
+
+    if (context) {
+        await logInterpretationUsage({
+            orgId: context.orgId,
+            teamId: context.teamId,
+            weekStart: context.weekStart,
+            inputHash: context.inputHash,
+            modelId: result.modelId,
+            promptTokens: 0,
+            completionTokens: 0,
+            latencyMs: latencyMsDet,
+            provider: 'deterministic',
+            isFallback: true
+        });
+    }
+
+    return {
+        sections: result.sections,
+        modelId: result.modelId,
+        promptVersion: result.promptVersion,
+        deterministicFallback: true
+    };
+}
+
 
 // ============================================================================
 // Storage Operations
@@ -193,6 +403,7 @@ interface StoreParams {
     modelId: string;
     promptVersion: string;
     sectionsJson: WeeklyInterpretationSections;
+    groundingMap?: GroundingMap;
 }
 
 async function storeInterpretation(params: StoreParams): Promise<WeeklyInterpretationRecord> {
@@ -213,7 +424,6 @@ async function storeInterpretation(params: StoreParams): Promise<WeeklyInterpret
         );
     }
 
-    // Insert new active row
     const result = await query(
         `INSERT INTO weekly_interpretations 
        (org_id, team_id, week_start, input_hash, model_id, prompt_version, sections_json, is_active)

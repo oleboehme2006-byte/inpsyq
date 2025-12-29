@@ -9,6 +9,7 @@ import { query } from '@/db/client';
 import { getQualitativeStateForIndex, getIndexDefinition, IndexId, INDEX_REGISTRY } from '@/lib/semantics/indexRegistry';
 import { DRIVER_REGISTRY, DriverFamilyId, isValidDriverFamilyId } from '@/lib/semantics/driverRegistry';
 import { COMPUTE_VERSION } from '@/services/pipeline/schema';
+import { assertSameOrg } from '@/lib/tenancy/assertions';
 
 // ============================================================================
 // Types
@@ -40,6 +41,9 @@ export interface TeamDashboardData {
         weeksAvailable: number;
         computeVersion: string;
         cacheHit: boolean;
+        lastProductAt: string | null;
+        lastInterpretationAt: string | null;
+        inputHash: string | null;
     };
     latestIndices: {
         strain: { value: number; qualitative: string; label: string };
@@ -120,6 +124,9 @@ export async function getTeamDashboardData(
     const rows = result.rows.map(mapRow);
     const latest = rows[0];
 
+    // Tenant Isolation Check
+    assertSameOrg(orgId, latest.orgId, 'getTeamDashboardData');
+
     // Build latest indices
     const latestIndices = buildLatestIndices(latest);
 
@@ -143,6 +150,9 @@ export async function getTeamDashboardData(
             weeksAvailable: rows.length,
             computeVersion: latest.computeVersion || 'legacy',
             cacheHit: false,
+            lastProductAt: latest.updatedAt.toISOString(),
+            lastInterpretationAt: null, // Filled by API route if available
+            inputHash: latest.inputHash,
         },
         latestIndices,
         trend,
