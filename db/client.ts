@@ -1,14 +1,17 @@
 import { Pool, QueryResult, QueryResultRow, PoolClient } from "pg";
-import { dbConfig } from "../lib/config";
+import { getDbConfig } from "../lib/config";
 
 declare global {
   // eslint-disable-next-line no-var
   var __pgPool: Pool | undefined;
 }
 
-export const pool =
-  global.__pgPool ??
-  new Pool(dbConfig);
+// Lazy pool creation to ensure env is loaded first
+function createPool(): Pool {
+  return global.__pgPool ?? new Pool(getDbConfig());
+}
+
+export const pool = createPool();
 
 if (process.env.NODE_ENV !== "production") {
   global.__pgPool = pool;

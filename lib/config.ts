@@ -37,9 +37,12 @@ export function getDatabaseConfig() {
     console.warn("[DB] Could not parse connection string for logging.");
   }
 
+  // Neon requires SSL; enable it unless explicitly disabled
+  const useSSL = url.includes('neon.tech') || process.env.NODE_ENV === 'production';
+
   return {
     connectionString: url,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined
+    ssl: useSSL ? { rejectUnauthorized: false } : undefined
   };
 }
 
@@ -53,6 +56,10 @@ export function getDbConfig() {
   return _dbConfig;
 }
 
-// For backwards compatibility - will be evaluated at import time
-// Only use in Next.js context where env is already loaded
-export const dbConfig = getDatabaseConfig();
+// For backwards compatibility - lazy evaluated on first access
+// Uses a getter to defer evaluation until actually needed
+export const dbConfig = new Proxy({} as ReturnType<typeof getDatabaseConfig>, {
+  get(_, prop) {
+    return getDbConfig()[prop as keyof ReturnType<typeof getDatabaseConfig>];
+  }
+});

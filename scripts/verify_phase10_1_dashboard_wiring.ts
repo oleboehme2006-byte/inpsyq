@@ -10,7 +10,7 @@
  * Usage: npm run verify:phase10.1
  */
 
-import 'dotenv/config';
+import './_bootstrap';
 import { DEV_ORG_ID, DEV_TEAMS } from '../lib/dev/fixtures';
 
 const BASE_URL = 'http://localhost:3001';

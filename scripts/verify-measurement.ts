@@ -12,7 +12,7 @@
  * Usage: npm run verify:phase8
  */
 
-import 'dotenv/config';
+import './_bootstrap';
 import { query } from '../db/client';
 import { DEV_ORG_ID, DEV_TEAMS, DEV_USERS } from '../lib/dev/fixtures';
 import { MEASUREMENT_SCHEMA_SQL } from '../lib/measurement/schema';

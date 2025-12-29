@@ -5,6 +5,8 @@
  * Tests that week_offset works for backfill scenarios.
  */
 
+import './_bootstrap';
+
 export { }; // Make this a module
 
 const BASE_URL = 'http://localhost:3001';

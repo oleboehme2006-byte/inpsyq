@@ -10,7 +10,7 @@
  * Usage: npm run verify:phase6:idempotency
  */
 
-import 'dotenv/config';
+import './_bootstrap';
 import { query } from '../db/client';
 import { DEV_ORG_ID, DEV_TEAMS } from '../lib/dev/fixtures';
 import { backfillTeam } from '../services/pipeline/runner';

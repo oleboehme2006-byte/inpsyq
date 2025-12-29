@@ -11,7 +11,7 @@
  * Usage: npm run verify:phase7
  */
 
-import 'dotenv/config';
+import './_bootstrap';
 import { query } from '../db/client';
 import { DEV_ORG_ID, DEV_TEAMS } from '../lib/dev/fixtures';
 import { getTeamDashboardData } from '../services/dashboard/teamReader';

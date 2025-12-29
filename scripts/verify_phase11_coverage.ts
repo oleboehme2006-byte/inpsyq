@@ -5,7 +5,7 @@
  * Tests that fixture org has weekly products and interpretations for all teams.
  */
 
-import 'dotenv/config';
+import './_bootstrap';
 import { DEV_ORG_ID, DEV_TEAMS } from '../lib/dev/fixtures';
 
 const BASE_URL = 'http://localhost:3001';

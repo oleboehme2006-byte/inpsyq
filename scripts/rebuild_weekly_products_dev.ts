@@ -6,7 +6,9 @@
  * Usage: npm run pipeline:dev:rebuild
  */
 
-import 'dotenv/config';
+// MUST be first import to load env before other modules
+import './_bootstrap';
+
 import { query } from '../db/client';
 import { DEV_ORG_ID, DEV_TEAMS } from '../lib/dev/fixtures';
 import { backfillTeam } from '../services/pipeline/runner';

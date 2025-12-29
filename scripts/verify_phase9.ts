@@ -13,7 +13,7 @@
  * Usage: npm run verify:phase9
  */
 
-import 'dotenv/config';
+import './_bootstrap';
 import { query } from '../db/client';
 import { DEV_ORG_ID, DEV_TEAMS } from '../lib/dev/fixtures';
 import { INTERPRETATION_SCHEMA_SQL } from '../lib/interpretation/schema';
@@ -97,7 +97,7 @@ async function main() {
     // Test 4: Sections shape validation
     console.log('\n--- Sections Validation ---');
     const validSections = {
-        executiveSummary: 'This team shows moderate strain levels with a stable trajectory over the observation period. Current state is primarily influenced by internal factors. Data quality indicates adequate coverage for interpretation. Continued monitoring is appropriate.',
+        executiveSummary: 'This team shows moderate strain levels with a stable trajectory over the observation period. Current state is primarily influenced by internal factors rather than external dependencies. Data quality indicates adequate coverage for reliable interpretation of the organizational dynamics. Continued monitoring is appropriate given the stable baseline. No immediate interventions are required at this time.',
         whatChanged: ['Strain Index remained stable', 'Engagement stable', 'Coverage maintained'],
         primaryDrivers: { internal: [], external: [] },
         riskOutlook: ['No elevated risks identified'],

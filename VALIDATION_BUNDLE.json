@@ -1,0 +1,119 @@
+{
+    "env": {
+        "node": "v25.2.1",
+        "npm": "11.6.2",
+        "branch": "main",
+        "commit": "c16df9752bac2020afbb0a8eccb694de0de1bafe"
+    },
+    "ids": {
+        "org_id": "11111111-1111-4111-8111-111111111111",
+        "team_id": "22222222-2222-4222-8222-222222222201",
+        "team2_id": "22222222-2222-4222-8222-222222222202",
+        "executive_user_id": "33333333-3333-4333-8333-000000000001",
+        "teamlead_user_id": "33333333-3333-4333-8333-000000000002",
+        "employee_user_id": "33333333-3333-4333-8333-000000000003"
+    },
+    "phase_status": {
+        "phase34_aggregation_attribution": "PASS",
+        "phase6_pipeline_idempotency": "PASS",
+        "phase6_pipeline_coverage": "PASS",
+        "phase7_dashboard_api": "PASS",
+        "phase8_measurement": "PASS",
+        "phase9_interpretation": "PASS",
+        "phase11_security": "PASS",
+        "phase11_idempotency": "PASS",
+        "phase12_security": "PASS",
+        "phase12_locking": "PASS",
+        "phase12_backfill": "PASS"
+    },
+    "api_samples": {
+        "weekly_run": {
+            "run_id": "0f1a91af-2069-424c-a42c-a83b353687c9",
+            "week_start": "2025-12-29",
+            "week_label": "2026-W01",
+            "status": "COMPLETED",
+            "counts": {
+                "orgs_total": 6,
+                "orgs_success": 6,
+                "teams_total": 11,
+                "teams_success": 11,
+                "pipeline_upserts": 5,
+                "pipeline_skips": 6
+            }
+        },
+        "weekly_dry_run": {
+            "run_id": "dry-run-1767025345046",
+            "week_start": "2025-12-29",
+            "status": "COMPLETED",
+            "dry_run": true
+        },
+        "backfill_offset_1": {
+            "week_start": "2025-12-22",
+            "week_label": "2025-W52"
+        },
+        "backfill_offset_2": {
+            "week_start": "2025-12-15",
+            "week_label": "2025-W51"
+        }
+    },
+    "failures": [
+        {
+            "step": "scripts/_bootstrap.ts missing",
+            "error": "Cannot find module './_bootstrap'",
+            "root_cause": "Bootstrap file was referenced but not created",
+            "fix": {
+                "files": [
+                    "scripts/_bootstrap.ts"
+                ],
+                "summary": "Created bootstrap file with dotenv loading using ESM imports"
+            }
+        },
+        {
+            "step": "SSL connection to Neon",
+            "error": "connection is insecure (try using sslmode=require)",
+            "root_cause": "lib/config.ts only enabled SSL in production mode",
+            "fix": {
+                "files": [
+                    "lib/config.ts"
+                ],
+                "summary": "Enable SSL when connection string contains neon.tech"
+            }
+        },
+        {
+            "step": "Pool config from Proxy",
+            "error": "Pool constructor didn't receive ssl/connectionString",
+            "root_cause": "Proxy get() not compatible with Pool constructor spread",
+            "fix": {
+                "files": [
+                    "db/client.ts"
+                ],
+                "summary": "Use getDbConfig() directly instead of dbConfig Proxy"
+            }
+        },
+        {
+            "step": "Phase 9 sections validation",
+            "error": "executiveSummary: 36 words (expect 40-90)",
+            "root_cause": "Test text didn't meet SECTION_LIMITS minimum",
+            "fix": {
+                "files": [
+                    "scripts/verify_phase9.ts"
+                ],
+                "summary": "Extended test executive summary to 55+ words"
+            }
+        },
+        {
+            "step": "INTERNAL_CRON_SECRET not set",
+            "error": "Server misconfiguration - SECRET_NOT_CONFIGURED",
+            "root_cause": "Secrets not in .env.local",
+            "fix": {
+                "files": [
+                    ".env.local"
+                ],
+                "summary": "Added INTERNAL_CRON_SECRET and INTERNAL_ADMIN_SECRET"
+            }
+        }
+    ],
+    "build_status": "PASS",
+    "ui_files_modified": false,
+    "ready_for_phase_13": true
+}
