@@ -22,41 +22,63 @@ jobs:
   run-weekly:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    # Make secrets available as env vars for steps (do NOT print them)
+    env:
+      PROD_URL: ${{ secrets.PROD_URL }}
+      INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+      INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
+
     steps:
+      - name: Ensure jq is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
       - name: Validate required secrets
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${PROD_URL:-}" ]; then
-            echo "::error::Missing required secret PROD_URL"
+            echo "::error::Missing required GitHub secret: PROD_URL"
             exit 1
           fi
           if [ -z "${INTERNAL_CRON_SECRET:-}" ]; then
-            echo "::error::Missing required secret INTERNAL_CRON_SECRET"
+            echo "::error::Missing required GitHub secret: INTERNAL_CRON_SECRET"
             exit 1
           fi
-          echo "✅ Secrets present: PROD_URL, INTERNAL_CRON_SECRET"
+
+          # Normalize URL early (no trailing slash)
+          PROD_URL="${PROD_URL%/}"
+          echo "✅ Required secrets present."
+          echo "ℹ️ PROD_URL host configured."
           if [ -n "${INTERNAL_ADMIN_SECRET:-}" ]; then
-            echo "✅ INTERNAL_ADMIN_SECRET present (ops checks enabled)"
+            echo "✅ INTERNAL_ADMIN_SECRET present (ops preflight + alert checks enabled)"
           else
-            echo "ℹ️ INTERNAL_ADMIN_SECRET not set (ops checks skipped)"
+            echo "ℹ️ INTERNAL_ADMIN_SECRET not set (ops checks will be skipped)"
           fi
-        env:
-          PROD_URL: ${{ secrets.PROD_URL }}
-          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
-          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
 
       - name: Preflight (optional ops health)
-        if: ${{ secrets.INTERNAL_ADMIN_SECRET != '' }}
         shell: bash
         run: |
           set -euo pipefail
+          if [ -z "${INTERNAL_ADMIN_SECRET:-}" ]; then
+            echo "Skipping preflight (INTERNAL_ADMIN_SECRET not set)"
+            exit 0
+          fi
+
           PROD_URL="${PROD_URL%/}"
           URL="$PROD_URL/api/internal/ops/health/global"
           echo "Preflight: GET $URL"
-          # Capture headers + body
+
           HDR="$(mktemp)"
           BODY="$(mktemp)"
+
           HTTP_CODE=$(curl -sS -L \
             -D "$HDR" -o "$BODY" \
             -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
@@ -66,6 +88,7 @@ jobs:
 
           CT=$(grep -i '^content-type:' "$HDR" | tail -n 1 | sed 's/\r$//')
           LOC=$(grep -i '^location:' "$HDR" | tail -n 1 | sed 's/\r$//')
+
           echo "HTTP $HTTP_CODE"
           echo "Content-Type: ${CT:-<none>}"
           if [ -n "$LOC" ]; then echo "Location: $LOC"; fi
@@ -85,9 +108,6 @@ jobs:
           fi
 
           echo "✅ Preflight OK"
-        env:
-          PROD_URL: ${{ secrets.PROD_URL }}
-          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
 
       - name: Trigger weekly pipeline
         id: trigger
@@ -95,6 +115,7 @@ jobs:
         run: |
           set -euo pipefail
           PROD_URL="${PROD_URL%/}"
+
           DRY_RUN="${{ github.event.inputs.dry_run || 'true' }}"
           MODE="${{ github.event.inputs.mode || 'FULL' }}"
 
@@ -106,7 +127,6 @@ jobs:
           HDR="$(mktemp)"
           BODY="$(mktemp)"
 
-          # curl with redirects + retries for transient issues
           HTTP_CODE=$(curl -sS -L --fail-with-body \
             -D "$HDR" -o "$BODY" \
             -X POST "$URL" \
@@ -124,7 +144,6 @@ jobs:
           echo "Content-Type: ${CT:-<none>}"
           if [ -n "$LOC" ]; then echo "Location: $LOC"; fi
 
-          # Fail early if not 2xx
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "::error::Weekly trigger failed with HTTP $HTTP_CODE"
             echo "Body preview (200 chars):"
@@ -132,7 +151,6 @@ jobs:
             exit 1
           fi
 
-          # Validate JSON
           if ! jq -e . "$BODY" >/dev/null 2>&1; then
             echo "::error::Non-JSON response received from weekly endpoint"
             echo "Body preview (200 chars):"
@@ -141,9 +159,7 @@ jobs:
           fi
 
           RESPONSE="$(cat "$BODY")"
-          echo "Response JSON received."
 
-          # Determine success (supports multiple shapes)
           SUCCESS=$(echo "$RESPONSE" | jq -r '(.success // .ok // false) | tostring')
           STATUS=$(echo "$RESPONSE" | jq -r '.status // empty')
           RUN_ID=$(echo "$RESPONSE" | jq -r '.run_id // empty')
@@ -161,22 +177,23 @@ jobs:
           echo "Week: $WEEK"
           echo "Status: ${STATUS:-<none>}"
 
-        env:
-          PROD_URL: ${{ secrets.PROD_URL }}
-          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
-
       - name: Check system alerts (optional)
-        if: ${{ success() && secrets.INTERNAL_ADMIN_SECRET != '' }}
-        continue-on-error: true
         shell: bash
+        continue-on-error: true
         run: |
           set -euo pipefail
+          if [ -z "${INTERNAL_ADMIN_SECRET:-}" ]; then
+            echo "Skipping alert check (INTERNAL_ADMIN_SECRET not set)"
+            exit 0
+          fi
+
           PROD_URL="${PROD_URL%/}"
           URL="$PROD_URL/api/internal/ops/check"
           echo "Checking system alerts: GET $URL"
 
           HDR="$(mktemp)"
           BODY="$(mktemp)"
+
           HTTP_CODE=$(curl -sS -L \
             -D "$HDR" -o "$BODY" \
             -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
@@ -201,6 +218,3 @@ jobs:
             echo "Alert check returned non-JSON (non-fatal)"
             head -c 200 "$BODY" || true
           fi
-        env:
-          PROD_URL: ${{ secrets.PROD_URL }}
-          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
