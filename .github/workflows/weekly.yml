@@ -6,69 +6,200 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Run in dry-run mode (no DB writes)'
+        description: "Run in dry-run mode (no DB writes)"
         required: false
-        default: 'false'
+        default: "true"
         type: choice
-        options:
-          - 'false'
-          - 'true'
+        options: ["true", "false"]
+      mode:
+        description: "Run mode"
+        required: false
+        default: "FULL"
+        type: choice
+        options: ["FULL", "PIPELINE_ONLY", "INTERPRETATION_ONLY"]
 
 jobs:
   run-weekly:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_URL:-}" ]; then
+            echo "::error::Missing required secret PROD_URL"
+            exit 1
+          fi
+          if [ -z "${INTERNAL_CRON_SECRET:-}" ]; then
+            echo "::error::Missing required secret INTERNAL_CRON_SECRET"
+            exit 1
+          fi
+          echo "✅ Secrets present: PROD_URL, INTERNAL_CRON_SECRET"
+          if [ -n "${INTERNAL_ADMIN_SECRET:-}" ]; then
+            echo "✅ INTERNAL_ADMIN_SECRET present (ops checks enabled)"
+          else
+            echo "ℹ️ INTERNAL_ADMIN_SECRET not set (ops checks skipped)"
+          fi
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
+
+      - name: Preflight (optional ops health)
+        if: ${{ secrets.INTERNAL_ADMIN_SECRET != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROD_URL="${PROD_URL%/}"
+          URL="$PROD_URL/api/internal/ops/health/global"
+          echo "Preflight: GET $URL"
+          # Capture headers + body
+          HDR="$(mktemp)"
+          BODY="$(mktemp)"
+          HTTP_CODE=$(curl -sS -L \
+            -D "$HDR" -o "$BODY" \
+            -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
+            --connect-timeout 10 --max-time 60 \
+            -w "%{http_code}" \
+            "$URL" || true)
+
+          CT=$(grep -i '^content-type:' "$HDR" | tail -n 1 | sed 's/\r$//')
+          LOC=$(grep -i '^location:' "$HDR" | tail -n 1 | sed 's/\r$//')
+          echo "HTTP $HTTP_CODE"
+          echo "Content-Type: ${CT:-<none>}"
+          if [ -n "$LOC" ]; then echo "Location: $LOC"; fi
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Preflight failed with HTTP $HTTP_CODE"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
+            exit 1
+          fi
+
+          if ! jq -e . "$BODY" >/dev/null 2>&1; then
+            echo "::error::Preflight returned non-JSON response"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
+            exit 1
+          fi
+
+          echo "✅ Preflight OK"
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
+
       - name: Trigger weekly pipeline
         id: trigger
+        shell: bash
         run: |
+          set -euo pipefail
+          PROD_URL="${PROD_URL%/}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'true' }}"
+          MODE="${{ github.event.inputs.mode || 'FULL' }}"
+
+          URL="$PROD_URL/api/internal/run-weekly"
           echo "Triggering weekly pipeline..."
-          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
-          
-          RESPONSE=$(curl -sS --fail-with-body -X POST "$PROD_URL/api/internal/run-weekly" \
+          echo "POST $URL"
+          echo "mode=$MODE dry_run=$DRY_RUN"
+
+          HDR="$(mktemp)"
+          BODY="$(mktemp)"
+
+          # curl with redirects + retries for transient issues
+          HTTP_CODE=$(curl -sS -L --fail-with-body \
+            -D "$HDR" -o "$BODY" \
+            -X POST "$URL" \
             -H "x-cron-secret: $INTERNAL_CRON_SECRET" \
             -H "Content-Type: application/json" \
-            -d "{\"mode\":\"FULL\",\"dry_run\":$DRY_RUN}" \
-            --max-time 300)
-          
-          EXIT_CODE=$?
-          
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Curl failed with exit code $EXIT_CODE"
-            echo "Response: $RESPONSE"
+            --connect-timeout 10 --max-time 300 \
+            --retry 2 --retry-delay 2 --retry-all-errors \
+            -w "%{http_code}" \
+            -d "{\"mode\":\"$MODE\",\"dry_run\":$DRY_RUN}" || true)
+
+          CT=$(grep -i '^content-type:' "$HDR" | tail -n 1 | sed 's/\r$//')
+          LOC=$(grep -i '^location:' "$HDR" | tail -n 1 | sed 's/\r$//')
+
+          echo "HTTP $HTTP_CODE"
+          echo "Content-Type: ${CT:-<none>}"
+          if [ -n "$LOC" ]; then echo "Location: $LOC"; fi
+
+          # Fail early if not 2xx
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Weekly trigger failed with HTTP $HTTP_CODE"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
             exit 1
           fi
-          
-          echo "Response: $RESPONSE"
-          
-          # Check for success in JSON
-          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // .ok // false')
-          if [ "$SUCCESS" != "true" ]; then
-            echo "::error::Weekly run failed"
-            echo "Status: $(echo "$RESPONSE" | jq -r '.status')"
-            echo "Error: $(echo "$RESPONSE" | jq -r '.error')"
+
+          # Validate JSON
+          if ! jq -e . "$BODY" >/dev/null 2>&1; then
+            echo "::error::Non-JSON response received from weekly endpoint"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
             exit 1
           fi
-          
+
+          RESPONSE="$(cat "$BODY")"
+          echo "Response JSON received."
+
+          # Determine success (supports multiple shapes)
+          SUCCESS=$(echo "$RESPONSE" | jq -r '(.success // .ok // false) | tostring')
+          STATUS=$(echo "$RESPONSE" | jq -r '.status // empty')
+          RUN_ID=$(echo "$RESPONSE" | jq -r '.run_id // empty')
+          WEEK=$(echo "$RESPONSE" | jq -r '.week_label // empty')
+
+          if [ "$SUCCESS" != "true" ] && [ "$STATUS" != "COMPLETED" ]; then
+            echo "::error::Weekly run reported failure"
+            echo "status=$STATUS success=$SUCCESS run_id=$RUN_ID week=$WEEK"
+            echo "error=$(echo "$RESPONSE" | jq -r '.error // empty')"
+            exit 1
+          fi
+
           echo "✅ Weekly run completed successfully"
-          echo "Run ID: $(echo "$RESPONSE" | jq -r '.run_id')"
-          echo "Week: $(echo "$RESPONSE" | jq -r '.week_label')"
-          echo "Status: $(echo "$RESPONSE" | jq -r '.status')"
+          echo "Run ID: $RUN_ID"
+          echo "Week: $WEEK"
+          echo "Status: ${STATUS:-<none>}"
+
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
 
       - name: Check system alerts (optional)
-        if: success()
+        if: ${{ success() && secrets.INTERNAL_ADMIN_SECRET != '' }}
         continue-on-error: true
+        shell: bash
         run: |
-          if [ -n "$INTERNAL_ADMIN_SECRET" ]; then
-            echo "Checking system alerts..."
-            curl -sS --fail-with-body "$PROD_URL/api/internal/ops/check" \
-              -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
-              --max-time 60 || echo "Alert check failed (non-fatal)"
+          set -euo pipefail
+          PROD_URL="${PROD_URL%/}"
+          URL="$PROD_URL/api/internal/ops/check"
+          echo "Checking system alerts: GET $URL"
+
+          HDR="$(mktemp)"
+          BODY="$(mktemp)"
+          HTTP_CODE=$(curl -sS -L \
+            -D "$HDR" -o "$BODY" \
+            -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
+            --connect-timeout 10 --max-time 60 \
+            -w "%{http_code}" \
+            "$URL" || true)
+
+          CT=$(grep -i '^content-type:' "$HDR" | tail -n 1 | sed 's/\r$//')
+          echo "HTTP $HTTP_CODE"
+          echo "Content-Type: ${CT:-<none>}"
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Alert check failed (non-fatal) HTTP $HTTP_CODE"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
+            exit 0
+          fi
+
+          if jq -e . "$BODY" >/dev/null 2>&1; then
+            echo "✅ Alert check returned JSON"
           else
-            echo "Skipping alert check (INTERNAL_ADMIN_SECRET not set)"
+            echo "Alert check returned non-JSON (non-fatal)"
+            head -c 200 "$BODY" || true
           fi
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
