@@ -4,17 +4,72 @@ on:
   schedule:
     - cron: "0 2 * * 1"   # Monday 02:00 UTC
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no DB writes)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   run-weekly:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Trigger weekly pipeline
+        id: trigger
         run: |
-          curl -s -X POST "$PROD_URL/api/internal/run-weekly" \
+          echo "Triggering weekly pipeline..."
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+          
+          RESPONSE=$(curl -sS --fail-with-body -X POST "$PROD_URL/api/internal/run-weekly" \
             -H "x-cron-secret: $INTERNAL_CRON_SECRET" \
-            -H "content-type: application/json" \
-            -d '{}'
+            -H "Content-Type: application/json" \
+            -d "{\"mode\":\"FULL\",\"dry_run\":$DRY_RUN}" \
+            --max-time 300)
+          
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Curl failed with exit code $EXIT_CODE"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          echo "Response: $RESPONSE"
+          
+          # Check for success in JSON
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // .ok // false')
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::Weekly run failed"
+            echo "Status: $(echo "$RESPONSE" | jq -r '.status')"
+            echo "Error: $(echo "$RESPONSE" | jq -r '.error')"
+            exit 1
+          fi
+          
+          echo "✅ Weekly run completed successfully"
+          echo "Run ID: $(echo "$RESPONSE" | jq -r '.run_id')"
+          echo "Week: $(echo "$RESPONSE" | jq -r '.week_label')"
+          echo "Status: $(echo "$RESPONSE" | jq -r '.status')"
         env:
           PROD_URL: ${{ secrets.PROD_URL }}
           INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+
+      - name: Check system alerts (optional)
+        if: success()
+        continue-on-error: true
+        run: |
+          if [ -n "$INTERNAL_ADMIN_SECRET" ]; then
+            echo "Checking system alerts..."
+            curl -sS --fail-with-body "$PROD_URL/api/internal/ops/check" \
+              -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
+              --max-time 60 || echo "Alert check failed (non-fatal)"
+          else
+            echo "Skipping alert check (INTERNAL_ADMIN_SECRET not set)"
+          fi
+        env:
+          PROD_URL: ${{ secrets.PROD_URL }}
+          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
