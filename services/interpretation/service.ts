@@ -428,6 +428,8 @@ async function storeInterpretation(params: StoreParams): Promise<WeeklyInterpret
         `INSERT INTO weekly_interpretations 
        (org_id, team_id, week_start, input_hash, model_id, prompt_version, sections_json, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+     ON CONFLICT (org_id, COALESCE(team_id, '00000000-0000-0000-0000-000000000000'::uuid), week_start, input_hash)
+     DO UPDATE SET is_active = true, created_at = NOW()
      RETURNING *`,
         [
             params.orgId,

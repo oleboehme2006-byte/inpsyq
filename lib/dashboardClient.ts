@@ -55,15 +55,21 @@ export async function fetchDashboardApi<T>(
         'Content-Type': 'application/json',
     };
 
-    // Add dev header in dev mode
-    if (DEV_MODE) {
-        headers['X-DEV-USER-ID'] = DEV_USER_ID;
+    // Add dev header ONLY if explicit env var is set (opt-in for debugging)
+    // Default to cookie validation for real browser usage.
+    if (DEV_MODE && process.env.NEXT_PUBLIC_DEBUG_FORCE_USER_ID) {
+        headers['X-DEV-USER-ID'] = process.env.NEXT_PUBLIC_DEBUG_FORCE_USER_ID;
+    } else if (DEV_MODE && typeof window === 'undefined') {
+        // Server-side fetch in dev mode: might need a default if no cookie?
+        // Actually, server components should read cookies() and pass them.
+        // But for client-side fetch, rely on cookies.
     }
 
     try {
         const res = await fetch(url.toString(), {
             method: 'GET',
             headers,
+            credentials: 'include', // Critical for sending cookies in dev/prod
             cache: 'no-store', // No caching for fresh data on reload
         });
 
@@ -152,5 +158,7 @@ export function getTeamId(): string {
 // ============================================================================
 
 export function shouldUseMocks(): boolean {
+    // HARD GATE: Never allow mocks in production, even if env var says so
+    if (process.env.NODE_ENV === 'production') return false;
     return USE_DEV_MOCKS;
 }

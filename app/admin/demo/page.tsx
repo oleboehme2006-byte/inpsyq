@@ -18,8 +18,9 @@ export default function AdminDemoPage() {
                     <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                         InPsyq Live Demo
                     </h1>
-                    <p className="text-slate-400 mt-2">
-                        Real-time visualization of the frozen backend core analytics.
+                    <p className="text-gray-400 mb-6">
+                        This creates independent data for this week. It does not look at history.
+                        Great for testing &quot;what if&quot; scenarios or generating a fresh starting point.
                     </p>
                 </header>
 
@@ -39,7 +40,7 @@ export default function AdminDemoPage() {
                     </motion.div>
                 ) : (
                     <div className="text-center py-20 text-slate-500 border border-dashed border-slate-800 rounded-xl">
-                        Configure the demo above and click "Load Data" to begin.
+                        Configure the demo above and click &quot;Load Data&quot; to begin.
                     </div>
                 )}
             </div>

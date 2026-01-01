@@ -3,9 +3,9 @@
  * Helper to trigger weekly run using loaded environment variables.
  */
 import './_bootstrap';
-import { getVerifyBaseUrl, fetchJson } from './_verifyBaseUrl';
+import './_bootstrap';
+import { BASE_URL } from './_verifyBaseUrl';
 
-const BASE_URL = getVerifyBaseUrl();
 const SECRET = process.env.INTERNAL_CRON_SECRET;
 
 async function main() {
@@ -17,7 +17,7 @@ async function main() {
     console.log(`Triggering Weekly Run at ${BASE_URL}...`);
 
     try {
-        const result = await fetchJson(
+        const res = await fetch(
             `${BASE_URL}/api/internal/run-weekly`,
             {
                 method: 'POST',
@@ -26,12 +26,17 @@ async function main() {
                     'x-cron-secret': SECRET
                 },
                 body: JSON.stringify({})
-            },
-            'trigger-run'
+            }
         );
 
-        console.log('Success:', result.status);
-        console.log(JSON.stringify(result.json, null, 2));
+        const json = await res.json();
+
+        console.log('Success:', res.status);
+        console.log(JSON.stringify(json, null, 2));
+
+        if (!res.ok) {
+            process.exit(1);
+        }
     } catch (e: any) {
         console.error('Failed:', e.message);
         process.exit(1);

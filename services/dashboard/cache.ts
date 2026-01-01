@@ -90,11 +90,21 @@ export async function isCacheValid(
     teamId: string,
     weekStart: string
 ): Promise<{ valid: boolean; currentHash: string | null }> {
-    const result = await query(
-        `SELECT input_hash FROM org_aggregates_weekly
-     WHERE org_id = $1 AND team_id = $2 AND week_start = $3`,
-        [orgId, teamId, weekStart]
-    );
+    let result;
+    if (weekStart === 'latest') {
+        result = await query(
+            `SELECT input_hash FROM org_aggregates_weekly
+             WHERE org_id = $1 AND team_id = $2
+             ORDER BY week_start DESC LIMIT 1`,
+            [orgId, teamId]
+        );
+    } else {
+        result = await query(
+            `SELECT input_hash FROM org_aggregates_weekly
+             WHERE org_id = $1 AND team_id = $2 AND week_start = $3`,
+            [orgId, teamId, weekStart]
+        );
+    }
 
     const currentHash = result.rows[0]?.input_hash || null;
     return { valid: !!currentHash, currentHash };

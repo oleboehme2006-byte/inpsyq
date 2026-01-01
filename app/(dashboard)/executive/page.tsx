@@ -26,7 +26,7 @@ import {
 } from '@/components/dashboard';
 import { INDEX_DEFINITIONS, getQualitativeState } from '@/lib/dashboard/indexSemantics';
 import { safeToFixed, safeNumber } from '@/lib/utils/safeNumber';
-
+import { ExecutiveHintOverlay } from '@/components/onboarding/ExecutiveHintOverlay';
 
 
 // ==========================================
@@ -957,7 +957,7 @@ export default function ExecutiveDashboard() {
                     <div className="flex flex-col items-center text-center mb-6">
                         <div className="flex items-center gap-3 mb-2">
                             <Building2 className="w-6 h-6 text-meta" />
-                            <h1 className="text-3xl font-display font-semibold text-text-primary">
+                            <h1 data-testid="org-title" className="text-3xl font-display font-semibold text-text-primary">
                                 {data.meta.orgName}
                             </h1>
                         </div>
@@ -1177,6 +1177,13 @@ export default function ExecutiveDashboard() {
 
                 {/* Footer Spacer */}
                 <div className="h-16" />
+
+                {/* Onboarding Hint Overlay (Phase 20) */}
+                <ExecutiveHintOverlay
+                    status="OK"
+                    primarySource={data.systemicDrivers.some(d => d.driverType === 'dependency') ? 'EXTERNAL' : 'INTERNAL'}
+                    hasWatchlistItems={data.watchlist.length > 0}
+                />
             </div>
         </DashboardBackground>
     );

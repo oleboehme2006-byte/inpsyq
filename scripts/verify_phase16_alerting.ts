@@ -1,42 +1,39 @@
+/**
+ * Verify Phase 16: Alerting
+ * 
+ * Tests alerting logic using TestTransport (updated for Phase 17 transport refactor).
+ */
 
 import './_bootstrap';
-import { sendAlert, AlertPayload } from '@/services/ops/alerting';
-
-// Mock Fetch
-const originalFetch = global.fetch;
-let fetchCalls: any[] = [];
-
-global.fetch = async (url: RequestInfo | URL, init?: RequestInit) => {
-    // console.log('Mock Fetch:', url);
-    fetchCalls.push({ url, body: init?.body ? JSON.parse(init.body as string) : {} });
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
-}
+import { sendAlert, clearAlertCache, AlertPayload } from '@/services/ops/alerting';
+import { TestTransport, setAlertTransport, resetTransport } from '@/services/ops/transport';
 
 async function verifyAlerting() {
     console.log('--- Verifying Alerting (Mocked) ---\n');
 
-    // Set env
-    process.env.ALERT_WEBHOOK_URL = 'https://mock.webhook';
+    // Use TestTransport instead of mocking fetch
+    const testTransport = new TestTransport();
+    setAlertTransport(testTransport);
+    clearAlertCache();
 
     // 1. Send Alert
     const payload: AlertPayload = {
         type: 'WEEKLY_RUN_FAILED',
         severity: 'critical',
         summary: 'Test Alert',
-        details: { foo: 'bar' }
     };
 
     const sent = await sendAlert(payload);
     if (!sent) throw new Error('Alert should be sent');
-    if ((fetchCalls.length as number) !== 1) throw new Error('Webhook not called');
-    if (fetchCalls[0].body.summary !== 'Test Alert') throw new Error('Payload mismatch');
+    if (testTransport.getCount() !== 1) throw new Error('Transport should have 1 message');
+    if (testTransport.messages[0].summary !== 'Test Alert') throw new Error('Summary mismatch');
 
     console.log('✓ Alert sent successfully');
 
     // 2. Test Dedupe (Immediate)
     const sent2 = await sendAlert(payload);
     if (sent2) throw new Error('Duplicate alert should be suppressed');
-    if ((fetchCalls.length as number) !== 1) throw new Error('Webhook called (should rely on cache)');
+    if (testTransport.getCount() !== 1) throw new Error('Transport should still have 1 message');
 
     console.log('✓ Deduplication verified');
 
@@ -44,12 +41,13 @@ async function verifyAlerting() {
     const payload2: AlertPayload = { ...payload, summary: 'New Alert' };
     const sent3 = await sendAlert(payload2);
     if (!sent3) throw new Error('New alert should be sent');
-    if ((fetchCalls.length as number) !== 2) throw new Error('Webhook not called for new alert');
+    if (testTransport.getCount() !== 2) throw new Error('Transport should have 2 messages');
 
     console.log('✓ New alert sent');
 
     // Cleanup
-    global.fetch = originalFetch;
+    resetTransport();
+    clearAlertCache();
 }
 
 verifyAlerting().catch(e => {

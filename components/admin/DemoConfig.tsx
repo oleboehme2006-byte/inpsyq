@@ -98,7 +98,7 @@ export default function DemoConfig({ onConfigApply, autoLoadInDev = true }: Demo
         if (!weekStart) {
             setWeekStart(getDefaultWeek());
         }
-    }, []);
+    }, [weekStart]);
 
     // Auto-fill + auto-load in dev mode on mount
     useEffect(() => {
@@ -144,7 +144,7 @@ export default function DemoConfig({ onConfigApply, autoLoadInDev = true }: Demo
         };
 
         doAutoLoad();
-    }, [isDev, autoLoadInDev, autoLoaded]);
+    }, [isDev, autoLoadInDev, autoLoaded, orgId, teamId, weekStart, onConfigApply]);
 
     // Manual auto-fill from /api/internal/ids
     const handleAutoFill = useCallback(async () => {

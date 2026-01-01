@@ -37,14 +37,27 @@ async function seedDev() {
             `, [team.id, DEV_ORG_ID, team.name]);
         }
 
-        // Create users
-        console.log(`Creating ${DEV_USERS.length} users...`);
+        // Create users and memberships
+        console.log(`Creating ${DEV_USERS.length} users and memberships...`);
         for (const user of DEV_USERS) {
+            // User
             await query(`
                 INSERT INTO users (user_id, org_id, team_id, is_active)
                 VALUES ($1, $2, $3, $4)
                 ON CONFLICT (user_id) DO UPDATE SET is_active = $4
             `, [user.id, DEV_ORG_ID, user.teamId, true]);
+
+            // Membership (Deterministic ID derived from user ID)
+            // User ID: 33333333-3333-4333-8333-xxxxxxxxxxxx
+            // Mem ID:  44444444-4444-4444-8444-xxxxxxxxxxxx (just change prefix/variant)
+            // Simple hack: replace leading 3s with 4s
+            const membershipId = user.id.replace(/^33333333-3333-4333-8333/, '44444444-4444-4444-8444');
+
+            await query(`
+                INSERT INTO memberships (membership_id, user_id, org_id, team_id, role)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (user_id, org_id) DO UPDATE SET role = $5, team_id = $4
+            `, [membershipId, user.id, DEV_ORG_ID, user.teamId, 'MEMBER']);
         }
 
         console.log('\n=== Seed Complete ===\n');

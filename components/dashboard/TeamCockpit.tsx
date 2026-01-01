@@ -28,6 +28,7 @@ import {
 } from '@/components/dashboard';
 import { getQualitativeState } from '@/lib/dashboard/indexSemantics';
 import { safeToFixed } from '@/lib/utils/safeNumber';
+import { TeamHintOverlay } from '@/components/onboarding/TeamHintOverlay';
 
 // ==========================================
 // Types
@@ -252,6 +253,9 @@ const DEMO_TEAMS: Record<string, {
     hr: { name: 'HR', strainBase: 0.25, engagementBase: 0.82, externalImpact: 0.05, internalImpact: 0.45 },
     eng: { name: 'Engineering', strainBase: 0.52, engagementBase: 0.65, externalImpact: 0.15, internalImpact: 0.72 },
     ops: { name: 'Operations', strainBase: 0.32, engagementBase: 0.72, externalImpact: 0.08, internalImpact: 0.58 },
+    // Fixture UUIDs for Dev/Demo correctness
+    '22222222-2222-4222-8222-222222222201': { name: 'Engineering', strainBase: 0.52, engagementBase: 0.65, externalImpact: 0.15, internalImpact: 0.72 },
+    '22222222-2222-4222-8222-222222222202': { name: 'Sales', strainBase: 0.28, engagementBase: 0.78, externalImpact: 0.10, internalImpact: 0.65 },
 };
 
 // ==========================================
@@ -608,6 +612,9 @@ const ExternalDependenciesPanel: React.FC<{
                     >
                         <div className="flex items-start justify-between">
                             <div className="flex-1 pr-3">
+                                <div className="text-gray-400 text-xs mt-1">
+                                    High-level summary of the &quot;Situation&quot; and &quot;Complication&quot;.
+                                </div>
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <ExternalLink className="w-3 h-3 text-text-tertiary" />
                                     <span className="font-medium text-sm text-text-primary">{dep.teamName}</span>
@@ -1371,7 +1378,7 @@ export function TeamCockpit({ teamId }: TeamCockpitProps) {
                 <div className="dashboard-container flex items-center justify-center min-h-screen">
                     <div className="text-center">
                         <h1 className="text-2xl font-display font-semibold text-text-primary mb-2">Team Not Found</h1>
-                        <p className="text-text-secondary mb-6">The team "{teamId}" does not exist.</p>
+                        <p className="text-text-secondary mb-6">The team &quot;{teamId}&quot; does not exist.</p>
                         <Link href="/executive" className="inline-flex items-center gap-2 text-meta hover:text-meta/80 transition-colors"><ArrowLeft className="w-4 h-4" /><span>Back to Executive Dashboard</span></Link>
                     </div>
                 </div>
@@ -1440,7 +1447,7 @@ export function TeamCockpit({ teamId }: TeamCockpitProps) {
                         <div className="flex items-center gap-2 text-sm text-text-tertiary"><Calendar className="w-4 h-4" /><span>{data.meta.rangeWeeks} weeks</span></div>
                     </div>
                     <div className="flex flex-col items-center text-center mb-2">
-                        <div className="flex items-center gap-3 mb-2"><Building2 className="w-6 h-6 text-meta" /><h1 className="text-3xl font-display font-semibold text-text-primary">{data.meta.teamName} Team</h1></div>
+                        <div className="flex items-center gap-3 mb-2"><Building2 className="w-6 h-6 text-meta" /><h1 data-testid="team-title" className="text-3xl font-display font-semibold text-text-primary">{data.meta.teamName} Team</h1></div>
                         <span className="text-sm text-text-tertiary">{data.meta.orgName}</span>
                     </div>
                     <div className="flex justify-center mb-6">
@@ -1543,6 +1550,13 @@ export function TeamCockpit({ teamId }: TeamCockpitProps) {
                 </section>
 
                 <div className="h-16" />
+
+                {/* Onboarding Hint Overlay (Phase 20) */}
+                <TeamHintOverlay
+                    status="OK"
+                    driverSource={data.externalDependencies.length > 0 ? 'EXTERNAL' : 'INTERNAL'}
+                    hasActions={Object.values(data.actions).some(arr => arr.length > 0)}
+                />
             </div>
         </DashboardBackground>
     );

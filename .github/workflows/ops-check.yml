@@ -1,0 +1,81 @@
+name: Hourly Ops Check
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # Every hour at minute 0
+  workflow_dispatch:
+
+jobs:
+  ops-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      PROD_URL: ${{ secrets.PROD_URL }}
+      INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET }}
+
+    steps:
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_URL:-}" ]; then
+            echo "::error::Missing required GitHub secret: PROD_URL"
+            exit 1
+          fi
+          if [ -z "${INTERNAL_ADMIN_SECRET:-}" ]; then
+            echo "::error::Missing required GitHub secret: INTERNAL_ADMIN_SECRET"
+            exit 1
+          fi
+          echo "✅ Required secrets present."
+
+      - name: Run ops check
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROD_URL="${PROD_URL%/}"
+          URL="$PROD_URL/api/internal/ops/check"
+          echo "Running ops check: GET $URL"
+
+          HDR="$(mktemp)"
+          BODY="$(mktemp)"
+
+          HTTP_CODE=$(curl -sS -L \
+            -D "$HDR" -o "$BODY" \
+            -H "x-internal-admin-secret: $INTERNAL_ADMIN_SECRET" \
+            --connect-timeout 10 --max-time 60 \
+            -w "%{http_code}" \
+            "$URL" || true)
+
+          CT=$(grep -i '^content-type:' "$HDR" | tail -n 1 | sed 's/\r$//')
+          LOC=$(grep -i '^location:' "$HDR" | tail -n 1 | sed 's/\r$//')
+
+          echo "HTTP $HTTP_CODE"
+          echo "Content-Type: ${CT:-<none>}"
+          if [ -n "$LOC" ]; then echo "Location: $LOC"; fi
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Ops check failed with HTTP $HTTP_CODE"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
+            exit 1
+          fi
+
+          if ! jq -e . "$BODY" >/dev/null 2>&1; then
+            echo "::error::Non-JSON response from ops check"
+            echo "Body preview (200 chars):"
+            head -c 200 "$BODY" || true
+            exit 1
+          fi
+
+          RESPONSE="$(cat "$BODY")"
+          OK=$(echo "$RESPONSE" | jq -r '.ok // false')
+
+          if [ "$OK" != "true" ]; then
+            echo "::error::Ops check returned ok=false"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Ops check completed successfully"
+          echo "Status: $(echo "$RESPONSE" | jq -r '.status // "checked"')"

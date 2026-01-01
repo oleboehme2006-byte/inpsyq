@@ -27,3 +27,7 @@ ts-debug.log*
 
 # vercel
 .vercel
+artifacts/
+*.log
+dev_server.log
+server.log

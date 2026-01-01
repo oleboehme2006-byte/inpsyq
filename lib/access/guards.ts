@@ -39,15 +39,28 @@ const DEV_MODE = process.env.NODE_ENV === 'development';
 /**
  * Get the authenticated user from the request.
  * 
- * In development: accepts X-DEV-USER-ID header.
+ * In development: accepts X-DEV-USER-ID header or inpsyq_dev_user cookie.
  * In production: TODO - integrate with real auth.
  */
 export async function getAuthenticatedUser(
     req: Request
 ): Promise<GuardResult<AuthenticatedUser>> {
-    // Dev mode: accept header
+    let devUserId: string | null = null;
+
+    // Dev mode: accept header OR cookie
     if (DEV_MODE) {
-        const devUserId = req.headers.get(DEV_USER_HEADER);
+        // 1. Try Header
+        devUserId = req.headers.get(DEV_USER_HEADER);
+
+        // 2. Try Cookie (for browser navigation)
+        if (!devUserId) {
+            const cookieHeader = req.headers.get('cookie') || '';
+            const match = cookieHeader.match(/inpsyq_dev_user=([^;]+)/);
+            if (match && match[1]) {
+                devUserId = match[1];
+            }
+        }
+
         if (devUserId) {
             // Validate UUID format
             if (!isValidUUID(devUserId)) {

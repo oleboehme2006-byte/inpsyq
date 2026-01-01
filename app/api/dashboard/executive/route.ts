@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
             return guardResult.response;
         }
 
-        // Check cache
-        const { currentHash } = await isCacheValid(orgId, 'executive', 'latest'); // Executive uses 'executive' as explicit teamId-like param usually, or null?
+        // Check cache - pass null for teamId since executive is org-level
+        const { currentHash } = await isCacheValid(orgId, null as any, 'latest'); // Executive uses null teamId for org-level aggregation
         // Wait, buildCacheKey takes teamId. ExecutiveReader might not use teamId.
         // Let's check `isCacheValid`. It takes (orgId, teamId, weekStart).
         // If executive data is org-level, `teamId` in `org_aggregates_weekly` might be null or special?

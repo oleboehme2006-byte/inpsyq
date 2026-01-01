@@ -45,9 +45,9 @@ export default function BriefPanel({ orgId, teamId, weekStart }: Props) {
                     <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
                         <span className="text-2xl">✨</span> Executive Narrative
                     </h2>
-                    <p className="text-slate-400 text-sm mt-1">
-                        AI-synthesized brief based on deterministic core data.
-                    </p>
+                    <div className="text-gray-400 text-xs mt-1">
+                        High-level summary of the &quot;Situation&quot; and &quot;Complication&quot;.
+                    </div>
                 </div>
                 {!brief && (
                     <button
@@ -92,7 +92,7 @@ export default function BriefPanel({ orgId, teamId, weekStart }: Props) {
                 <div className="space-y-6 relative z-10 animate-in fade-in slide-in-from-bottom-2">
                     <div className="p-6 bg-slate-950/50 border border-slate-800 rounded-lg">
                         <h3 className="text-2xl font-serif text-white mb-4 leading-tight">
-                            "{brief.headline}"
+                            &quot;{brief.headline}&quot;
                         </h3>
                         <div className="space-y-4 text-slate-300 leading-relaxed max-w-4xl">
                             <p><span className="text-purple-400 font-bold">Situation:</span> {brief.state_summary}</p>

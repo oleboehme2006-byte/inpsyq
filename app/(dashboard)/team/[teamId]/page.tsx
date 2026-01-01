@@ -1,11 +1,20 @@
-'use client';
-
-import { useParams } from 'next/navigation';
+import { resolveTeamIdentifier } from '@/lib/teams/resolver';
 import { TeamCockpit } from '@/components/dashboard/TeamCockpit';
+import { notFound } from 'next/navigation';
 
-export default function TeamByIdPage() {
-    const params = useParams();
-    const teamId = params?.teamId as string || 'engineering';
+interface PageProps {
+    params: {
+        teamId: string;
+    };
+}
 
-    return <TeamCockpit teamId={teamId} />;
+export default async function TeamByIdPage({ params }: PageProps) {
+    const rawId = params.teamId;
+    const resolvedId = await resolveTeamIdentifier(rawId);
+
+    if (!resolvedId) {
+        notFound();
+    }
+
+    return <TeamCockpit teamId={resolvedId} />;
 }
