@@ -92,7 +92,15 @@
     "verify:phase22:mocks": "npx tsx scripts/verify_phase22_mock_safety.ts",
     "verify:phase22:env": "npx tsx scripts/verify_phase22_env_gate.ts",
     "verify:phase22:smoke": "npx tsx scripts/verify_phase22_smoke_prod_like.ts",
-    "preflight:prod": "npx tsx scripts/preflight_prod_like.ts"
+    "preflight:prod": "npx tsx scripts/preflight_prod_like.ts",
+    "verify:phase23": "npm run verify:phase23:unit && npm run verify:phase23:invite",
+    "verify:phase23:unit": "npx tsx scripts/verify_phase23_auth_unit.ts",
+    "verify:phase23:invite": "npx tsx scripts/verify_phase23_invite_only.ts",
+    "verify:phase23:schema": "npx tsx scripts/verify_phase23_schema.ts",
+    "verify:phase23:email": "npx tsx scripts/verify_phase23_email_transport.ts",
+    "verify:phase23:bootstrap": "npx tsx scripts/verify_phase23_bootstrap_and_invite_only.ts",
+    "verify:phase23.1": "npm run verify:phase23:schema && npm run verify:phase23 && npm run verify:phase23:bootstrap && npm run verify:phase23:email",
+    "migrate:phase23": "npx tsx scripts/migrate_phase23_auth.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

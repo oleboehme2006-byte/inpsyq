@@ -27,7 +27,18 @@ ts-debug.log*
 
 # vercel
 .vercel
+
+# artifacts and logs
 artifacts/
 *.log
-dev_server.log
+dev_server*.log
 server.log
+
+# playwright
+playwright-report/
+test-results/
+
+# env files
+.env
+.env.*
+!.env.example

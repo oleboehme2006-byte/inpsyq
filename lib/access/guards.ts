@@ -35,26 +35,39 @@ export type GuardResult<T> =
 
 const DEV_USER_HEADER = 'x-dev-user-id';
 const DEV_MODE = process.env.NODE_ENV === 'development';
+const SESSION_COOKIE_NAME = 'inpsyq_session';
 
 /**
  * Get the authenticated user from the request.
  * 
- * In development: accepts X-DEV-USER-ID header or inpsyq_dev_user cookie.
- * In production: TODO - integrate with real auth.
+ * In production: validates session cookie.
+ * In development: also accepts X-DEV-USER-ID header or inpsyq_dev_user cookie.
  */
 export async function getAuthenticatedUser(
     req: Request
 ): Promise<GuardResult<AuthenticatedUser>> {
-    let devUserId: string | null = null;
+    const cookieHeader = req.headers.get('cookie') || '';
 
-    // Dev mode: accept header OR cookie
+    // 1. Try session cookie (production auth)
+    const sessionMatch = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+    if (sessionMatch && sessionMatch[1]) {
+        const sessionToken = sessionMatch[1];
+        const session = await validateSessionToken(sessionToken);
+
+        if (session) {
+            return { ok: true, value: { userId: session.userId } };
+        }
+    }
+
+    // 2. Dev mode: accept X-DEV-USER-ID header or inpsyq_dev_user cookie
     if (DEV_MODE) {
-        // 1. Try Header
+        let devUserId: string | null = null;
+
+        // Try Header
         devUserId = req.headers.get(DEV_USER_HEADER);
 
-        // 2. Try Cookie (for browser navigation)
+        // Try Dev Cookie
         if (!devUserId) {
-            const cookieHeader = req.headers.get('cookie') || '';
             const match = cookieHeader.match(/inpsyq_dev_user=([^;]+)/);
             if (match && match[1]) {
                 devUserId = match[1];
@@ -93,9 +106,6 @@ export async function getAuthenticatedUser(
         }
     }
 
-    // TODO: Production auth integration (NextAuth, Clerk, etc.)
-    // For now, return unauthorized if no dev header
-
     return {
         ok: false,
         response: NextResponse.json(
@@ -103,6 +113,28 @@ export async function getAuthenticatedUser(
             { status: 401 }
         ),
     };
+}
+
+/**
+ * Validate a session token and return user info.
+ */
+async function validateSessionToken(token: string): Promise<{ userId: string } | null> {
+    const { createHash } = await import('crypto');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    const result = await query(
+        `SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > NOW()`,
+        [tokenHash]
+    );
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    // Update last_seen_at
+    await query(`UPDATE sessions SET last_seen_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+
+    return { userId: result.rows[0].user_id };
 }
 
 // ============================================================================
