@@ -14,6 +14,7 @@ import {
     AuditBlock,
     scoreBandFromSeverity
 } from '@/lib/dashboard/types';
+import { requireAdminStrict } from '@/lib/access/guards';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,13 +22,20 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/executive-dashboard?org_id=xxx
  * Returns ExecutiveDashboardDTO for portfolio-level executive view.
+ * ADMIN only.
  */
 export async function GET(req: NextRequest) {
     const requestId = generateRequestId();
     const startTime = Date.now();
 
     try {
-        const orgId = req.nextUrl.searchParams.get('org_id');
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
+        const orgId = req.nextUrl.searchParams.get('org_id') || guardResult.value.orgId;
 
         // Validate UUID
         if (!isValidUUID(orgId)) {

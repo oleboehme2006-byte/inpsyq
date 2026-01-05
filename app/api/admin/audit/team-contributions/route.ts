@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
 import { aggregationService } from '@/services/aggregationService';
+import { requireAdminStrict } from '@/lib/access/guards';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(req: Request) {
     try {
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
         const { searchParams } = new URL(req.url);
         const teamId = searchParams.get('team_id');
-        const orgId = searchParams.get('org_id');
+        const orgId = searchParams.get('org_id') || guardResult.value.orgId;
         const weekStart = searchParams.get('week_start');
 
         if (!teamId || !orgId || !weekStart) {
-            return NextResponse.json({ error: 'Org ID, Team ID, and Week Start required' }, { status: 400 });
+            return NextResponse.json(
+                { ok: false, error: { code: 'VALIDATION_ERROR', message: 'team_id and week_start required' } },
+                { status: 400 }
+            );
         }
 
         // Check K-threshold (Safety Check)

@@ -1,16 +1,26 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
+import { requireAdminStrict } from '@/lib/access/guards';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(req: Request) {
     try {
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get('user_id');
 
         if (!userId) {
-            return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+            return NextResponse.json(
+                { ok: false, error: { code: 'VALIDATION_ERROR', message: 'user_id required' } },
+                { status: 400 }
+            );
         }
 
         const q = `

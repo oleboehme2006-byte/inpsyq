@@ -2,18 +2,28 @@ import { NextResponse } from 'next/server';
 import { briefingService } from '@/services/llm/briefs';
 import { decisionService } from '@/services/decision/decisionService';
 import { query } from '@/db/client';
+import { requireAdminStrict } from '@/lib/access/guards';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
     try {
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
         const { searchParams } = new URL(req.url);
         const teamId = searchParams.get('team_id');
-        const orgId = searchParams.get('org_id');
+        const orgId = searchParams.get('org_id') || guardResult.value.orgId;
         const weekStart = searchParams.get('week_start');
 
         if (!teamId || !orgId || !weekStart) {
-            return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+            return NextResponse.json(
+                { ok: false, error: { code: 'VALIDATION_ERROR', message: 'team_id and week_start required' } },
+                { status: 400 }
+            );
         }
 
         // 1. Fetch Decision Snapshot (The heavy lifter)

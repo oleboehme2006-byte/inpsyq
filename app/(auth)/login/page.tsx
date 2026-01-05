@@ -57,7 +57,7 @@ export default function LoginPage() {
                     </p>
 
                     {status === 'success' ? (
-                        <div className="text-center py-8">
+                        <div className="text-center py-8" data-testid="login-success">
                             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 mb-4">
                                 <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -91,6 +91,7 @@ export default function LoginPage() {
                                     className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                                     disabled={status === 'loading'}
                                     required
+                                    data-testid="login-email"
                                 />
                             </div>
 
@@ -104,6 +105,7 @@ export default function LoginPage() {
                                 type="submit"
                                 disabled={status === 'loading'}
                                 className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center"
+                                data-testid="login-submit"
                             >
                                 {status === 'loading' ? (
                                     <>

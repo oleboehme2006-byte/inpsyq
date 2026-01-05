@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isValidUUID, generateRequestId, createValidationError } from '@/lib/api/validation';
 import { requestLogger } from '@/lib/api/requestLogger';
 import { buildTeamDashboardDTO } from '@/lib/dashboard/builder';
+import { requireAdminStrict } from '@/lib/access/guards';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,13 +10,20 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/team-dashboard?org_id=xxx&team_id=xxx&week_start=xxx
  * Returns TeamDashboardDTO for decision-grade dashboard rendering.
+ * ADMIN only.
  */
 export async function GET(req: NextRequest) {
     const requestId = generateRequestId();
     const startTime = Date.now();
 
     try {
-        const orgId = req.nextUrl.searchParams.get('org_id');
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
+        const orgId = req.nextUrl.searchParams.get('org_id') || guardResult.value.orgId;
         const teamId = req.nextUrl.searchParams.get('team_id');
         const weekStart = req.nextUrl.searchParams.get('week_start') || undefined;
 

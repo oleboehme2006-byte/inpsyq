@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
+import { requireAdminStrict } from '@/lib/access/guards';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: Request) {
     try {
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
         const { searchParams } = new URL(req.url);
-        const teamId = searchParams.get('team_id'); // snake_case
-        const orgId = searchParams.get('org_id');
+        const teamId = searchParams.get('team_id');
+        const orgId = searchParams.get('org_id') || guardResult.value.orgId;
         const weekStart = searchParams.get('week_start');
 
         let q = `SELECT * FROM org_profiles_weekly WHERE 1=1`;

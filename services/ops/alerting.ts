@@ -98,9 +98,15 @@ export function clearAlertCache(): void {
 /**
  * Check system state and emit alerts if needed.
  * Intended to be run periodically (e.g., hourly cron).
+ * 
+ * IMPORTANT: Checks the PREVIOUS COMPLETED week (week_offset=-1),
+ * not the current week in progress. The weekly runner runs Monday AM
+ * and produces data for the previous week, so we check that.
  */
 export async function checkSystemAlerts(): Promise<{ checked: boolean; alertsSent: number }> {
-    const snapshot = await getGlobalHealthSnapshot(0); // Current week
+    // Check PREVIOUS week (the most recent completed week)
+    // This is critical: weekly runner produces data for week -1, not week 0
+    const snapshot = await getGlobalHealthSnapshot(-1);
     let alertsSent = 0;
 
     // 1. Coverage Gaps
@@ -112,6 +118,16 @@ export async function checkSystemAlerts(): Promise<{ checked: boolean; alertsSen
                 type: 'COVERAGE_GAP',
                 severity: 'critical',
                 summary: `High coverage gap: ${(failureRate * 100).toFixed(1)}% teams failed/missing products`,
+                weekLabel: snapshot.weekStart,
+                details: {
+                    target_week_start: snapshot.weekStart,
+                    total_teams: totalTeams,
+                    missing_teams: snapshot.totalFailed,
+                    degraded_teams: snapshot.totalDegraded,
+                    ok_teams: snapshot.totalOk,
+                    missing_products: snapshot.globalIssues.missingProducts,
+                    missing_interpretations: snapshot.globalIssues.missingInterpretations,
+                }
             });
             if (sent) alertsSent++;
         }

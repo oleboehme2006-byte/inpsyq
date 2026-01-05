@@ -25,9 +25,23 @@ export interface AccessDeniedError {
     requestId?: string;
 }
 
+// Phase 24 strict error format
+export interface RBACError {
+    ok: false;
+    error: {
+        code: 'UNAUTHORIZED' | 'FORBIDDEN';
+        message: string;
+    };
+}
+
 export type GuardResult<T> =
     | { ok: true; value: T }
     | { ok: false; response: NextResponse<AccessDeniedError> };
+
+export type RBACGuardResult<T> =
+    | { ok: true; value: T }
+    | { ok: false; response: NextResponse<RBACError> };
+
 
 // ============================================================================
 // Authentication
@@ -349,6 +363,174 @@ export async function requireSelfOrAdmin(
 }
 
 // ============================================================================
+// RBAC Guards (Phase 24)
+// ============================================================================
+
+const SELECTED_ORG_COOKIE_NAME = 'inpsyq_selected_org';
+
+export interface RBACContext {
+    userId: string;
+    orgId: string;
+    role: Role;
+    teamId: string | null;
+}
+
+/**
+ * Require session and org context with specific roles.
+ * Returns strict JSON errors.
+ */
+export async function requireRolesStrict(
+    req: Request,
+    allowedRoles: Role[]
+): Promise<RBACGuardResult<RBACContext>> {
+    // 1. Authenticate
+    const authResult = await getAuthenticatedUser(req);
+    if (!authResult.ok) {
+        // Convert to RBAC error format
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'UNAUTHORIZED' as const, message: 'Authentication required' } },
+                { status: 401 }
+            ),
+        };
+    }
+
+    const { userId } = authResult.value;
+
+    // 2. Get selected org from cookie
+    const cookieHeader = req.headers.get('cookie') || '';
+    const orgMatch = cookieHeader.match(new RegExp(`${SELECTED_ORG_COOKIE_NAME}=([^;]+)`));
+    let selectedOrgId = orgMatch?.[1];
+
+    // 3. Get all memberships
+    const memberships = await getMembershipsForUser(userId);
+
+    if (memberships.length === 0) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'No organization access' } },
+                { status: 403 }
+            ),
+        };
+    }
+
+    // Auto-select if single org
+    if (memberships.length === 1) {
+        selectedOrgId = memberships[0].orgId;
+    }
+
+    if (!selectedOrgId) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'No organization selected' } },
+                { status: 403 }
+            ),
+        };
+    }
+
+    // 4. Find membership for selected org
+    const membership = memberships.find(m => m.orgId === selectedOrgId);
+    if (!membership) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'No access to selected organization' } },
+                { status: 403 }
+            ),
+        };
+    }
+
+    // 5. Check role
+    if (!allowedRoles.includes(membership.role)) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+                { status: 403 }
+            ),
+        };
+    }
+
+    return {
+        ok: true,
+        value: {
+            userId,
+            orgId: membership.orgId,
+            role: membership.role,
+            teamId: membership.teamId,
+        },
+    };
+}
+
+/**
+ * Require team access with RBAC enforcement.
+ * - TEAMLEAD: Only their own team
+ * - EXECUTIVE, ADMIN: Any team in org
+ */
+export async function requireTeamAccessStrict(
+    req: Request,
+    teamId: string
+): Promise<RBACGuardResult<RBACContext>> {
+    // Get RBAC context (TEAMLEAD, EXECUTIVE, ADMIN allowed)
+    const result = await requireRolesStrict(req, ['TEAMLEAD', 'EXECUTIVE', 'ADMIN']);
+    if (!result.ok) return result;
+
+    const { userId, orgId, role, teamId: userTeamId } = result.value;
+
+    // Verify team belongs to org
+    const teamResult = await query(
+        `SELECT org_id FROM teams WHERE team_id = $1`,
+        [teamId]
+    );
+
+    if (teamResult.rows.length === 0) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'Team not found' } },
+                { status: 404 }
+            ),
+        };
+    }
+
+    const teamOrgId = teamResult.rows[0].org_id;
+    if (teamOrgId !== orgId) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'Team not in your organization' } },
+                { status: 403 }
+            ),
+        };
+    }
+
+    // TEAMLEAD: Can only access their own team
+    if (role === 'TEAMLEAD' && userTeamId !== teamId) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'Access denied to this team' } },
+                { status: 403 }
+            ),
+        };
+    }
+
+    return { ok: true, value: result.value };
+}
+
+/**
+ * Require ADMIN role only.
+ */
+export async function requireAdminStrict(
+    req: Request
+): Promise<RBACGuardResult<RBACContext>> {
+    return requireRolesStrict(req, ['ADMIN']);
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -356,3 +538,4 @@ function isValidUUID(str: string): boolean {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(str);
 }
+

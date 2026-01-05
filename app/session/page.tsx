@@ -388,7 +388,7 @@ export default function SessionPage() {
         };
 
         return (
-            <div className="min-h-screen bg-black flex flex-col">
+            <div className="min-h-screen bg-black flex flex-col" data-testid="session-page">
                 {/* Progress Bar */}
                 <div className="w-full h-1 bg-gray-900">
                     <div

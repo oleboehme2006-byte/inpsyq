@@ -1,17 +1,27 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/db/client';
+import { requireAdminStrict } from '@/lib/access/guards';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(req: Request) {
     try {
+        // ADMIN only
+        const guardResult = await requireAdminStrict(req);
+        if (!guardResult.ok) {
+            return guardResult.response;
+        }
+
         const { searchParams } = new URL(req.url);
         const teamId = searchParams.get('team_id');
-        const orgId = searchParams.get('org_id');
+        const orgId = searchParams.get('org_id') || guardResult.value.orgId;
 
         if (!teamId && !orgId) {
-            return NextResponse.json({ error: 'Org ID or Team ID required' }, { status: 400 });
+            return NextResponse.json(
+                { ok: false, error: { code: 'VALIDATION_ERROR', message: 'org_id or team_id required' } },
+                { status: 400 }
+            );
         }
 
         let q = `

@@ -2,12 +2,12 @@
  * EXECUTIVE DASHBOARD API — Guarded Read Endpoint
  * 
  * GET /api/dashboard/executive?org_id=...&weeks=9
- * Guard: EXECUTIVE or ADMIN
+ * Guard: EXECUTIVE or ADMIN only (strict RBAC)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getExecutiveDashboardData } from '@/services/dashboard/executiveReader';
-import { requireRole } from '@/lib/access/guards';
+import { requireRolesStrict } from '@/lib/access/guards';
 import { buildCacheKey, getFromCache, setCache, isCacheValid } from '@/services/dashboard/cache';
 import { measure } from '@/lib/diagnostics/timing';
 
@@ -27,15 +27,23 @@ export async function GET(req: NextRequest) {
         // Validate required params
         if (!orgId) {
             return NextResponse.json(
-                { error: 'org_id is required', code: 'VALIDATION_ERROR', request_id: requestId },
+                { ok: false, error: { code: 'VALIDATION_ERROR', message: 'org_id is required' } },
                 { status: 400 }
             );
         }
 
-        // Guard: require EXECUTIVE or ADMIN
-        const guardResult = await requireRole(req, orgId, ['ADMIN', 'EXECUTIVE']);
+        // Guard: require EXECUTIVE or ADMIN (strict RBAC)
+        const guardResult = await requireRolesStrict(req, ['ADMIN', 'EXECUTIVE']);
         if (!guardResult.ok) {
             return guardResult.response;
+        }
+
+        // Verify org matches selected org
+        if (guardResult.value.orgId !== orgId) {
+            return NextResponse.json(
+                { ok: false, error: { code: 'FORBIDDEN', message: 'Access denied to this organization' } },
+                { status: 403 }
+            );
         }
 
         // Check cache - pass null for teamId since executive is org-level

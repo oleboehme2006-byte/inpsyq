@@ -86,23 +86,51 @@ export async function GET(req: Request) {
         // Create session
         const { token: sessionToken } = await createSession(userId, ip, userAgent);
 
-        // Determine redirect
-        const membershipCheck = await query(
-            `SELECT role FROM memberships WHERE user_id = $1 ORDER BY created_at LIMIT 1`,
+        // Determine redirect based on memberships
+        const membershipResult = await query(
+            `SELECT org_id, role, team_id FROM memberships WHERE user_id = $1`,
             [userId]
         );
-        const primaryRole = membershipCheck.rows[0]?.role || 'EMPLOYEE';
-        const redirectPath = primaryRole === 'ADMIN' ? '/admin' : '/executive';
 
-        // Set session cookie and redirect
+        let redirectPath: string;
+        const cookies: string[] = [];
         const isProd = process.env.NODE_ENV === 'production';
-        const cookieValue = `${getSessionCookieName()}=${sessionToken}; Path=/; HttpOnly; SameSite=Lax${isProd ? '; Secure' : ''}; Max-Age=${30 * 24 * 60 * 60}`;
+
+        // Session cookie
+        cookies.push(`${getSessionCookieName()}=${sessionToken}; Path=/; HttpOnly; SameSite=Lax${isProd ? '; Secure' : ''}; Max-Age=${30 * 24 * 60 * 60}`);
+
+        if (membershipResult.rows.length === 0) {
+            // No memberships yet - send to login (edge case)
+            redirectPath = '/login';
+        } else if (membershipResult.rows.length === 1) {
+            // Single org - auto-select and redirect by role
+            const { org_id, role, team_id } = membershipResult.rows[0];
+            cookies.push(`inpsyq_selected_org=${org_id}; Path=/; HttpOnly; SameSite=Lax${isProd ? '; Secure' : ''}; Max-Age=${30 * 24 * 60 * 60}`);
+
+            switch (role) {
+                case 'ADMIN':
+                    redirectPath = '/admin';
+                    break;
+                case 'EXECUTIVE':
+                    redirectPath = '/executive';
+                    break;
+                case 'TEAMLEAD':
+                    redirectPath = team_id ? `/team/${team_id}` : '/team';
+                    break;
+                case 'EMPLOYEE':
+                default:
+                    redirectPath = '/session';
+            }
+        } else {
+            // Multiple orgs - force org selection
+            redirectPath = '/org/select';
+        }
 
         return new NextResponse(null, {
             status: 302,
             headers: {
                 'Location': redirectPath,
-                'Set-Cookie': cookieValue,
+                'Set-Cookie': cookies.join(', '),
             },
         });
 

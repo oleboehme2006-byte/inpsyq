@@ -2,12 +2,12 @@
  * TEAM DASHBOARD API — Guarded Read Endpoint
  * 
  * GET /api/dashboard/team?org_id=...&team_id=...&weeks=9
- * Guard: TEAMLEAD (team-scoped) or ADMIN
+ * Guard: TEAMLEAD (own team only), EXECUTIVE, ADMIN (any team in org)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTeamDashboardData } from '@/services/dashboard/teamReader';
-import { requireTeamAccess } from '@/lib/access/guards';
+import { requireTeamAccessStrict } from '@/lib/access/guards';
 import { buildCacheKey, getFromCache, setCache, isCacheValid } from '@/services/dashboard/cache';
 import { measure } from '@/lib/diagnostics/timing';
 
@@ -27,13 +27,13 @@ export async function GET(req: NextRequest) {
         // Validate required params
         if (!orgId || !teamId) {
             return NextResponse.json(
-                { error: 'org_id and team_id are required', code: 'VALIDATION_ERROR', request_id: requestId },
+                { ok: false, error: { code: 'VALIDATION_ERROR', message: 'org_id and team_id are required' } },
                 { status: 400 }
             );
         }
 
-        // Guard: require team access
-        const guardResult = await requireTeamAccess(req, teamId);
+        // Guard: require team access (TEAMLEAD own team only, EXEC/ADMIN any team)
+        const guardResult = await requireTeamAccessStrict(req, teamId);
         if (!guardResult.ok) {
             return guardResult.response;
         }
