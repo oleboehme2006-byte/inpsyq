@@ -1,49 +1,42 @@
-'use client';
-import { useEffect, useState } from 'react';
-import BrandLogo from '@/components/shared/BrandLogo';
-import Link from 'next/link';
+/**
+ * ADMIN OVERVIEW PAGE — Admin dashboard entry point
+ */
 
-export default function AdminDashboard() {
-    const [profiles, setProfiles] = useState<any[]>([]);
-    const [aggregates, setAggregates] = useState<any[]>([]);
-
-    // Fetch logic would typically go here
-    // For now, assuming we land here and maybe show overview
-
+export default function AdminOverviewPage() {
     return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-            <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 p-6">
-                <BrandLogo />
-                <nav className="mt-12 space-y-4">
-                    <Link href="/admin" className="block font-medium">Dashboard</Link>
-                    <Link href="/admin/teams" className="block text-slate-500 hover:text-black">Teams View</Link>
-                    <Link href="/admin/settings" className="block text-slate-500 hover:text-black">Settings</Link>
-                </nav>
-            </aside>
+        <div className="p-8">
+            <header className="mb-8">
+                <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">
+                    Admin Overview
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400">
+                    Welcome to the InPsyq admin control panel. Use the navigation to access
+                    organization settings, user management, and system monitoring.
+                </p>
+            </header>
 
-            <main className="ml-64 p-12">
-                <header className="mb-12">
-                    <h1 className="text-3xl font-light">Organization Overview</h1>
-                </header>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4">Active Profiles</h3>
-                        <div className="text-4xl font-light">Loading...</div>
-                        {/* Need to implement charts fetching */}
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4">Signal Volume</h3>
-                        <div className="text-4xl font-light">--</div>
-                    </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+                    <h3 className="font-medium text-slate-900 dark:text-white mb-2">Organization</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Configure organization settings, view health metrics, and access audit logs.
+                    </p>
                 </div>
 
-                <div className="mt-12 bg-white p-8 rounded-xl border border-slate-200">
-                    <h2 className="text-xl mb-6">Recent Team Profiles</h2>
-                    <Link href="/admin/teams" className="text-blue-600 underline">View Teams Detail</Link>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+                    <h3 className="font-medium text-slate-900 dark:text-white mb-2">Users</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Manage team members, send invites, and configure role assignments.
+                    </p>
                 </div>
-            </main>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+                    <h3 className="font-medium text-slate-900 dark:text-white mb-2">System</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Monitor weekly pipeline runs, system alerts, and diagnostics.
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }
