@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # Minimal env for build
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST || 'postgresql://dummy:dummy@localhost:5432/test' }}
+          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET_TEST || 'test-admin-secret' }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET_TEST || 'test-cron-secret' }}
+
+  # UI Gate E2E (runs only on PR, requires secrets)
+  e2e-ui-gate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install chromium
+
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET_TEST }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET_TEST }}
+
+      - name: Start server
+        run: npm run start &
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+          INTERNAL_ADMIN_SECRET: ${{ secrets.INTERNAL_ADMIN_SECRET_TEST }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET_TEST }}
+          PORT: 3001
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3001 --timeout 60000
+
+      - name: Seed fixtures
+        run: npx tsx scripts/ensure_dev_fixtures.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_TEST }}
+
+      - name: Run UI Gate E2E
+        run: npx tsx scripts/verify_phase27_1_ui_gate_e2e.ts
+        env:
+          BASE_URL: http://localhost:3001
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: artifacts/
+          retention-days: 7
