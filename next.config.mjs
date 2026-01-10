@@ -1,14 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    async redirects() {
-        return [
-            {
-                source: '/',
-                destination: '/executive',
-                permanent: false,
-            },
-        ];
-    },
+    // No redirects - public landing page serves at /
 };
 
 export default nextConfig;
+
