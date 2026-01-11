@@ -8,6 +8,8 @@
  * 
  * CRITICAL: Magic links MUST use getPublicOriginUrl() for canonical origins.
  * Preview/staging deployments have last-mile email suppression.
+ * 
+ * PHASE 36.4: Email links point to /auth/consume (confirm page), NOT /api/auth/consume.
  */
 
 import { getPublicOriginUrl, getPublicOrigin } from '@/lib/env/publicOrigin';
@@ -119,8 +121,8 @@ class TestTransport implements EmailTransport {
             const outboxDir = path.join(process.cwd(), 'artifacts', 'email_outbox');
             fs.mkdirSync(outboxDir, { recursive: true });
 
-            // Extract magic link from HTML
-            const linkMatch = message.html.match(/href="([^"]*\/api\/auth\/consume[^"]*)"/);
+            // Extract magic link from HTML (Phase 36.4: now /auth/consume, not /api/auth/consume)
+            const linkMatch = message.html.match(/href="([^"]*\/auth\/consume[^"]*)"/);
             const extractedLink = linkMatch ? linkMatch[1] : null;
 
             // Parse URL components
@@ -254,6 +256,7 @@ export function shouldSuppressEmail(): { suppress: boolean; reason: string } {
  * Send a magic link email.
  * 
  * CRITICAL: Uses getPublicOriginUrl() for canonical origin - NEVER VERCEL_URL.
+ * PHASE 36.4: Links to /auth/consume (confirm page), NOT /api/auth/consume.
  */
 export async function sendMagicLinkEmail(
     email: string,
@@ -280,7 +283,8 @@ export async function sendMagicLinkEmail(
     // Log origin for debugging
     console.log(`[EMAIL] Magic link origin: ${baseUrl} (source: ${originInfo.source}, enforced: ${originInfo.enforced})`);
 
-    const consumeUrl = `${baseUrl}/api/auth/consume?token=${encodeURIComponent(token)}`;
+    // PHASE 36.4: Link to confirm page, NOT direct API
+    const consumeUrl = `${baseUrl}/auth/consume?token=${encodeURIComponent(token)}`;
 
     const expiresInMinutes = Math.round((expiresAt.getTime() - Date.now()) / 60000);
 
@@ -310,4 +314,3 @@ export async function sendMagicLinkEmail(
         text: `Login to InPsyq\n\nClick here to log in: ${consumeUrl}\n\nThis link expires in ${expiresInMinutes} minutes.`,
     });
 }
-

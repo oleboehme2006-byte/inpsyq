@@ -1,12 +1,15 @@
 /**
- * CONSUME API — Consume Magic Link Token
+ * CONSUME API — POST-only Magic Link Token Consumption
  * 
- * GET /api/auth/consume?token=...
+ * POST /api/auth/consume
+ * Body: { token: string }
  * 
- * Validates and consumes token, creates session, redirects to dashboard.
+ * Returns JSON: { ok: true, redirectTo: "..." } or { ok: false, error: {...} }
+ * 
+ * GET is rejected with 405 to prevent scanner consumption.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { consumeLoginToken } from '@/lib/auth/loginToken';
 import { createSession, getSessionCookieName } from '@/lib/auth/session';
 import { query } from '@/db/client';
@@ -14,26 +17,59 @@ import { query } from '@/db/client';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
-    const url = new URL(req.url);
-    const token = url.searchParams.get('token');
+// GET is rejected - scanners cannot consume tokens
+export async function GET() {
+    return NextResponse.json(
+        {
+            ok: false,
+            error: {
+                code: 'METHOD_NOT_ALLOWED',
+                message: 'Use POST to consume login tokens',
+            },
+        },
+        { status: 405 }
+    );
+}
 
-    if (!token) {
-        return new NextResponse(renderErrorPage('Missing token'), {
-            status: 400,
-            headers: { 'Content-Type': 'text/html' },
-        });
-    }
-
+// POST consumes the token
+export async function POST(req: NextRequest) {
     try {
+        const body = await req.json().catch(() => ({}));
+        const token = body.token;
+
+        // Validate token presence
+        if (!token || typeof token !== 'string') {
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: { code: 'MISSING_TOKEN', message: 'Token is required' },
+                },
+                { status: 400 }
+            );
+        }
+
+        // Validate token length (invariant check)
+        if (token.length < 20) {
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: { code: 'INVALID_TOKEN', message: 'Invalid login link' },
+                },
+                { status: 400 }
+            );
+        }
+
         // Consume the login token
         const loginToken = await consumeLoginToken(token);
 
         if (!loginToken) {
-            return new NextResponse(renderErrorPage('Invalid or expired link'), {
-                status: 400,
-                headers: { 'Content-Type': 'text/html' },
-            });
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: { code: 'INVALID_OR_EXPIRED', message: 'This login link is invalid or has already been used' },
+                },
+                { status: 400 }
+            );
         }
 
         // Find or create user
@@ -119,54 +155,34 @@ export async function GET(req: Request) {
                     break;
                 case 'EMPLOYEE':
                 default:
-                    redirectPath = '/session';
+                    redirectPath = '/measure';
             }
         } else {
             // Multiple orgs - force org selection
             redirectPath = '/org/select';
         }
 
-        return new NextResponse(null, {
-            status: 302,
-            headers: {
-                'Location': redirectPath,
-                'Set-Cookie': cookies.join(', '),
-            },
+        // Return JSON with cookies in header
+        const response = NextResponse.json({
+            ok: true,
+            redirectTo: redirectPath,
         });
+
+        // Set cookies
+        for (const cookie of cookies) {
+            response.headers.append('Set-Cookie', cookie);
+        }
+
+        return response;
 
     } catch (error: any) {
-        console.error('[API] /auth/consume failed:', error.message);
-        return new NextResponse(renderErrorPage('An error occurred. Please try again.'), {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' },
-        });
+        console.error('[API] /auth/consume POST failed:', error.message);
+        return NextResponse.json(
+            {
+                ok: false,
+                error: { code: 'INTERNAL_ERROR', message: 'An error occurred. Please try again.' },
+            },
+            { status: 500 }
+        );
     }
-}
-
-function renderErrorPage(message: string): string {
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login Error - InPsyq</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f9fafb; }
-        .card { background: white; padding: 48px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
-        h1 { color: #dc2626; margin: 0 0 16px; font-size: 24px; }
-        p { color: #6b7280; margin: 0 0 24px; }
-        a { color: #2563eb; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>Login Error</h1>
-        <p>${message}</p>
-        <a href="/login">Try Again</a>
-    </div>
-</body>
-</html>
-    `.trim();
 }
