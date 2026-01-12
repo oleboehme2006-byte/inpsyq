@@ -82,3 +82,31 @@ export async function getSession(): Promise<Session | null> {
         expiresAt: row.expires_at,
     };
 }
+
+/**
+ * Delete a session by its raw token.
+ * Safe to call with non-existent token (no-op).
+ */
+export async function deleteSession(sessionToken: string): Promise<void> {
+    if (!sessionToken || typeof sessionToken !== 'string') {
+        return; // No-op for invalid input
+    }
+
+    const tokenHash = createHash('sha256').update(sessionToken).digest('hex');
+
+    await query(`DELETE FROM sessions WHERE token_hash = $1`, [tokenHash]);
+}
+
+/**
+ * Generate a new session token (for testing/utility).
+ */
+export function generateSessionToken(): string {
+    return randomBytes(32).toString('base64url');
+}
+
+/**
+ * Hash a session token (for testing/utility).
+ */
+export function hashSessionToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+}
