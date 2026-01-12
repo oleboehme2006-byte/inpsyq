@@ -1,34 +1,29 @@
 /**
- * SESSION — Production Session Management
+ * AUTH SESSION — Session Management
  * 
- * Handles secure session tokens stored in DB with hashed values.
+ * Handles creation, validation, and retrieval of user sessions.
  */
 
-import { createHash, randomBytes } from 'crypto';
 import { query } from '@/db/client';
+import { randomBytes, createHash } from 'crypto';
+import { cookies } from 'next/headers';
 
-const SESSION_EXPIRY_DAYS = 30;
 const SESSION_COOKIE_NAME = 'inpsyq_session';
+const SESSION_DURATION_DAYS = 30;
 
 export interface Session {
-    id: string;
     userId: string;
+    createdIp: string | null;
+    userAgent: string | null;
+    lastSeenAt: Date;
     expiresAt: Date;
-    createdAt: Date;
 }
 
 /**
- * Generate a cryptographically secure session token.
+ * Get the session cookie name.
  */
-export function generateSessionToken(): string {
-    return randomBytes(32).toString('base64url');
-}
-
-/**
- * Hash a session token for storage.
- */
-export function hashSessionToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+export function getSessionCookieName(): string {
+    return SESSION_COOKIE_NAME;
 }
 
 /**
@@ -36,41 +31,37 @@ export function hashSessionToken(token: string): string {
  */
 export async function createSession(
     userId: string,
-    ip?: string,
-    userAgent?: string
-): Promise<{ session: Session; token: string }> {
-    const token = generateSessionToken();
-    const tokenHash = hashSessionToken(token);
-    const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    ip: string | null = null,
+    userAgent: string | null = null
+): Promise<{ token: string; expiresAt: Date }> {
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
 
-    const result = await query(
-        `INSERT INTO sessions (user_id, token_hash, expires_at, ip, user_agent)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING session_id as id, user_id, expires_at, created_at`,
-        [userId, tokenHash, expiresAt, ip ?? null, userAgent ?? null]
+    await query(
+        `INSERT INTO sessions (user_id, token_hash, expires_at, ip, user_agent, started_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [userId, tokenHash, expiresAt, ip, userAgent]
     );
 
-    const row = result.rows[0];
-    return {
-        session: {
-            id: row.id,
-            userId: row.user_id,
-            expiresAt: new Date(row.expires_at),
-            createdAt: new Date(row.created_at),
-        },
-        token,
-    };
+    return { token, expiresAt };
 }
 
 /**
- * Validate a session token and return the session if valid.
+ * Get the current session from the cookie.
  */
-export async function validateSession(token: string): Promise<Session | null> {
-    const tokenHash = hashSessionToken(token);
+export async function getSession(): Promise<Session | null> {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+    if (!token) return null;
+
+    const tokenHash = createHash('sha256').update(token).digest('hex');
 
     const result = await query(
-        `SELECT session_id as id, user_id, expires_at, created_at
-         FROM sessions
+        `SELECT user_id, ip, user_agent, last_seen_at, expires_at 
+         FROM sessions 
          WHERE token_hash = $1 AND expires_at > NOW()`,
         [tokenHash]
     );
@@ -79,47 +70,15 @@ export async function validateSession(token: string): Promise<Session | null> {
         return null;
     }
 
+    // Update last_seen_at (side effect)
+    await query(`UPDATE sessions SET last_seen_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+
     const row = result.rows[0];
-
-    // Update last_seen_at
-    await query(`UPDATE sessions SET last_seen_at = NOW() WHERE id = $1`, [row.id]);
-
     return {
-        id: row.id,
         userId: row.user_id,
-        expiresAt: new Date(row.expires_at),
-        createdAt: new Date(row.created_at),
+        createdIp: row.ip,
+        userAgent: row.user_agent,
+        lastSeenAt: row.last_seen_at,
+        expiresAt: row.expires_at,
     };
-}
-
-/**
- * Delete a session (logout).
- */
-export async function deleteSession(token: string): Promise<boolean> {
-    const tokenHash = hashSessionToken(token);
-    const result = await query(`DELETE FROM sessions WHERE token_hash = $1`, [tokenHash]);
-    return (result.rowCount ?? 0) > 0;
-}
-
-/**
- * Delete all sessions for a user.
- */
-export async function deleteAllUserSessions(userId: string): Promise<number> {
-    const result = await query(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
-    return result.rowCount ?? 0;
-}
-
-/**
- * Clean up expired sessions.
- */
-export async function cleanupExpiredSessions(): Promise<number> {
-    const result = await query(`DELETE FROM sessions WHERE expires_at < NOW()`);
-    return result.rowCount ?? 0;
-}
-
-/**
- * Get session cookie name.
- */
-export function getSessionCookieName(): string {
-    return SESSION_COOKIE_NAME;
 }
