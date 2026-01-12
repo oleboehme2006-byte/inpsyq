@@ -5,7 +5,7 @@
  * Deterministic local test of the entire flow:
  * 1. Request link (API)
  * 2. Get link from test outbox (File)
- * 3. Visit link (Chrome) -> Confirm Page
+ * 3. Visit link (Browser) -> Confirm Page
  * 4. Click Continue -> Login Success -> Redirect to Dashboard
  * 
  * Usage:

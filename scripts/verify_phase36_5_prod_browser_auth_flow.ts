@@ -1,15 +1,15 @@
 #!/usr/bin/env npx tsx
 /**
- * PHASE 36.5 — Production Chrome Auth UI Verification
+ * PHASE 36.5 — Production Browser Auth UI Verification
  * 
- * Verifies production UI states:
+ * Playwright-driven browser verification of production UI states:
  * 1. Login page loads
  * 2. Request link flow (UI feedback)
  * 3. Auth Confirm page (UI existence check)
  * 4. Admin protection (redirect to login)
  * 
  * Usage:
- *   BASE_URL=https://www.inpsyq.com npx tsx scripts/verify_phase36_5_prod_chrome_auth_flow.ts
+ *   BASE_URL=https://www.inpsyq.com npx tsx scripts/verify_phase36_5_prod_browser_auth_flow.ts
  */
 
 import './_bootstrap';
@@ -23,7 +23,7 @@ const TEST_EMAIL = 'verify-prod-ui@inpsyq.com'; // Safe to request, won't be del
 
 async function main() {
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log('  PHASE 36.5 — Production Chrome UI Verification');
+    console.log('  PHASE 36.5 — Production Browser UI Verification');
     console.log(`  Target: ${BASE_URL}`);
     console.log('═══════════════════════════════════════════════════════════════\n');
 
@@ -81,7 +81,7 @@ async function main() {
         await page.waitForURL((url) => url.pathname.includes('/login'), { timeout: 5000 });
         console.log('  ✓ Unauthenticated /admin redirects to /login');
 
-        console.log('\n✓ PROD CHROME UI PASSED');
+        console.log('\n✓ PROD BROWSER UI PASSED');
 
     } catch (e: any) {
         console.error('\n⛔ FAILED:', e.message);
