@@ -98,7 +98,7 @@ export async function ensureTestOrgAndAdmin(email: string = TEST_ADMIN_EMAIL): P
         console.log(`[SeedTestOrg] Membership updated to ADMIN`);
     } else {
         await query(
-            `INSERT INTO memberships (user_id, org_id, role) VALUES ($1, $2, 'ADMIN')`,
+            `INSERT INTO memberships (user_id, org_id, role) VALUES ($1, $2, $3)`,
             [userId, orgId, 'ADMIN']
         );
         console.log(`[SeedTestOrg] Created ADMIN membership`);
