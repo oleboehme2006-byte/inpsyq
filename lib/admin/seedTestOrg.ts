@@ -45,23 +45,29 @@ export async function ensureTestOrgAndAdmin(email: string = TEST_ADMIN_EMAIL): P
         // Schemas might already exist
     }
 
-    // 1. Ensure org exists (by slug/name)
+    // 1. Ensure org exists (by name) - uses 'orgs' table with 'org_id' column
     let orgId: string;
     const existingOrg = await query(
-        `SELECT id FROM organizations WHERE name = $1`,
+        `SELECT org_id FROM orgs WHERE name = $1`,
         [TEST_ORG_NAME]
     );
 
     if (existingOrg.rows.length > 0) {
-        orgId = existingOrg.rows[0].id;
+        orgId = existingOrg.rows[0].org_id;
         console.log(`[SeedTestOrg] Org exists: ${orgId}`);
     } else {
         orgId = randomUUID();
         await query(
-            `INSERT INTO organizations (id, name) VALUES ($1, $2)`,
+            `INSERT INTO orgs (org_id, name) VALUES ($1, $2)`,
             [orgId, TEST_ORG_NAME]
         );
         console.log(`[SeedTestOrg] Created org: ${orgId}`);
+    }
+
+    // Verify org exists before proceeding (FK check)
+    const orgVerify = await query(`SELECT org_id FROM orgs WHERE org_id = $1`, [orgId]);
+    if (orgVerify.rows.length === 0) {
+        throw new Error(`SCHEMA_ERROR: Org ${orgId} not found after insert. Check orgs table schema.`);
     }
 
     // 2. Ensure user exists
@@ -322,7 +328,7 @@ export async function getTestOrgStatus(): Promise<{
     interpretationCount: number;
 }> {
     const orgResult = await query(
-        `SELECT id FROM organizations WHERE name = $1`,
+        `SELECT org_id FROM orgs WHERE name = $1`,
         [TEST_ORG_NAME]
     );
 
@@ -330,7 +336,7 @@ export async function getTestOrgStatus(): Promise<{
         return { exists: false, teamCount: 0, employeeCount: 0, weekCount: 0, sessionCount: 0, interpretationCount: 0 };
     }
 
-    const orgId = orgResult.rows[0].id;
+    const orgId = orgResult.rows[0].org_id;
 
     const [teams, employees, weeks, sessions, interpretations] = await Promise.all([
         query(`SELECT COUNT(*) as cnt FROM teams WHERE org_id = $1`, [orgId]),
