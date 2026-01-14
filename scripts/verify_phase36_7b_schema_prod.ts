@@ -1,10 +1,14 @@
 #!/usr/bin/env npx tsx
 /**
- * PHASE 36.7b — Schema Verification & Production Seed Test
+ * PHASE 36.7c — Schema Verification & Production Seed Test
  * 
  * 1. Fetches schema for key tables from production
  * 2. Calls ensure/seed/status endpoints
  * 3. Verifies expected data counts
+ * 
+ * Response Contract:
+ * - All endpoints return { ok: true, data: {...} } on success
+ * - All endpoints return { ok: false, error: { code, message } } on failure
  */
 
 import './_bootstrap';
@@ -13,13 +17,19 @@ import * as path from 'path';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 const ADMIN_SECRET = process.env.INTERNAL_ADMIN_SECRET;
-const ARTIFACTS_DIR = path.join(process.cwd(), 'artifacts', 'phase36_7b');
+const ARTIFACTS_DIR = path.join(process.cwd(), 'artifacts', 'phase36_7c');
 
 interface TestResult {
     test: string;
     passed: boolean;
     details?: any;
     error?: string;
+}
+
+interface RawResponse {
+    endpoint: string;
+    status: number;
+    body: any;
 }
 
 async function fetchSchema(table: string): Promise<any> {
@@ -31,7 +41,7 @@ async function fetchSchema(table: string): Promise<any> {
 
 async function main() {
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log('  PHASE 36.7b — Schema Verification & Production Seed Test');
+    console.log('  PHASE 36.7c — Schema Verification & Production Seed Test');
     console.log(`  Target: ${BASE_URL}`);
     console.log('═══════════════════════════════════════════════════════════════\n');
 
@@ -43,6 +53,7 @@ async function main() {
     fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
     const results: TestResult[] = [];
     const schemas: Record<string, any> = {};
+    const rawResponses: RawResponse[] = [];
 
     // ─────────────────────────────────────────────────────────────────
     // Step 1: Fetch schema for key tables
@@ -92,6 +103,7 @@ async function main() {
 
     let ensureOk = false;
     let orgId: string | undefined;
+    let teamIds: string[] = [];
 
     try {
         const res = await fetch(`${BASE_URL}/api/internal/admin/test-org/ensure`, {
@@ -102,21 +114,39 @@ async function main() {
             },
         });
 
-        const data = await res.json();
-        ensureOk = data.ok === true;
-        orgId = data.result?.orgId;
+        const body = await res.json();
+        rawResponses.push({ endpoint: 'ensure', status: res.status, body });
+
+        // Contract: { ok: true, data: { orgId, userId, teamIds } }
+        ensureOk = body.ok === true && body.data?.orgId;
+        orgId = body.data?.orgId;
+        teamIds = body.data?.teamIds || [];
+
+        // Invariant checks
+        if (body.ok && !body.data?.orgId) {
+            console.log(`  ✗ INVARIANT FAIL: ok=true but data.orgId is undefined`);
+            console.log(`    Raw response: ${JSON.stringify(body)}`);
+            ensureOk = false;
+        }
+
+        if (body.ok && !Array.isArray(body.data?.teamIds)) {
+            console.log(`  ✗ INVARIANT FAIL: ok=true but data.teamIds is not an array`);
+            console.log(`    Raw response: ${JSON.stringify(body)}`);
+            ensureOk = false;
+        }
 
         results.push({
             test: 'Ensure endpoint',
             passed: ensureOk,
-            details: { status: res.status, orgId, teamCount: data.result?.teamIds?.length },
-            error: data.error?.message,
+            details: { status: res.status, orgId, teamCount: teamIds.length },
+            error: body.error?.message,
         });
 
         if (ensureOk) {
-            console.log(`  ✓ Ensure succeeded: orgId=${orgId}, teams=${data.result?.teamIds?.length}`);
+            console.log(`  ✓ Ensure succeeded: orgId=${orgId}, teams=${teamIds.length}`);
         } else {
-            console.log(`  ✗ Ensure failed: ${data.error?.message || JSON.stringify(data)}`);
+            console.log(`  ✗ Ensure failed: ${body.error?.message || 'missing data.orgId'}`);
+            console.log(`    Raw: ${JSON.stringify(body)}`);
         }
     } catch (e: any) {
         results.push({ test: 'Ensure endpoint', passed: false, error: e.message });
@@ -141,20 +171,23 @@ async function main() {
                 body: JSON.stringify({ weeks: 6 }),
             });
 
-            const data = await res.json();
-            seedOk = data.ok === true;
+            const body = await res.json();
+            rawResponses.push({ endpoint: 'seed', status: res.status, body });
+
+            // Contract: { ok: true, data: { orgId, weeksSeeded, sessionsCreated, ... } }
+            seedOk = body.ok === true;
 
             results.push({
                 test: 'Seed endpoint',
                 passed: seedOk,
-                details: data.result,
-                error: data.error?.message,
+                details: body.data,
+                error: body.error?.message,
             });
 
             if (seedOk) {
-                console.log(`  ✓ Seed succeeded: sessions=${data.result?.sessionsCreated}, interps=${data.result?.interpretationsCreated}`);
+                console.log(`  ✓ Seed succeeded: sessions=${body.data?.sessionsCreated}, interps=${body.data?.interpretationsCreated}`);
             } else {
-                console.log(`  ✗ Seed failed: ${data.error?.message || JSON.stringify(data)}`);
+                console.log(`  ✗ Seed failed: ${body.error?.message || JSON.stringify(body)}`);
             }
         } catch (e: any) {
             results.push({ test: 'Seed endpoint', passed: false, error: e.message });
@@ -175,10 +208,13 @@ async function main() {
             headers: { 'Authorization': `Bearer ${ADMIN_SECRET}` },
         });
 
-        const data = await res.json();
-        const status = data.status;
+        const body = await res.json();
+        rawResponses.push({ endpoint: 'status', status: res.status, body });
 
-        if (data.ok && status) {
+        // Contract: { ok: true, data: { exists, orgId, teamCount, ... } }
+        const status = body.data;
+
+        if (body.ok && status) {
             console.log('  Status:');
             console.log(`    exists: ${status.exists}`);
             console.log(`    orgId: ${status.orgId}`);
@@ -220,8 +256,9 @@ async function main() {
             console.log(`  ${weekOk ? '✓' : '✗'} weekCount>=6 (got ${status.weekCount})`);
             console.log(`  ${interpOk ? '✓' : '✗'} interpretationCount>0 (got ${status.interpretationCount})`);
         } else {
-            console.log(`  ✗ Status check failed: ${data.error?.message || 'no data'}`);
-            results.push({ test: 'Status endpoint', passed: false, error: data.error?.message });
+            console.log(`  ✗ Status check failed: ${body.error?.message || 'no data'}`);
+            console.log(`    Raw: ${JSON.stringify(body)}`);
+            results.push({ test: 'Status endpoint', passed: false, error: body.error?.message });
         }
     } catch (e: any) {
         results.push({ test: 'Status endpoint', passed: false, error: e.message });
@@ -252,20 +289,21 @@ async function main() {
         failed,
         results,
         schemas,
+        rawResponses,
     };
 
     fs.writeFileSync(
-        path.join(ARTIFACTS_DIR, 'schema_prod.json'),
+        path.join(ARTIFACTS_DIR, 'verification_results.json'),
         JSON.stringify(artifact, null, 2)
     );
 
-    console.log(`\n✓ Artifacts saved to ${ARTIFACTS_DIR}/schema_prod.json`);
+    console.log(`\n✓ Artifacts saved to ${ARTIFACTS_DIR}/verification_results.json`);
 
     if (failed > 0) {
-        console.log('\n⛔ PHASE 36.7b: FAILED');
+        console.log('\n⛔ PHASE 36.7c: FAILED');
         process.exit(1);
     } else {
-        console.log('\n✓ PHASE 36.7b: PASSED');
+        console.log('\n✓ PHASE 36.7c: PASSED');
     }
 }
 

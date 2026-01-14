@@ -3,6 +3,10 @@
  * 
  * Seeds fake measurement data for Test Organization.
  * Requires INTERNAL_ADMIN_SECRET.
+ * 
+ * Response contract:
+ * - Success: { ok: true, data: { orgId, weeksSeeded, sessionsCreated, responsesCreated, interpretationsCreated } }
+ * - Error: { ok: false, error: { code, message } }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     if (!expected || authHeader !== `Bearer ${expected}`) {
         return NextResponse.json(
-            { ok: false, error: 'Unauthorized' },
+            { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid or missing authorization' } },
             { status: 401 }
         );
     }
@@ -31,7 +35,7 @@ export async function POST(req: NextRequest) {
         const status = await getTestOrgStatus();
         if (!status.exists || !status.orgId) {
             return NextResponse.json(
-                { ok: false, error: 'Test org does not exist. Call /ensure first.' },
+                { ok: false, error: { code: 'ORG_NOT_FOUND', message: 'Test org does not exist. Call /ensure first.' } },
                 { status: 400 }
             );
         }
@@ -42,14 +46,21 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             ok: true,
-            ...result,
+            data: {
+                orgId: result.orgId,
+                weeksSeeded: result.weeksSeeded,
+                sessionsCreated: result.sessionsCreated,
+                responsesCreated: result.responsesCreated,
+                interpretationsCreated: result.interpretationsCreated,
+            },
         });
 
     } catch (e: any) {
         console.error('[API] test-org/seed failed:', e.message);
         return NextResponse.json(
-            { ok: false, error: e.message },
+            { ok: false, error: { code: 'SEED_FAILED', message: e.message } },
             { status: 500 }
         );
     }
 }
+

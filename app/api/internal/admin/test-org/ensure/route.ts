@@ -3,6 +3,10 @@
  * 
  * Creates/ensures Test Organization and Admin user.
  * Requires INTERNAL_ADMIN_SECRET.
+ * 
+ * Response contract:
+ * - Success: { ok: true, data: { orgId, userId, teamIds } }
+ * - Error: { ok: false, error: { code, message } }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     if (!expected || authHeader !== `Bearer ${expected}`) {
         return NextResponse.json(
-            { ok: false, error: 'Unauthorized' },
+            { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid or missing authorization' } },
             { status: 401 }
         );
     }
@@ -32,16 +36,19 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             ok: true,
-            orgId: result.orgId,
-            userId: result.userId,
-            teamIds: result.teamIds,
+            data: {
+                orgId: result.orgId,
+                userId: result.userId,
+                teamIds: result.teamIds,
+            },
         });
 
     } catch (e: any) {
         console.error('[API] test-org/ensure failed:', e.message);
         return NextResponse.json(
-            { ok: false, error: e.message },
+            { ok: false, error: { code: 'ENSURE_FAILED', message: e.message } },
             { status: 500 }
         );
     }
 }
+
