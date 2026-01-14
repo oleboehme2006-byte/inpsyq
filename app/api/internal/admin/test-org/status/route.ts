@@ -3,6 +3,10 @@
  * 
  * Returns status of Test Organization data.
  * Requires INTERNAL_ADMIN_SECRET.
+ * 
+ * Response contract:
+ * - Success: { ok: true, data: { exists, orgId, teamCount, employeeCount, weekCount, sessionCount, interpretationCount } }
+ * - Error: { ok: false, error: { code, message } }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     if (!expected || authHeader !== `Bearer ${expected}`) {
         return NextResponse.json(
-            { ok: false, error: 'Unauthorized' },
+            { ok: false, error: { code: 'UNAUTHORIZED', message: 'Invalid or missing authorization' } },
             { status: 401 }
         );
     }
@@ -27,14 +31,15 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             ok: true,
-            ...status,
+            data: status,
         });
 
     } catch (e: any) {
         console.error('[API] test-org/status failed:', e.message);
         return NextResponse.json(
-            { ok: false, error: e.message },
+            { ok: false, error: { code: 'STATUS_FAILED', message: e.message } },
             { status: 500 }
         );
     }
 }
+
