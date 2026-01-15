@@ -375,27 +375,69 @@ export async function seedTestOrgData(
     // Calculate week starts (going back from current week)
     const weekStarts = getWeekStarts(weeks);
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PHASE 36.7e: Get canonical synthetic employee user_ids upfront
+    // These are the ONLY users we will pre-delete sessions for (safe boundary)
+    // ─────────────────────────────────────────────────────────────────────────
+    const canonicalEmails = getAllCanonicalEmployeeEmails();
+    const syntheticUsersResult = await query(
+        `SELECT user_id, email FROM users WHERE LOWER(email) = ANY($1::text[])`,
+        [canonicalEmails.map(e => e.toLowerCase())]
+    );
+
+    const syntheticUserIds = syntheticUsersResult.rows.map(r => r.user_id);
+
+    if (syntheticUserIds.length !== 15) {
+        throw new Error(`Expected 15 canonical synthetic users, found ${syntheticUserIds.length}. Run ensureTestOrgAndAdmin first.`);
+    }
+
+    console.log(`[SeedTestOrg] Found ${syntheticUserIds.length} canonical synthetic users`);
+
     for (const weekStart of weekStarts) {
-        // Check if this week already has data
-        const existingData = await query(
-            `SELECT COUNT(*) as cnt FROM measurement_sessions 
-             WHERE org_id = $1 AND week_start = $2`,
-            [orgId, weekStart]
+        // ─────────────────────────────────────────────────────────────────────
+        // PHASE 36.7e: Safe pre-delete for synthetic users only
+        // This handles the global unique constraint (user_id, week_start)
+        // by clearing any stale sessions before inserting new ones.
+        // SAFETY: Only deletes rows where user_id is in canonical synthetic set.
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Step 1: Delete dependent measurement_quality rows
+        await query(
+            `DELETE FROM measurement_quality WHERE session_id IN (
+                SELECT session_id FROM measurement_sessions 
+                WHERE user_id = ANY($1::uuid[]) AND week_start = $2
+            )`,
+            [syntheticUserIds, weekStart]
         );
 
-        if (parseInt(existingData.rows[0].cnt) > 0) {
-            console.log(`[SeedTestOrg] Week ${weekStart} already has data, skipping`);
-            continue;
+        // Step 2: Delete dependent measurement_responses rows
+        await query(
+            `DELETE FROM measurement_responses WHERE session_id IN (
+                SELECT session_id FROM measurement_sessions 
+                WHERE user_id = ANY($1::uuid[]) AND week_start = $2
+            )`,
+            [syntheticUserIds, weekStart]
+        );
+
+        // Step 3: Delete stale measurement_sessions
+        const deleteResult = await query(
+            `DELETE FROM measurement_sessions 
+             WHERE user_id = ANY($1::uuid[]) AND week_start = $2
+             RETURNING session_id`,
+            [syntheticUserIds, weekStart]
+        );
+
+        if (deleteResult.rows.length > 0) {
+            console.log(`[SeedTestOrg] Pre-deleted ${deleteResult.rows.length} stale sessions for week ${weekStart}`);
         }
 
-        // Get canonical employees in this org
-        const canonicalEmails = getAllCanonicalEmployeeEmails();
+        // Get canonical employees in this org (with team assignment)
         const employees = await query(
             `SELECT u.user_id, m.team_id 
              FROM users u 
              JOIN memberships m ON u.user_id = m.user_id 
-             WHERE m.org_id = $1 AND m.role = 'EMPLOYEE' AND LOWER(u.email) = ANY($2::text[])`,
-            [orgId, canonicalEmails.map(e => e.toLowerCase())]
+             WHERE m.org_id = $1 AND m.role = 'EMPLOYEE' AND u.user_id = ANY($2::uuid[])`,
+            [orgId, syntheticUserIds]
         );
 
         // Create sessions and responses
