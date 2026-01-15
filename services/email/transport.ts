@@ -14,8 +14,6 @@
 
 import { getPublicOriginUrl, getPublicOrigin } from '@/lib/env/publicOrigin';
 import { isProduction, isStaging } from '@/lib/env/appEnv';
-import * as fs from 'fs';
-import * as path from 'path';
 
 export interface EmailMessage {
     to: string;
@@ -117,9 +115,15 @@ class TestTransport implements EmailTransport {
         testOutbox.push(mail);
 
         // Write to file for verification scripts
+        // Dynamic import to avoid bundling fs in edge/client
         try {
+            const fs = await import('fs');
+            const path = await import('path');
+
             const outboxDir = path.join(process.cwd(), 'artifacts', 'email_outbox');
-            fs.mkdirSync(outboxDir, { recursive: true });
+            if (!fs.existsSync(outboxDir)) {
+                fs.mkdirSync(outboxDir, { recursive: true });
+            }
 
             // Extract magic link from HTML (Phase 36.4: now /auth/consume, not /api/auth/consume)
             const linkMatch = message.html.match(/href="([^"]*\/auth\/consume[^"]*)"/);
@@ -154,6 +158,7 @@ class TestTransport implements EmailTransport {
 
             console.log(`[EMAIL] Test transport wrote to ${outboxFile}`);
         } catch (e: any) {
+            // Ignore fs errors in non-node envs (though we shouldn't be here in non-node)
             console.error('[EMAIL] Failed to write test outbox:', e.message);
         }
 
