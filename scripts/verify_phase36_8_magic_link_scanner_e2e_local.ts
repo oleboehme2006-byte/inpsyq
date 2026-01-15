@@ -6,11 +6,10 @@ import { getPublicOriginUrl } from '../lib/env/publicOrigin';
 async function verifyMagicLinkFlow() {
     console.log('Verifying Magic Link Flow (Local E2E)...');
 
-    // Setup Environment
+    // Setup Environment (NOTE: NODE_ENV is NOT set manually - relies on existing env)
     process.env.EMAIL_PROVIDER = 'test';
     process.env.AUTH_BASE_URL = 'http://localhost:3000';
     process.env.VERCEL_ENV = 'development';
-    process.env.NODE_ENV = 'development';
 
     clearTestOutbox();
 
