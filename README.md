@@ -1,56 +1,95 @@
-# InPsyQ Landing Page
+# InPsyQ
 
-A modern, dark-themed, single-page marketing site for "InPsyQ" — a social sentiment analysis tool. Built with Next.js, TailwindCSS, and Framer Motion.
+Social sentiment analysis platform for organizations.
 
-## 🚀 Getting Started
+## What is InPsyQ?
 
-### Prerequisites
+InPsyQ provides weekly measurement sessions for employees, generating team-level and organization-wide insights through LLM-powered interpretation. It enables teamleads and executives to understand team dynamics and sentiment trends.
 
-- Node.js (v18 or higher)
-- npm
-
-### Installation
-
-1.  Isolate the project directory:
-    ```bash
-    cd inpsyq-landing
-    ```
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-
-### Running Locally
-
-Start the development server:
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env.local
+# Edit .env.local with your database URL and settings
+
+# Start development server
 npm run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) with your browser to see the result.
+Open [http://localhost:3001](http://localhost:3001).
 
-## 🛠 Tech Stack
+## Documentation
 
--   **Framework:** [Next.js 14](https://nextjs.org/) (App Router)
--   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
--   **Animations:** [Framer Motion](https://www.framer.com/motion/)
--   **Icons:** [Lucide React](https://lucide.dev/)
--   **Language:** TypeScript
+| Topic | Location |
+|-------|----------|
+| **Architecture** | [docs/architecture/system-overview.md](docs/architecture/system-overview.md) |
+| **Deployment** | [docs/operations/deployment.md](docs/operations/deployment.md) |
+| **Monitoring** | [docs/operations/monitoring.md](docs/operations/monitoring.md) |
+| **Test Org Seeding** | [docs/operations/test-org-seeding.md](docs/operations/test-org-seeding.md) |
+| **Authentication** | [docs/security/authentication.md](docs/security/authentication.md) |
+| **Authorization** | [docs/security/authorization.md](docs/security/authorization.md) |
+| **Compliance** | [docs/security/compliance.md](docs/security/compliance.md) |
+| **Local Development** | [docs/development/local-setup.md](docs/development/local-setup.md) |
 
-## 📂 Project Structure
+## Verification
 
--   `app/page.tsx`: Main entry point assembling all sections.
--   `app/layout.tsx`: Root layout configuration.
--   `components/`: Reusable UI components and page sections.
-    -   `ui/FadeIn.tsx`: Wrapper for scroll-triggered animations.
-    -   `BackgroundEffects.tsx`: Animated background gradients.
-    -   Sections: `Hero`, `ProblemSection`, `SolutionSection`, etc.
+Run verification scripts to check system health:
 
-## ✨ Features
+```bash
+# Authentication invariants
+npx tsx scripts/verify/auth.verify.ts
 
--   **Dark Mode Aesthetic:** Custom color palette with deep backgrounds and neon accents.
--   **Scroll Animations:** Elements fade and slide in as you scroll.
--   **Responsive Design:** Fully optimized for mobile, tablet, and desktop.
--   **Smooth Scrolling:** Navigation links smoothly scroll to sections.
--   **Interactive Elements:** Hover effects on cards, buttons, and mockup visualizations.
+# Email/magic link generation
+npx tsx scripts/verify/email.verify.ts
+
+# Test organization
+BASE_URL=https://www.inpsyq.com INTERNAL_ADMIN_SECRET=... \
+npx tsx scripts/verify/test-org.verify.ts
+
+# Production smoke test
+BASE_URL=https://www.inpsyq.com \
+npx tsx scripts/verify/production-smoke.verify.ts
+```
+
+## Deployment
+
+See [docs/operations/deployment.md](docs/operations/deployment.md) for the complete deployment guide.
+
+Quick version:
+```bash
+# Merge to production and push
+git checkout production
+git merge main
+git push origin production
+```
+
+## Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Database**: PostgreSQL (Neon)
+- **Email**: Resend
+- **Styling**: Tailwind CSS
+- **Language**: TypeScript
+
+## Project Structure
+
+```
+├── app/                 # Next.js pages and API routes
+├── components/          # React components
+├── lib/                 # Core business logic
+├── services/            # External service integrations
+├── db/                  # Database client
+├── scripts/
+│   ├── verify/         # Verification scripts
+│   ├── ops/            # Operational scripts
+│   └── dev/            # Development helpers
+└── docs/               # Documentation
+```
+
+## License
+
+Proprietary. All rights reserved.
