@@ -1,15 +1,12 @@
 # Deployment
 
-This document describes how to build, deploy, and configure InPsyq environments.
-
 ## Environments
 
-| Environment | URL | Purpose |
-|-------------|-----|---------|
-| Production | https://www.inpsyq.com | Live customer data |
-| Staging | https://staging.inpsyq.com | Pre-production testing |
-| Preview | `*.vercel.app` | Branch deployments |
-| Local | http://localhost:3000 | Development |
+| Environment | Branch | URL | Purpose |
+|-------------|--------|-----|---------|
+| Production | `production` | `https://www.inpsyq.com` | Live users |
+| Staging | `main` (preview) | `https://inpsyq-staging.vercel.app` | Pre-release testing |
+| Development | local | `http://localhost:3000` | Local development |
 
 ## Environment Variables
 
@@ -18,135 +15,115 @@ This document describes how to build, deploy, and configure InPsyq environments.
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `OPENAI_API_KEY` | OpenAI API key for LLM |
+| `INTERNAL_ADMIN_SECRET` | Admin API authentication |
 
-### Required (Production)
+### Production Only
 
-| Variable | Value |
-|----------|-------|
-| `AUTH_BASE_URL` | `https://www.inpsyq.com` |
-| `RESEND_API_KEY` | Resend email API key |
-| `INTERNAL_ADMIN_SECRET` | Admin API secret |
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `AUTH_BASE_URL` | `https://www.inpsyq.com` | **Required, strictly enforced** |
+| `EMAIL_PROVIDER` | `resend` | Enable real emails |
+| `RESEND_API_KEY` | `re_...` | Resend API key |
+| `APP_ENV` | `production` | Environment identifier |
 
-### Optional
+### Preview/Staging
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EMAIL_PROVIDER` | `disabled` | `resend`, `disabled`, `test` |
-| `APP_ENV` | (inferred) | `production`, `staging` |
-| `OPS_ALERTS_DISABLED` | `false` | Disable monitoring alerts |
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `EMAIL_PROVIDER` | `disabled` | Suppress all emails |
+| `APP_ENV` | `staging` | Environment identifier |
 
-## Build Process
+### Development
 
-### Local Build
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `EMAIL_PROVIDER` | `test` | Write to `artifacts/email_outbox/` |
+| `AUTH_BASE_URL` | `http://localhost:3000` | Local origin |
+
+## Deployment Workflow
+
+### Standard Release
 
 ```bash
-npm install
+# 1. Ensure main is up to date
+git checkout main
+git pull origin main
+
+# 2. Run local verification
 npm run build
-```
+npm run lint
 
-### Vercel Build
-
-Automatic on push to:
-- `main` → Staging
-- `production` → Production
-
-## Deployment Checklist
-
-### Before Production Deploy
-
-1. **Build passes locally**: `npm run build`
-2. **Lint passes**: `npm run lint`
-3. **Verification scripts pass**: `npx tsx scripts/verification/origin.verify.ts`
-4. **Staging validated**: Manual smoke test on staging
-
-### Production Deploy
-
-```bash
+# 3. Push to production
 git checkout production
 git merge main
 git push origin production
 ```
 
-### Post-Deploy Verification
+### Vercel Auto-Deploy
+- Push to `production` branch → Production deployment
+- Push to `main` branch → Preview deployment
+- Pull requests → Preview deployment per PR
 
+## Pre-Deployment Checklist
+
+- [ ] `npm run build` passes locally
+- [ ] `npm run lint` passes
+- [ ] Verification scripts pass
+- [ ] Environment variables configured in Vercel
+- [ ] Database migrations applied (if any)
+
+## Post-Deployment Verification
+
+### 1. Health Check
 ```bash
-# 1. Health check
 curl https://www.inpsyq.com/api/internal/health/system \
   -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
+```
 
-# 2. Public page check
-curl -I https://www.inpsyq.com/
-
-# 3. Auth origin check
+### 2. Origin Diagnostics
+```bash
 curl https://www.inpsyq.com/api/internal/diag/auth-origin \
   -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
 ```
 
-## Production Invariants
+### 3. Magic Link Test
+Request login for known admin email and verify email received.
 
-| Invariant | Enforcement |
-|-----------|-------------|
-| `AUTH_BASE_URL = https://www.inpsyq.com` | Hard error if wrong |
-| `EMAIL_PROVIDER = resend` | Default for production |
-| No preview domain in emails | Origin enforcement |
-| No demo banners | APP_ENV check |
+## Rollback
 
-## Rollback Procedure
+### Via Vercel Dashboard
+1. Go to Vercel → Project → Deployments
+2. Find last known-good deployment
+3. Click "..." → "Promote to Production"
 
+### Via Git
 ```bash
-# 1. Identify last good commit
-git log --oneline production
-
-# 2. Force push to previous commit
-git push origin <commit>:production --force
-
-# 3. Verify rollback
-curl -I https://www.inpsyq.com/
+git checkout production
+git revert HEAD
+git push origin production
 ```
 
 ## Secrets Rotation
 
-### Internal Admin Secret
-
+### INTERNAL_ADMIN_SECRET
 1. Generate new secret: `openssl rand -base64 32`
-2. Update in Vercel dashboard
+2. Update in Vercel environment variables
 3. Redeploy
-4. Update local `.env` files
+4. Log rotation date in audit log
 
-### Resend API Key
-
+### RESEND_API_KEY
 1. Generate new key in Resend dashboard
-2. Update in Vercel dashboard
-3. Redeploy
-4. Test with magic link
+2. Revoke old key
+3. Update in Vercel
+4. Redeploy
 
-## Database
+## Build Configuration
 
-### Connection
+### Vercel Settings
+- Framework: Next.js
+- Build Command: `npm run build`
+- Output Directory: `.next`
+- Node.js Version: 20.x
 
-- Provider: Neon PostgreSQL
-- Pooling: Via connection string
-- SSL: Required
-
-### Migrations
-
-No automated migration system. Schema changes via:
-1. Manual SQL scripts in `scripts/`
-2. Run against staging first
-3. Run against production after validation
-
-## Monitoring
-
-### Health Endpoint
-
-```bash
-curl https://www.inpsyq.com/api/internal/health/system \
-  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
-```
-
-Returns:
-- Database connectivity
-- Lock status
-- Pipeline coverage
-- Interpretation coverage
+### next.config.mjs
+Standard Next.js configuration. No special build flags required.

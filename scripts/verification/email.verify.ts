@@ -1,20 +1,22 @@
+#!/usr/bin/env npx tsx
 /**
- * Email Verification Script
+ * Email Transport Verification
  * 
- * Tests magic link email generation invariants:
- * - Links point to /auth/consume
- * - Token is included in URL
- * - Origin matches canonical URL
+ * Validates magic link email generation:
+ * - Uses canonical origin (not VERCEL_URL)
+ * - Links to /auth/consume
+ * - Token parameter present
  * - Test transport writes to outbox
  * 
- * Run: npx tsx scripts/verification/email.verify.ts
+ * Run:
+ *   npx tsx scripts/verification/email.verify.ts
  */
 
 import { strict as assert } from 'node:assert';
 import { sendMagicLinkEmail, getTestOutbox, clearTestOutbox } from '../../services/email/transport';
 
-async function verify() {
-    console.log('Email Verification\n');
+async function main() {
+    console.log('Email Transport Verification\n');
 
     // Setup test environment (NOTE: NODE_ENV not modified)
     process.env.EMAIL_PROVIDER = 'test';
@@ -23,48 +25,53 @@ async function verify() {
 
     clearTestOutbox();
 
-    // Test 1: Send magic link
-    console.log('1. Magic link generation');
-    const email = 'test@example.com';
-    const token = 'test-token-' + Math.random().toString(36).repeat(5);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    // Test 1: Send Magic Link
+    console.log('Test 1: Send magic link email');
+    const token = 'test-token-' + Math.random().toString(36).repeat(3);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    const result = await sendMagicLinkEmail(email, token, expiresAt);
-    assert.ok(result.ok, 'Email send should succeed');
-    console.log('   ✅ Email sent successfully\n');
+    const result = await sendMagicLinkEmail('test@example.com', token, expiresAt);
+    assert.ok(result.ok, 'Send should succeed');
+    console.log('  ✅ Passed');
 
-    // Test 2: Verify outbox
-    console.log('2. Outbox verification');
+    // Test 2: Email in outbox
+    console.log('Test 2: Email captured in outbox');
     const outbox = getTestOutbox();
-    assert.equal(outbox.length, 1, 'Should have 1 email in outbox');
-    const mail = outbox[0];
-    console.log('   ✅ Email in outbox\n');
+    assert.equal(outbox.length, 1, 'Should have 1 email');
+    console.log('  ✅ Passed');
 
     // Test 3: Link points to /auth/consume
-    console.log('3. Link target');
-    assert.ok(mail.html.includes('/auth/consume'), 'Link should point to /auth/consume');
-    console.log('   ✅ Correct path\n');
+    console.log('Test 3: Link uses /auth/consume');
+    const mail = outbox[0];
+    assert.ok(mail.html.includes('/auth/consume'), 'Should link to /auth/consume');
+    console.log('  ✅ Passed');
 
-    // Test 4: Token in URL
-    console.log('4. Token in URL');
-    assert.ok(mail.html.includes(encodeURIComponent(token)), 'Link should contain token');
-    console.log('   ✅ Token present\n');
+    // Test 4: Token in link
+    console.log('Test 4: Token parameter present');
+    assert.ok(mail.html.includes(encodeURIComponent(token)), 'Should contain encoded token');
+    console.log('  ✅ Passed');
 
-    // Test 5: URL structure
-    console.log('5. URL structure');
+    // Test 5: Uses canonical origin
+    console.log('Test 5: Uses canonical origin');
+    assert.ok(mail.html.includes('http://localhost:3000'), 'Should use AUTH_BASE_URL');
+    assert.ok(!mail.html.includes('vercel.app'), 'Should NOT contain vercel.app');
+    console.log('  ✅ Passed');
+
+    // Test 6: Extract and parse URL
+    console.log('Test 6: URL structure valid');
     const linkMatch = mail.html.match(/href="([^"]*)"/);
-    const consumeLink = linkMatch ? linkMatch[1] : null;
-    assert.ok(consumeLink, 'Should extract link from email');
+    const link = linkMatch?.[1];
+    assert.ok(link, 'Should extract link');
 
-    const url = new URL(consumeLink);
-    assert.equal(url.pathname, '/auth/consume', 'Path should be /auth/consume');
+    const url = new URL(link);
+    assert.equal(url.pathname, '/auth/consume', 'Pathname should be /auth/consume');
     assert.equal(url.searchParams.get('token'), token, 'Token param should match');
-    console.log(`   ✅ Valid URL: ${url.origin}${url.pathname}\n`);
+    console.log('  ✅ Passed');
 
-    console.log('All email invariants verified ✅');
+    console.log('\n✅ All email transport checks passed');
 }
 
-verify().catch(e => {
-    console.error('Verification failed:', e);
+main().catch(e => {
+    console.error('❌ Failed:', e.message);
     process.exit(1);
 });

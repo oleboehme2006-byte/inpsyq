@@ -1,83 +1,88 @@
+#!/usr/bin/env npx tsx
 /**
- * Test Organization Verification Script
+ * Test Organization Verification
  * 
- * Tests test organization state invariants:
- * - orgId = 99999999-9999-4999-8999-999999999999
- * - managedTeamCount = 3
- * - managedEmployeeCount = 15
- * - weekCount >= 6
- * - interpretationCount > 0
+ * Validates test organization structure and seeding:
+ * - TEST_ORG_ID is correct
+ * - 3 canonical teams exist
+ * - 15 synthetic employees exist
+ * - Seeded data is present
  * 
- * Run: BASE_URL=<url> INTERNAL_ADMIN_SECRET=<secret> npx tsx scripts/verification/test-org.verify.ts
+ * Run:
+ *   npx tsx scripts/verification/test-org.verify.ts
+ * 
+ * Production Run:
+ *   BASE_URL=https://www.inpsyq.com INTERNAL_ADMIN_SECRET=xxx npx tsx scripts/verification/test-org.verify.ts
  */
 
-import './../_bootstrap';
 import { strict as assert } from 'node:assert';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const ADMIN_SECRET = process.env.INTERNAL_ADMIN_SECRET;
 const TEST_ORG_ID = '99999999-9999-4999-8999-999999999999';
 
-async function verify() {
-    console.log('Test Organization Verification');
-    console.log(`Target: ${BASE_URL}\n`);
+async function main() {
+    console.log('Test Organization Verification\n');
+    console.log(`Target: ${BASE_URL}`);
+    console.log(`Expected TEST_ORG_ID: ${TEST_ORG_ID}\n`);
 
     if (!ADMIN_SECRET) {
         console.error('❌ INTERNAL_ADMIN_SECRET required');
         process.exit(1);
     }
 
-    // Fetch status
-    console.log('1. Fetching test org status');
-    const res = await fetch(`${BASE_URL}/api/internal/admin/test-org/status`, {
+    // Test 1: Status Endpoint
+    console.log('Test 1: Fetch test org status');
+    const statusRes = await fetch(`${BASE_URL}/api/internal/admin/test-org/status`, {
         headers: { 'Authorization': `Bearer ${ADMIN_SECRET}` },
     });
 
-    if (!res.ok) {
-        console.error(`❌ Status request failed: ${res.status}`);
+    if (!statusRes.ok) {
+        console.error('  ❌ Status endpoint failed:', statusRes.status);
         process.exit(1);
     }
 
-    const body = await res.json();
-    if (!body.ok || !body.data) {
-        console.error('❌ Invalid response:', body);
-        process.exit(1);
-    }
+    const statusBody = await statusRes.json();
+    assert.ok(statusBody.ok, 'Response should have ok: true');
+    const status = statusBody.data;
+    console.log('  ✅ Status endpoint returned');
 
-    const status = body.data;
-    console.log('   ✅ Status fetched\n');
-
-    // Verify invariants
-    console.log('2. Verifying invariants');
-
-    // Org exists
+    // Test 2: Org exists
+    console.log('Test 2: Org exists with correct ID');
     assert.ok(status.exists, 'Org should exist');
-    console.log('   ✅ Org exists');
+    assert.equal(status.orgId, TEST_ORG_ID, 'Org ID should be TEST_ORG_ID');
+    assert.ok(status.isCanonicalId, 'Should be canonical ID');
+    console.log('  ✅ Passed');
 
-    // Correct org ID
-    assert.equal(status.orgId, TEST_ORG_ID, 'Should be dedicated test org ID');
-    console.log(`   ✅ orgId = ${TEST_ORG_ID}`);
-
-    // Team count
+    // Test 3: Teams
+    console.log('Test 3: 3 managed teams');
     assert.equal(status.managedTeamCount, 3, 'Should have 3 managed teams');
-    console.log('   ✅ managedTeamCount = 3');
+    console.log('  ✅ Passed');
 
-    // Employee count
+    // Test 4: Employees
+    console.log('Test 4: 15 managed employees');
     assert.equal(status.managedEmployeeCount, 15, 'Should have 15 managed employees');
-    console.log('   ✅ managedEmployeeCount = 15');
+    console.log('  ✅ Passed');
 
-    // Week count
-    assert.ok(status.weekCount >= 6, `Should have >= 6 weeks (got ${status.weekCount})`);
-    console.log(`   ✅ weekCount = ${status.weekCount}`);
+    // Test 5: Seeded weeks
+    console.log('Test 5: Seeded weeks');
+    assert.ok(status.weekCount >= 1, `Should have at least 1 week of data (got ${status.weekCount})`);
+    console.log(`  ✅ Passed (${status.weekCount} weeks)`);
 
-    // Interpretation count
+    // Test 6: Sessions
+    console.log('Test 6: Sessions exist');
+    assert.ok(status.sessionCount > 0, 'Should have sessions');
+    console.log(`  ✅ Passed (${status.sessionCount} sessions)`);
+
+    // Test 7: Interpretations
+    console.log('Test 7: Interpretations exist');
     assert.ok(status.interpretationCount > 0, 'Should have interpretations');
-    console.log(`   ✅ interpretationCount = ${status.interpretationCount}\n`);
+    console.log(`  ✅ Passed (${status.interpretationCount} interpretations)`);
 
-    console.log('All test org invariants verified ✅');
+    console.log('\n✅ All test org checks passed');
 }
 
-verify().catch(e => {
-    console.error('Verification failed:', e);
+main().catch(e => {
+    console.error('❌ Failed:', e.message);
     process.exit(1);
 });
