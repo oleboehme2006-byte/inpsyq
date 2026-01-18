@@ -18,11 +18,11 @@ InPsyq is an organizational wellbeing intelligence platform that transforms psyc
 ### 2. Aggregation Layer (`lib/aggregation/`)
 - ISO week-based temporal aggregation (Monday start)
 - Team and organization series builders
-- Trend, volatility, and regime detection (see [`CORE_LOGIC.md`](./CORE_LOGIC.md))
+- Trend, volatility, and regime detection
 
 ### 3. Attribution Layer (`lib/attribution/`)
 - Causal driver analysis
-- Internal vs external factor decomposition (rules in [`CORE_LOGIC.md`](./CORE_LOGIC.md))
+- Internal vs external factor decomposition
 - Propagation risk assessment
 
 ### 4. Interpretation Layer (`services/interpretation/`)
