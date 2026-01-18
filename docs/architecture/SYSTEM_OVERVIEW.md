@@ -11,25 +11,21 @@ InPsyq is an organizational wellbeing intelligence platform that transforms psyc
 ```
 
 ### 1. Measurement Layer (`lib/measurement/`)
-[📄 Deep Dive: Measurement Engine](./MEASUREMENT_ENGINE.md)
 - Weekly psychometric surveys
 - Adaptive item selection based on response patterns
 - Quality metrics (completion rate, response time, confidence)
 
 ### 2. Aggregation Layer (`lib/aggregation/`)
-[📄 Deep Dive: Aggregation & Attribution](./AGGREGATION_AND_ATTRIBUTION.md)
 - ISO week-based temporal aggregation (Monday start)
 - Team and organization series builders
 - Trend, volatility, and regime detection
 
 ### 3. Attribution Layer (`lib/attribution/`)
-[📄 Deep Dive: Aggregation & Attribution](./AGGREGATION_AND_ATTRIBUTION.md)
 - Causal driver analysis
 - Internal vs external factor decomposition
 - Propagation risk assessment
 
 ### 4. Interpretation Layer (`services/interpretation/`)
-[📄 Deep Dive: Interpretation Engine](./INTERPRETATION_ENGINE.md)
 - LLM-generated narrative insights
 - Per-team and org-level interpretations
 - Structured output (highlights, concerns, recommendations)

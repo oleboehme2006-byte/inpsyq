@@ -14,13 +14,10 @@ These files document the development history and phase-by-phase implementation o
 **NOT ACTIVE** — Do not use for current operations.
 
 All relevant information has been consolidated into the canonical documentation:
-- `docs/architecture/` — System design (including Core Principles, Measurement, Aggregation)
+- `docs/architecture/` — System design
 - `docs/security/` — Auth, authorization, audit
 - `docs/operations/` — Deployment, monitoring, test org
-- `docs/development/` — Local setup, verification, design system
-
-**Note on Early Phases (1-20):**
-Deep domain knowledge from early phases (measurement logic, aggregation math, interpretation safety) has been fully documented in the `docs/architecture/` deep-dive files.
+- `docs/development/` — Local setup, verification
 
 ## What's Archived
 
