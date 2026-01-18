@@ -1,69 +1,64 @@
-# Phase 34: Retention Enforcement + Monitoring
+# Phase 3+4: Aggregation & Driver Attribution Engine
 
 ## Overview
-GDPR-style retention enforcement and production-grade monitoring.
 
-## Retention Enforcement
+Deterministic weekly aggregation and causal attribution infrastructure building on Phase 1+2 registries.
 
-### Constants (from lib/compliance/retention.ts)
-| Data Type | Retention |
-|-----------|-----------|
-| Sessions | 12 months |
-| Invites | 72 hours |
-| Audit logs | 24 months |
-| Aggregates | Indefinite |
+## Files
 
-### Module: `lib/security/retention.ts`
-- `computeRetentionPlan()` - Dry-run, no side effects
-- `applyRetentionPlan()` - Execute deletions
-- `getRetentionStatus()` - For monitoring
+### Aggregation (`lib/aggregation/`)
+- `types.ts` — Core types: WeeklyIndexPoint, TeamTemporalState, DataQualityWeekly
+- `week.ts` — ISO week utilities (Monday-based)
+- `temporal.ts` — Trend, volatility, regime computation
+- `buildSeries.ts` — Team series builder
+- `buildOrgSeries.ts` — Org series builder
 
-### Admin APIs
-- `POST /api/admin/system/retention/plan` - Compute plan
-- `POST /api/admin/system/retention/apply` - Execute (requires `confirm: "APPLY"`)
+### Attribution (`lib/attribution/`)
+- `types.ts` — Attribution result types
+- `input.ts` — Input contract (AttributionInputs)
+- `internal.ts` — Internal driver processing
+- `external.ts` — External dependency processing (templated explanations)
+- `sourceRules.ts` — INTERNAL/EXTERNAL/MIXED dominance
+- `propagation.ts` — Propagation risk computation
+- `attributionEngine.ts` — Main entry `computeAttribution()`
 
-### Internal Ops
-- `POST /api/internal/ops/monitor` - Run monitoring checks
+## Deterministic Rules
 
-## Monitoring
-
-### System Health Endpoint
-`GET /api/internal/health/system` now includes:
-- `retention.ok` - Not overdue
-- `retention.lastRunAt` - Last apply timestamp
-- `retention.overdue` - If > 7 days since last run
-
-### Monitoring Runner
-`services/ops/monitoring.ts` checks:
-1. Database connectivity
-2. Pipeline freshness
-3. Interpretation coverage
-4. Retention status
-5. Stuck locks
-
-### Alert Delivery
-- Production: Uses `SLACK_WEBHOOK_URL`
-- Staging: Uses `SLACK_WEBHOOK_URL_STAGING` or skips
-- Disabled: Set `OPS_ALERTS_DISABLED=true`
-
-## Environment Variables
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RETENTION_MAX_AGE_HOURS` | 168 | Max hours between retention runs |
-| `AUDIT_TRIM_ENABLED` | false | Enable audit log trimming |
-| `OPS_ALERTS_DISABLED` | false | Disable Slack alerts |
-| `SLACK_WEBHOOK_URL_STAGING` | - | Staging webhook (optional) |
-
-## Commands
-```bash
-# Run monitoring
-curl -X POST -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET" \
-  https://www.inpsyq.com/api/internal/ops/monitor
+### Source Dominance
+```
+externalMass ≥ 0.60 AND internalMass < 0.35 → EXTERNAL (internal=[])
+internalMass ≥ 0.60 AND externalMass < 0.35 → INTERNAL
+else → MIXED (cap internal=3, external=2)
 ```
 
-## Files Added
-- `lib/security/retention.ts`
-- `services/ops/monitoring.ts`
-- `app/api/admin/system/retention/plan/route.ts`
-- `app/api/admin/system/retention/apply/route.ts`
-- `app/api/internal/ops/monitor/route.ts`
+### Contribution Bands
+```
+score ≥ 0.60 → MAJOR
+score ≥ 0.35 → MODERATE
+else → MINOR (pruned unless no others)
+```
+
+### Propagation Risk
+```
+D3 + LOW controllability + worsening → HIGH
+≥2 D2+ OR mixed + high volatility → ELEVATED
+else → LOW
+```
+
+## Verification
+
+```bash
+# Phase 1+2
+npm run verify:phase12
+
+# Phase 3+4
+npm run verify:phase34
+```
+
+## Integration
+
+Dashboards should consume:
+- `TeamSeriesResult` from `buildTeamIndexSeries()`
+- `AttributionResult` from `computeAttribution()`
+
+Do **not invent text** — use the structured output directly.

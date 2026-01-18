@@ -1,19 +1,22 @@
-# Documentation Archive
+# Archive
 
-This directory contains historical phase-based documentation that was used during development.
+This directory contains historical development documentation that has been superseded by the canonical documentation in the parent directories.
 
-These files are **archived for reference only** and should not be used for operational purposes. Use the consolidated documentation in the parent directories instead.
+## Contents
 
-## Why Archived?
+- **PHASE*.md** — Development phase documentation
+- **RUNBOOK_*.md** — Historical runbooks
+- **Conceptual docs** — Original architecture notes
 
-The original documentation was organized by development phases (PHASE22, PHASE23, etc.). This was useful during iterative development but becomes confusing for long-term maintenance.
+## Status
 
-The new structure organizes documentation by **function**:
-- `docs/architecture/` — How the system works
-- `docs/operations/` — How to operate the system
-- `docs/security/` — Authentication, authorization, compliance
-- `docs/development/` — Local development setup
+All information from these files has been consolidated into:
+- `/docs/architecture/` — System design
+- `/docs/operations/` — Day-to-day operations
+- `/docs/security/` — Security model
 
-## Can I Delete These?
+## Usage
 
-Yes, these files can be safely deleted after verifying the consolidated documentation is complete. They are preserved here temporarily for reference during the transition.
+These files are preserved for historical reference only. For current documentation, use the canonical files in the parent directories.
+
+**Do not** reference these files in application code or operational procedures.

@@ -1,58 +1,66 @@
-# Deployment Guide
+# Deployment
 
-## Branch Strategy
+This document describes how to build, deploy, and configure InPsyq environments.
 
-```
-main (development) → staging (preview) → production (release)
-```
+## Environments
 
-All branches auto-deploy to Vercel:
-- `main` → `inpsyq-staging.vercel.app`
-- `production` → `www.inpsyq.com`
+| Environment | URL | Purpose |
+|-------------|-----|---------|
+| Production | https://www.inpsyq.com | Live customer data |
+| Staging | https://staging.inpsyq.com | Pre-production testing |
+| Preview | `*.vercel.app` | Branch deployments |
+| Local | http://localhost:3000 | Development |
 
----
+## Environment Variables
 
-## Pre-Deployment Checklist
+### Required (All Environments)
 
-Before any production deployment:
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `OPENAI_API_KEY` | OpenAI API key for LLM |
+
+### Required (Production)
+
+| Variable | Value |
+|----------|-------|
+| `AUTH_BASE_URL` | `https://www.inpsyq.com` |
+| `RESEND_API_KEY` | Resend email API key |
+| `INTERNAL_ADMIN_SECRET` | Admin API secret |
+
+### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `EMAIL_PROVIDER` | `disabled` | `resend`, `disabled`, `test` |
+| `APP_ENV` | (inferred) | `production`, `staging` |
+| `OPS_ALERTS_DISABLED` | `false` | Disable monitoring alerts |
+
+## Build Process
+
+### Local Build
 
 ```bash
-# 1. Build locally
+npm install
 npm run build
-
-# 2. Lint
-npm run lint
-
-# 3. Run verification scripts
-npx tsx scripts/verify/production-smoke.verify.ts
 ```
 
----
+### Vercel Build
 
-## Staging Deployment
+Automatic on push to:
+- `main` → Staging
+- `production` → Production
 
-Staging deploys automatically when pushing to `main`:
+## Deployment Checklist
 
-```bash
-git checkout main
-git pull origin main
-git push origin main
-# Auto-deploys to staging
-```
+### Before Production Deploy
 
-### Verify Staging
+1. **Build passes locally**: `npm run build`
+2. **Lint passes**: `npm run lint`
+3. **Verification scripts pass**: `npx tsx scripts/verification/origin.verify.ts`
+4. **Staging validated**: Manual smoke test on staging
 
-```bash
-BASE_URL=https://inpsyq-staging.vercel.app \
-INTERNAL_ADMIN_SECRET=$STAGING_SECRET \
-npx tsx scripts/verify/production-smoke.verify.ts
-```
-
----
-
-## Production Deployment
-
-### Step 1: Merge to Production Branch
+### Production Deploy
 
 ```bash
 git checkout production
@@ -60,82 +68,85 @@ git merge main
 git push origin production
 ```
 
-Vercel auto-deploys to `www.inpsyq.com`.
-
-### Step 2: Verify Production
+### Post-Deploy Verification
 
 ```bash
-BASE_URL=https://www.inpsyq.com \
-INTERNAL_ADMIN_SECRET=$PROD_SECRET \
-npx tsx scripts/verify/production-smoke.verify.ts
-```
-
-### Step 3: Seed Test Organization (if needed)
-
-```bash
-curl -X POST https://www.inpsyq.com/api/internal/admin/test-org/ensure \
+# 1. Health check
+curl https://www.inpsyq.com/api/internal/health/system \
   -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
 
-curl -X POST https://www.inpsyq.com/api/internal/admin/test-org/seed \
-  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"weeks": 6}'
+# 2. Public page check
+curl -I https://www.inpsyq.com/
+
+# 3. Auth origin check
+curl https://www.inpsyq.com/api/internal/diag/auth-origin \
+  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
 ```
 
----
+## Production Invariants
 
-## Rollback Procedures
+| Invariant | Enforcement |
+|-----------|-------------|
+| `AUTH_BASE_URL = https://www.inpsyq.com` | Hard error if wrong |
+| `EMAIL_PROVIDER = resend` | Default for production |
+| No preview domain in emails | Origin enforcement |
+| No demo banners | APP_ENV check |
 
-### Option 1: Git Revert
+## Rollback Procedure
 
 ```bash
-git checkout production
-git revert HEAD
-git push origin production
+# 1. Identify last good commit
+git log --oneline production
+
+# 2. Force push to previous commit
+git push origin <commit>:production --force
+
+# 3. Verify rollback
+curl -I https://www.inpsyq.com/
 ```
 
-### Option 2: Vercel Instant Rollback
+## Secrets Rotation
 
-1. Go to [Vercel Dashboard](https://vercel.com)
-2. Select `inpsyq` project
-3. Go to Deployments
-4. Select previous successful deployment
-5. Click "Instant Rollback"
+### Internal Admin Secret
 
----
+1. Generate new secret: `openssl rand -base64 32`
+2. Update in Vercel dashboard
+3. Redeploy
+4. Update local `.env` files
 
-## Environment Variables
+### Resend API Key
 
-### Production (Required)
+1. Generate new key in Resend dashboard
+2. Update in Vercel dashboard
+3. Redeploy
+4. Test with magic link
 
-| Variable | Value |
-|----------|-------|
-| `AUTH_BASE_URL` | `https://www.inpsyq.com` |
-| `EMAIL_PROVIDER` | `resend` |
-| `RESEND_API_KEY` | (secret) |
-| `INTERNAL_ADMIN_SECRET` | (secret) |
-| `DATABASE_URL` | (Neon connection string) |
+## Database
 
-### Staging/Preview
+### Connection
 
-| Variable | Value |
-|----------|-------|
-| `EMAIL_PROVIDER` | `disabled` |
+- Provider: Neon PostgreSQL
+- Pooling: Via connection string
+- SSL: Required
 
----
+### Migrations
 
-## Post-Deployment Monitoring
+No automated migration system. Schema changes via:
+1. Manual SQL scripts in `scripts/`
+2. Run against staging first
+3. Run against production after validation
 
-1. **Check health endpoint**: `GET /api/internal/health/system`
-2. **Verify public pages load**: `/`, `/login`, `/demo`
-3. **Check Slack for alerts** (if configured)
-4. **Verify weekly pipeline status** (admin dashboard)
+## Monitoring
 
----
+### Health Endpoint
 
-## Emergency Contacts
+```bash
+curl https://www.inpsyq.com/api/internal/health/system \
+  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
+```
 
-| Role | Contact |
-|------|---------|
-| On-call | `#ops` in Slack |
-| Security | security@inpsyq.com |
+Returns:
+- Database connectivity
+- Lock status
+- Pipeline coverage
+- Interpretation coverage
