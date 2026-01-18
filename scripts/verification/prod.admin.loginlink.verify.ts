@@ -89,11 +89,11 @@ async function main() {
         } else {
             const body = await res.json();
             result.method = 'mint-login-link';
-            result.data = { ok: body.ok, hasUrl: !!body.loginUrl };
+            result.data = { ok: body.ok, hasUrl: !!body.data?.url };
 
-            if (body.ok && body.loginUrl) {
+            if (body.ok && body.data?.url) {
                 // Validate URL
-                const url = new URL(body.loginUrl);
+                const url = new URL(body.data.url);
                 const hostnameOk = url.hostname === 'www.inpsyq.com';
                 const pathnameOk = url.pathname === '/auth/consume';
                 const tokenParam = url.searchParams.get('token');
@@ -119,8 +119,8 @@ async function main() {
                 }
             } else {
                 result.pass = false;
-                result.error = 'mint-login-link returned error: ' + JSON.stringify(body);
-                console.error('  ❌ mint-login-link failed:', body);
+                result.error = 'mint-login-link returned error: ' + JSON.stringify(body.error || body);
+                console.error('  ❌ mint-login-link failed:', body.error || body);
             }
         }
     } catch (e: any) {

@@ -140,13 +140,20 @@ async function main() {
             results.push({ step: 'ole_admin', pass: true, data: { skipped: true } });
         } else {
             const body = await res.json();
-            const pass = body.role === 'ADMIN' && body.orgId === TEST_ORG_ID;
-            results.push({ step: 'ole_admin', pass, data: body });
+
+            // Endpoint returns { ok, found, user, roles: [{ orgId, role }] }
+            const roles = body.roles || [];
+            const hasAdminInTestOrg = roles.some(
+                (r: { orgId: string; role: string }) => r.orgId === TEST_ORG_ID && r.role === 'ADMIN'
+            );
+
+            const pass = body.ok && body.found && hasAdminInTestOrg;
+            results.push({ step: 'ole_admin', pass, data: { found: body.found, roles } });
 
             if (pass) {
                 console.log('  ✅ Ole is ADMIN in test org');
             } else {
-                console.error('  ❌ Ole role check failed:', body);
+                console.error('  ❌ Ole role check failed. Roles:', roles);
                 allPass = false;
             }
         }

@@ -62,18 +62,20 @@ async function main() {
         if (res.ok) {
             const body = await res.json();
 
-            const computed = body.computed?.origin || body.origin;
-            const enforced = body.computed?.enforced ?? body.enforced;
-            const source = body.computed?.source || body.source;
+            // Endpoint returns { ok, auth: { computed_origin, origin_source, origin_enforced, ... } }
+            const computed = body.auth?.computed_origin;
+            const enforced = body.auth?.origin_enforced;
+            const source = body.auth?.origin_source;
+            const valid = body.auth?.origin_valid;
 
-            const pass = computed === 'https://www.inpsyq.com' && enforced === true;
+            const pass = computed === 'https://www.inpsyq.com' && enforced === true && valid === true;
 
             checks.push({
                 name: 'origin_enforcement',
                 pass,
-                expected: 'origin=https://www.inpsyq.com, enforced=true',
-                actual: `origin=${computed}, enforced=${enforced}, source=${source}`,
-                data: body.computed || body,
+                expected: 'origin=https://www.inpsyq.com, enforced=true, valid=true',
+                actual: `origin=${computed}, enforced=${enforced}, source=${source}, valid=${valid}`,
+                data: body.auth,
             });
 
             if (pass) {
