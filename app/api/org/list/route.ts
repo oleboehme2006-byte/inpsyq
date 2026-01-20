@@ -4,43 +4,54 @@
  * GET /api/org/list
  * 
  * Returns list of organizations the authenticated user belongs to.
+ * Works even when NO_ORG_SELECTED (pre-org-selection state).
  */
 
 import { NextResponse } from 'next/server';
-import { resolveAuthContextFromRequest } from '@/lib/auth/context';
 import { query } from '@/db/client';
+import { createHash } from 'crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { getSession } from '@/lib/auth/session';
+const SESSION_COOKIE_NAME = 'inpsyq_session';
+
+/**
+ * Extract and validate session from request cookies.
+ * This is request-based, not ambient.
+ */
+async function getUserIdFromRequest(req: Request): Promise<string | null> {
+    const cookieHeader = req.headers.get('cookie') || '';
+
+    // Parse session cookie
+    const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+    const sessionToken = match?.[1];
+
+    if (!sessionToken) return null;
+
+    // Validate session
+    const tokenHash = createHash('sha256').update(sessionToken).digest('hex');
+    const result = await query(
+        `SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > NOW()`,
+        [tokenHash]
+    );
+
+    if (result.rows.length === 0) return null;
+
+    // Update last_seen_at
+    await query(`UPDATE sessions SET last_seen_at = NOW() WHERE token_hash = $1`, [tokenHash]);
+
+    return result.rows[0].user_id;
+}
 
 export async function GET(req: Request) {
-    const authResult = await resolveAuthContextFromRequest(req);
-    let userId = authResult.context?.userId;
+    // Get userId directly from request cookies (request-based, not ambient)
+    const userId = await getUserIdFromRequest(req);
 
-    // Handle NO_ORG_SELECTED case - user is authenticated but context is partial
-    // We need to resolve userId explicitly to list orgs
-    if (!userId && authResult.error === 'NO_ORG_SELECTED') {
-        const session = await getSession();
-        if (session) {
-            userId = session.userId;
-        }
-    }
-
-    // Need to be authenticated
-    if (!userId && !authResult.authenticated) {
+    if (!userId) {
         return NextResponse.json(
             { ok: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
             { status: 401 }
-        );
-    }
-
-    if (!userId) {
-        // Should have been caught above, but safety check
-        return NextResponse.json(
-            { ok: false, error: { code: 'NO_MEMBERSHIPS', message: 'No organization access' } },
-            { status: 403 }
         );
     }
 

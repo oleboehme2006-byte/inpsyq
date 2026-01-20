@@ -90,7 +90,19 @@ export default function OrgSelectPage() {
                         </div>
                     )}
 
-                    <div className="space-y-3">
+                    <div className="space-y-3" data-testid="org-list">
+                        {orgs.length === 0 && !error && (
+                            <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 text-sm" data-testid="org-empty-state">
+                                <p className="font-medium">No Organizations Available</p>
+                                <p className="mt-1">Your account doesn&apos;t have access to any organizations. Please contact your administrator.</p>
+                                <button
+                                    onClick={() => window.location.reload()}
+                                    className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
                         {orgs.map((org) => (
                             <button
                                 key={org.orgId}
@@ -98,10 +110,11 @@ export default function OrgSelectPage() {
                                 disabled={selecting !== null}
                                 className="w-full p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left disabled:opacity-50"
                                 data-testid="org-option"
+                                data-org-id={org.orgId}
                             >
                                 <div className="flex justify-between items-center">
                                     <div>
-                                        <div className="font-medium text-slate-900 dark:text-white">
+                                        <div className="font-medium text-slate-900 dark:text-white" data-testid="org-name">
                                             {org.name}
                                         </div>
                                         <div className="text-sm text-slate-500 dark:text-slate-400">
