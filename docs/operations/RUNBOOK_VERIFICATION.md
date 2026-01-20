@@ -3,17 +3,22 @@
 ## Quick Verification
 
 ### Build Check
+## Quick Verification
+
+The entire verification suite can be run with a single command:
+
 ```bash
-npm run build
-npm run lint
+# Run local and public production checks
+npx tsx scripts/verification/run.all.ts
+
+# Run FULL suite including admin checks (requires secret)
+INTERNAL_ADMIN_SECRET=<secret> npx tsx scripts/verification/run.all.ts
 ```
 
-### Core Invariants
-```bash
-npx tsx scripts/verification/origin.verify.ts
-npx tsx scripts/verification/test-org.verify.ts
-npx tsx scripts/verification/email.verify.ts
-```
+This script orchestrates:
+1. **Local Integrity**: `origin.verify.ts`, `email.verify.ts`, `test-org.verify.ts`
+2. **Production Public**: `prod.routes.verify.ts`
+3. **Production Admin** (if secret provided): `prod.security.invariants.verify.ts`, `prod.admin.loginlink.verify.ts`, `prod.testorg.flow.verify.ts`
 
 ---
 

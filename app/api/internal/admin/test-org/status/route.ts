@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTestOrgStatus } from '@/lib/admin/seedTestOrg';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
     // Verify secret

@@ -11,6 +11,7 @@ import { createLoginToken } from '@/lib/auth/loginToken';
 import { getPublicOrigin } from '@/lib/env/publicOrigin';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const TEST_ADMIN_EMAIL = 'oleboehme2006@gmail.com';
 

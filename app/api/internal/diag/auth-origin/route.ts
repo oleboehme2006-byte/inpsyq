@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
             origin_valid: originValid,
             origin_error: originError,
             auth_base_url_hash: authBaseUrlHash,
+            secret_configured: !!expected,
         },
         environment: {
             app_env: getAppEnv(),
