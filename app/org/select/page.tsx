@@ -25,9 +25,12 @@ export default function OrgSelectPage() {
     useEffect(() => {
         fetch('/api/org/list')
             .then(res => res.json())
-            .then((data: { orgs?: OrgOption[] }) => {
-                if (data.orgs) {
-                    setOrgs(data.orgs);
+            .then((resData: { ok: boolean; data?: { orgs: OrgOption[] } }) => {
+                if (resData.ok && resData.data?.orgs) {
+                    setOrgs(resData.data.orgs);
+                } else {
+                    // Force empty if invalid response
+                    setOrgs([]);
                 }
                 setLoading(false);
             })

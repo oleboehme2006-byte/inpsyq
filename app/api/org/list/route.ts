@@ -13,21 +13,31 @@ import { query } from '@/db/client';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+import { getSession } from '@/lib/auth/session';
+
 export async function GET(req: Request) {
     const authResult = await resolveAuthContextFromRequest(req);
+    let userId = authResult.context?.userId;
 
-    // Need to be authenticated but don't require org selection
-    if (!authResult.authenticated) {
+    // Handle NO_ORG_SELECTED case - user is authenticated but context is partial
+    // We need to resolve userId explicitly to list orgs
+    if (!userId && authResult.error === 'NO_ORG_SELECTED') {
+        const session = await getSession();
+        if (session) {
+            userId = session.userId;
+        }
+    }
+
+    // Need to be authenticated
+    if (!userId && !authResult.authenticated) {
         return NextResponse.json(
             { ok: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
             { status: 401 }
         );
     }
 
-    // Get user ID from either context or partial auth
-    const userId = authResult.context?.userId;
     if (!userId) {
-        // User is authenticated but has no memberships - get from session
+        // Should have been caught above, but safety check
         return NextResponse.json(
             { ok: false, error: { code: 'NO_MEMBERSHIPS', message: 'No organization access' } },
             { status: 403 }
@@ -49,5 +59,8 @@ export async function GET(req: Request) {
         role: row.role,
     }));
 
-    return NextResponse.json({ ok: true, orgs });
+    return NextResponse.json({
+        ok: true,
+        data: { orgs }
+    });
 }

@@ -116,6 +116,7 @@ function main() {
         allGreen = runStep('Prod Security Invariants', 'npx tsx scripts/verification/prod.security.invariants.verify.ts', prodEnv) && allGreen;
         allGreen = runStep('Prod Login Link', 'npx tsx scripts/verification/prod.admin.loginlink.verify.ts', prodEnv) && allGreen;
         allGreen = runStep('Prod Test Org Flow', 'npx tsx scripts/verification/prod.testorg.flow.verify.ts', prodEnv) && allGreen;
+        allGreen = runStep('Prod Org List', 'npx tsx scripts/verification/prod.orglist.verify.ts', prodEnv) && allGreen;
     } else {
         console.log('\n⚠️  Skipping Prod Admin checks (INTERNAL_ADMIN_SECRET not set)');
         results.push({ name: 'Prod Admin Checks', command: '(skipped)', exitCode: 0, durationMs: 0, status: 'SKIPPED' });
