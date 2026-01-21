@@ -40,34 +40,7 @@ function log(step: string, status: 'PASS' | 'FAIL', details?: string) {
     results.push({ step, status, details, timestamp: new Date().toISOString() });
 }
 
-/**
- * Parse Set-Cookie headers into a Cookie header string.
- * Handles multiple cookies and complex Set-Cookie formats.
- */
-function parseSetCookies(setCookieHeaders: string | string[] | null): string {
-    if (!setCookieHeaders) return '';
-
-    const headers = Array.isArray(setCookieHeaders)
-        ? setCookieHeaders
-        : [setCookieHeaders];
-
-    const cookies: string[] = [];
-
-    for (const header of headers) {
-        // Split on comma only when a new cookie begins (name=value pattern after comma)
-        const parts = header.split(/,\s*(?=[^;=\s]+=[^;]+)/);
-
-        for (const part of parts) {
-            // Extract just the name=value portion (before first ;)
-            const match = part.match(/^([^;=\s]+)=([^;]*)/);
-            if (match) {
-                cookies.push(`${match[1]}=${match[2]}`);
-            }
-        }
-    }
-
-    return cookies.join('; ');
-}
+import { extractCookiesFromResponse, mergeCookies, toCookieHeader } from './_helpers/cookieJar';
 
 async function main() {
     console.log('Production Org Select Flow Verification\n');
@@ -110,9 +83,9 @@ async function main() {
         console.log('Step 2: Consume token...');
         const consumeRes = await fetch(loginUrl, { redirect: 'manual' });
 
-        // Get Set-Cookie headers
-        const setCookieHeader = consumeRes.headers.get('set-cookie');
-        sessionCookies = parseSetCookies(setCookieHeader);
+        // Get cookies from response
+        const newCookies = extractCookiesFromResponse(consumeRes);
+        sessionCookies = toCookieHeader(newCookies);
 
         assert.ok(sessionCookies.includes('inpsyq_session'), 'Should receive session cookie');
         log('Consume Token', 'PASS', `Cookies: ${sessionCookies.split(';').map(c => c.split('=')[0].trim()).join(', ')}`);
@@ -163,11 +136,12 @@ async function main() {
         assert.equal(selectBody.ok, true, 'Select response should have ok: true');
         assert.ok(selectBody.redirectTo, 'Should have redirectTo');
 
-        // Capture the org selection cookie
-        const selectSetCookie = selectRes.headers.get('set-cookie');
-        if (selectSetCookie) {
-            const newCookies = parseSetCookies(selectSetCookie);
-            sessionCookies = `${sessionCookies}; ${newCookies}`;
+        // Update cookies
+        const selectCookies = extractCookiesFromResponse(selectRes);
+        if (selectCookies.length > 0) {
+            const currentCookies = sessionCookies.split('; ').filter(Boolean);
+            const merged = mergeCookies(currentCookies, selectCookies);
+            sessionCookies = toCookieHeader(merged);
         }
 
         log('Select Org', 'PASS', `Redirect: ${selectBody.redirectTo}`);
