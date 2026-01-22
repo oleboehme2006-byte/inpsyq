@@ -11,32 +11,9 @@ This runbook covers administration tasks for the InPsyq platform, focusing on te
 
 ---
 
-## Manual Verification Checklist
+## Test Organization Setup
 
-After any deployment, verify critical admin functionality:
-
-1. **Mint Login Link**:
-   ```bash
-   curl -X POST https://www.inpsyq.com/api/internal/admin/mint-login-link \
-     -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET" \
-     -H "Content-Type: application/json"
-   ```
-   - Verify URL is `https://www.inpsyq.com/auth/consume?token=...`
-
-2. **Login & Session**:
-   - Open minted URL in private window
-   - Confirm redirect to `/admin` or dashboard
-   - Verify "Ole Böhme" user is logged in
-
-3. **Test Org Visibility**:
-   - Navigate to `/admin`
-   - Confirm Test Org (ID `...9999`) is listed
-   - Confirm 3 teams (Alpha, Beta, Gamma) exist
-   - Confirm 15 employees exist
-
-4. **Data Integrity**:
-   - Check `/api/internal/admin/test-org/status` returns canonical counts
-
+### Step 1: Ensure Organization Exists
 
 ```bash
 curl -X POST https://www.inpsyq.com/api/internal/admin/test-org/ensure \
