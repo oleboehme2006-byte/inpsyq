@@ -10,6 +10,7 @@ import { requireAdminStrict } from '@/lib/access/guards';
 import { computeRetentionPlan } from '@/lib/security/retention';
 import { logSecurityEvent } from '@/lib/security/auditLog';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {

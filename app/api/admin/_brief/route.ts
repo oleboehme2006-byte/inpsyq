@@ -4,6 +4,7 @@ import { decisionService } from '@/services/decision/decisionService';
 import { query } from '@/db/client';
 import { requireAdminStrict } from '@/lib/access/guards';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
