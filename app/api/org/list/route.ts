@@ -44,13 +44,23 @@ export async function GET(req: Request) {
         );
     }
 
-    // Get all org memberships with org names
+    // Get unique org memberships with org names, selecting highest privilege role
+    // Role priority: ADMIN > EXECUTIVE > TEAMLEAD > EMPLOYEE
     const result = await query(`
-        SELECT m.org_id, o.name, m.role
+        SELECT DISTINCT ON (m.org_id) 
+            m.org_id, 
+            o.name, 
+            m.role
         FROM memberships m
         JOIN orgs o ON m.org_id = o.org_id
         WHERE m.user_id = $1
-        ORDER BY o.name
+        ORDER BY m.org_id, 
+            CASE m.role 
+                WHEN 'ADMIN' THEN 1 
+                WHEN 'EXECUTIVE' THEN 2 
+                WHEN 'TEAMLEAD' THEN 3 
+                ELSE 4 
+            END
     `, [userId]);
 
     const orgs = result.rows.map((row: { org_id: string; name: string; role: string }) => ({

@@ -11,6 +11,7 @@ import { requireAdminStrict } from '@/lib/access/guards';
 import { getOrgHealthSnapshot } from '@/services/ops/healthSnapshot';
 import { query } from '@/db/client';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {

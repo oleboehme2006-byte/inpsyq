@@ -515,6 +515,33 @@ export async function seedTestOrgData(
             interpretationsCreated++;
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        // Create org_aggregates_weekly (pipeline products) for health snapshot
+        // This makes health checks show teams as "OK" rather than "missing products"
+        // ─────────────────────────────────────────────────────────────────────
+        for (const team of teams) {
+            await query(
+                `INSERT INTO org_aggregates_weekly 
+                 (org_id, team_id, week_start, parameter_means, parameter_uncertainty, indices, contributions_breakdown)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (org_id, team_id, week_start) DO NOTHING`,
+                [
+                    orgId,
+                    team.team_id,
+                    weekStart,
+                    JSON.stringify({ strain: 50 + rng() * 20, engagement: 60 + rng() * 20 }),
+                    JSON.stringify({ strain: 5, engagement: 5 }),
+                    JSON.stringify({
+                        strain: { value: 50 + rng() * 20, state: 'NORMAL' },
+                        withdrawal_risk: { value: 30 + rng() * 20, state: 'NORMAL' },
+                        trust_gap: { value: 35 + rng() * 15, state: 'NORMAL' },
+                        engagement: { value: 65 + rng() * 15, state: 'NORMAL' }
+                    }),
+                    JSON.stringify({})
+                ]
+            );
+        }
+
         console.log(`[SeedTestOrg] Seeded week ${weekStart}`);
     }
 
