@@ -115,4 +115,27 @@ CREATE TABLE IF NOT EXISTS memberships (
 );
 CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_org ON memberships(org_id);
+
+CREATE TABLE IF NOT EXISTS alerts (
+    alert_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID REFERENCES orgs(org_id),
+    alert_type TEXT NOT NULL,
+    severity TEXT NOT NULL, -- 'critical', 'warning', 'info'
+    message TEXT NOT NULL,
+    target_week_start DATE,
+    details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    resolved_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+    event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL,
+    team_id UUID,
+    event_type TEXT NOT NULL,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_org_type ON audit_events(org_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);
 `;

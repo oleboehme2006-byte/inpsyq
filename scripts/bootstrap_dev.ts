@@ -12,6 +12,7 @@ import './_bootstrap';
 
 import { query } from '../db/client';
 import { randomUUID } from 'crypto';
+import { SCHEMA_SQL } from '../lib/schema';
 
 // Guard: Dev only
 if (process.env.NODE_ENV === 'production') {
@@ -26,6 +27,11 @@ const SESSIONS_PER_USER = 3;
 async function bootstrap() {
     console.log('=== Development Bootstrap ===\n');
     console.log(`Target: ${APP_URL}\n`);
+
+    // 0. Ensure Schema
+    console.log('Applying Schema...');
+    await query(SCHEMA_SQL);
+    console.log('Schema applied.\n');
 
     // 1. Create org/teams/users
     const orgId = randomUUID();

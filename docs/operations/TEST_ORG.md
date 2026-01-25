@@ -1,190 +1,34 @@
-# Test Organization
+# Test Organization & Verification
 
-## Purpose
+The "InPsyq Demo Org" is a dedicated organization used for verification, local development, and end-to-end testing.
 
-The Test Organization provides isolated, deterministic test data for:
-- Admin UI development
-- Dashboard testing
-- Integration verification
-- Demo purposes
+## Identity Policy (Deterministic)
+All entities within the Test Org are generated using **Stable UUIDs** (UUIDv5-like hash) to ensure idempotency and stable IDs across environment resets.
 
-## Configuration
+- **Namespace**: `getStableUUID(namespace, key)`
+- **Org ID**: `99999999-9999-4999-8999-999999999999` (Fixed)
+- **Teams**: Derived from `team:${name}` (e.g., "Engineering", "Product").
+- **Users**: Derived from `user:${email}`.
+- **Sessions**: Derived from `session:${user_id}:${week_start}`.
+- **Alerts**: Derived from `alert:${week_start}:${type}`.
 
-### Test Organization ID
-```
-TEST_ORG_ID = 99999999-9999-4999-8999-999999999999
-```
-
-This ID is **reserved** and must never be used for real organizations.
-
-### Canonical Structure
-
-| Entity | Count | Description |
-|--------|-------|-------------|
-| Teams | 3 | Alpha, Beta, Gamma |
-| Employees per team | 5 | Synthetic test users |
-| Total employees | 15 | All with `@test-org.local` emails |
-| Weeks of data | 6+ | Seeded measurement data |
-
-### Synthetic Employee Emails
-```
-employee-alpha-0@test-org.local ... employee-alpha-4@test-org.local
-employee-beta-0@test-org.local  ... employee-beta-4@test-org.local
-employee-gamma-0@test-org.local ... employee-gamma-4@test-org.local
-```
-
-## API Endpoints
-
-All endpoints require `Authorization: Bearer {INTERNAL_ADMIN_SECRET}`.
-
-### Ensure Organization
-
-Creates the test org with admin user if it doesn't exist.
-
-```bash
-curl -X POST https://www.inpsyq.com/api/internal/admin/test-org/ensure \
-  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET" \
-  -H "Content-Type: application/json"
-```
-
-**Response**:
-```json
-{
-  "ok": true,
-  "data": {
-    "orgId": "99999999-9999-4999-8999-999999999999",
-    "userId": "...",
-    "teamIds": ["...", "...", "..."],
-    "pruneReport": {
-      "removedTeams": 0,
-      "removedMemberships": 0,
-      "ensuredTeams": 3,
-      "ensuredEmployees": 15
-    }
-  }
-}
-```
-
-### Seed Data
-
-Generates synthetic measurement sessions, responses, and interpretations.
-
-```bash
-curl -X POST https://www.inpsyq.com/api/internal/admin/test-org/seed \
-  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"weeks": 6}'
-```
-
-**Response**:
-```json
-{
-  "ok": true,
-  "data": {
-    "orgId": "99999999-9999-4999-8999-999999999999",
-    "weeksSeeded": 6,
-    "sessionsCreated": 90,
-    "responsesCreated": 1080,
-    "interpretationsCreated": 24
-  }
-}
-```
-
-### Check Status
-
-Returns current state of test organization.
-
-```bash
-curl https://www.inpsyq.com/api/internal/admin/test-org/status \
-  -H "Authorization: Bearer $INTERNAL_ADMIN_SECRET"
-```
-
-**Response**:
-```json
-{
-  "ok": true,
-  "data": {
-    "exists": true,
-    "orgId": "99999999-9999-4999-8999-999999999999",
-    "isCanonicalId": true,
-    "totalTeamCount": 3,
-    "managedTeamCount": 3,
-    "totalEmployeeCount": 15,
-    "managedEmployeeCount": 15,
-    "weekCount": 6,
-    "sessionCount": 90,
-    "interpretationCount": 24
-  }
-}
-```
-
-## Idempotency
-
-### Safe to Run Multiple Times
-- `ensure` is idempotent: creates only if missing
-- `seed` is idempotent: pre-deletes stale synthetic data before inserting
-
-### Pre-Delete Safety
-Only affects rows where:
-- `user_id` is a canonical synthetic employee
-- `week_start` matches seeding week
-
-Never touches:
-- Non-synthetic users
-- Non-test organizations
-- Data outside seeding window
-
-## Admin User
-
-The test organization includes an ADMIN membership for the operator:
-
-```
-Email: oleboehme2006@gmail.com
-Role: ADMIN
-Org: TEST_ORG_ID
-```
-
-This allows logging in via magic link to access the Admin UI.
-
-## Local Development
-
-For local testing without production API:
-
-```bash
-# Set environment
-export EMAIL_PROVIDER=test
-export DATABASE_URL=postgres://...
-
-# Seed locally
-npx tsx scripts/seed_dev.ts
-```
+## Seeding
+The seeding script (`lib/admin/seedTestOrg.ts`) is safe to run repeatedly. It employs:
+1. **Cascade Deletes**: Removes old test data safely before re-seeding if structure changes.
+2. **Idempotency**: Using stable IDs, it ensures `INSERT ON CONFLICT DO UPDATE/NOTHING` behaviors result in a zero-diff state on subsequent runs.
+3. **Depth**: Defaults to 12 weeks of historical data.
 
 ## Verification
+We use a **Unified Runner** on localhost to verify the entire stack:
 
 ```bash
-# Verify test org via script
-npx tsx scripts/verification/test-org.verify.ts
+npx tsx scripts/verification/run.local.ts
 ```
 
-## Cleanup
-
-To reset test org completely:
-
-```sql
--- Nuclear option (use with caution)
-DELETE FROM weekly_interpretations WHERE org_id = '99999999-9999-4999-8999-999999999999';
-DELETE FROM measurement_quality WHERE session_id IN (
-  SELECT session_id FROM measurement_sessions 
-  WHERE org_id = '99999999-9999-4999-8999-999999999999'
-);
-DELETE FROM measurement_responses WHERE session_id IN (
-  SELECT session_id FROM measurement_sessions 
-  WHERE org_id = '99999999-9999-4999-8999-999999999999'
-);
-DELETE FROM measurement_sessions WHERE org_id = '99999999-9999-4999-8999-999999999999';
-DELETE FROM memberships WHERE org_id = '99999999-9999-4999-8999-999999999999';
-DELETE FROM teams WHERE org_id = '99999999-9999-4999-8999-999999999999';
-DELETE FROM orgs WHERE org_id = '99999999-9999-4999-8999-999999999999';
-```
-
-Then re-run `ensure` and `seed`.
+This script:
+1. **Builds** the application (`next build`).
+2. **Seeds** the Test Org (Pass 1).
+3. **Re-Seeds** (Pass 2) to prove Idempotency (snapshots must match).
+4. **Starts** the production server locally.
+5. **Verifies Auth Flow**: Mints a login link, consumes it, and checks Session Cookie.
+6. **Verifies Org Context**: Selects the Test Org and verifies Admin API access.
