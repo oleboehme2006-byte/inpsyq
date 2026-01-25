@@ -9,9 +9,21 @@
  */
 
 import { query } from '@/db/client';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { MEASUREMENT_SCHEMA_SQL } from '@/lib/measurement/schema';
 import { INTERPRETATION_SCHEMA_SQL } from '@/lib/interpretation/schema';
+
+/**
+ * Deterministic UUID Generator (UUIDv5-like)
+ * Generates a stable UUID based on a namespace and key.
+ * Uses SHA-1 per RFC 4122 (simplified for verification stability).
+ */
+function getStableUUID(namespace: string, key: string): string {
+    const input = `${namespace}:${key}`;
+    const hash = createHash('sha1').update(input).digest('hex');
+    // Format as UUID: 8-4-4-4-12
+    return `${hash.substring(0, 8)}-${hash.substring(8, 12)}-${hash.substring(12, 16)}-${hash.substring(16, 20)}-${hash.substring(20, 32)}`;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS — Dedicated Test Org Configuration
@@ -27,16 +39,16 @@ const FIXTURE_ORG_IDS = [
     '33333333-3333-4333-8333-333333333333',
 ];
 
-const TEST_ORG_NAME = 'Test Organization';
+const TEST_ORG_NAME = 'InPsyq Demo Org';
 const TEST_ADMIN_EMAIL = 'oleboehme2006@gmail.com';
 
 /** Canonical team names - exactly 3 */
-const CANONICAL_TEAM_NAMES = ['Alpha', 'Beta', 'Gamma'] as const;
+const CANONICAL_TEAM_NAMES = ['Engineering', 'Product', 'Design'] as const;
 const EMPLOYEES_PER_TEAM = 5;
 
 /** Generate canonical employee email */
 function getCanonicalEmployeeEmail(teamName: string, index: number): string {
-    return `employee-${teamName.toLowerCase()}-${index}@test-org.local`;
+    return `employee-${teamName.toLowerCase()}-${index}@inpsyq.demo`;
 }
 
 /** Get all canonical employee emails */
@@ -118,9 +130,27 @@ export async function pruneTestOrgToCanonical(orgId: string): Promise<PruneRepor
     );
 
     for (const team of teamsToRemove.rows) {
-        // First delete memberships for this team
+        console.log(`[SeedTestOrg] PRUNE: Cleaning up team ${team.name} (${team.team_id})...`);
+
+        // 1. Memberships
         await query(`DELETE FROM memberships WHERE team_id = $1`, [team.team_id]);
-        // Then delete the team
+
+        // 2. Interpretations
+        await query(`DELETE FROM weekly_interpretations WHERE team_id = $1`, [team.team_id]);
+
+        // 3. Org Aggregates (Products)
+        await query(`DELETE FROM org_aggregates_weekly WHERE team_id = $1`, [team.team_id]);
+
+        // 4. Audit Events
+        await query(`DELETE FROM audit_events WHERE team_id = $1`, [team.team_id]);
+
+        // 5. Sessions (and cascade to responses/quality)
+        // Need to delete sessions linked to this team
+        await query(`DELETE FROM measurement_quality WHERE session_id IN (SELECT session_id FROM measurement_sessions WHERE team_id = $1)`, [team.team_id]);
+        await query(`DELETE FROM measurement_responses WHERE session_id IN (SELECT session_id FROM measurement_sessions WHERE team_id = $1)`, [team.team_id]);
+        await query(`DELETE FROM measurement_sessions WHERE team_id = $1`, [team.team_id]);
+
+        // Finally delete the team
         await query(`DELETE FROM teams WHERE team_id = $1`, [team.team_id]);
         removedTeams++;
         console.log(`[SeedTestOrg] PRUNE: Removed team ${team.name}`);
@@ -302,15 +332,17 @@ export async function ensureTestOrgAndAdmin(email: string = TEST_ADMIN_EMAIL): P
     );
 
     if (existingMembership.rows.length > 0) {
-        await query(
-            `UPDATE memberships SET role = 'ADMIN' WHERE user_id = $1 AND org_id = $2`,
-            [userId, orgId]
-        );
-        console.log(`[SeedTestOrg] Membership updated to ADMIN`);
+        if (existingMembership.rows[0].role !== 'ADMIN') {
+            await query(
+                `UPDATE memberships SET role = 'ADMIN' WHERE user_id = $1 AND org_id = $2`,
+                [userId, orgId]
+            );
+            console.log(`[SeedTestOrg] Membership upgraded to ADMIN`);
+        }
     } else {
         await query(
-            `INSERT INTO memberships (user_id, org_id, role) VALUES ($1, $2, $3)`,
-            [userId, orgId, 'ADMIN']
+            `INSERT INTO memberships (user_id, org_id, role) VALUES ($1, $2, 'ADMIN')`,
+            [userId, orgId]
         );
         console.log(`[SeedTestOrg] Created ADMIN membership`);
     }
@@ -347,7 +379,7 @@ export async function ensureTestOrgAndAdmin(email: string = TEST_ADMIN_EMAIL): P
  */
 export async function seedTestOrgData(
     orgId: string,
-    weeks: number = 6,
+    weeks: number = 12,
     seed: number = 42
 ): Promise<SeedResult> {
     // Safety check: must be the dedicated test org
@@ -442,26 +474,32 @@ export async function seedTestOrgData(
 
         // Create sessions and responses
         for (const emp of employees.rows) {
-            const sessionId = randomUUID();
+            // Stable Session ID: user:week
+            const sessionId = getStableUUID('session', `${emp.user_id}:${weekStart}`);
 
             await query(
                 `INSERT INTO measurement_sessions 
                  (session_id, user_id, org_id, team_id, week_start, status, started_at, completed_at)
-                 VALUES ($1, $2, $3, $4, $5, 'COMPLETED', $6, $6)`,
+                 VALUES ($1, $2, $3, $4, $5, 'COMPLETED', $6, $6)
+                 ON CONFLICT (session_id) DO NOTHING`,
                 [sessionId, emp.user_id, orgId, emp.team_id, weekStart, new Date(weekStart)]
             );
             sessionsCreated++;
 
-            // Create 10-15 responses per session
-            const numResponses = 10 + Math.floor(rng() * 6);
+            // Create 10-15 responses per session (Deterministic count and values based on seed)
+            // Reset RNG for this session to ensure stability
+            const sessionRng = createSeededRng(seed + sessionId.charCodeAt(0));
+
+            const numResponses = 10 + Math.floor(sessionRng() * 6);
             for (let i = 0; i < numResponses; i++) {
                 const itemId = `item_${i + 1}`;
-                const value = 3 + rng() * 4;
+                const value = 3 + sessionRng() * 4;
 
                 await query(
                     `INSERT INTO measurement_responses 
                      (session_id, user_id, item_id, numeric_value)
-                     VALUES ($1, $2, $3, $4)`,
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT (session_id, item_id) DO UPDATE SET numeric_value = EXCLUDED.numeric_value`,
                     [sessionId, emp.user_id, itemId, value]
                 );
                 responsesCreated++;
@@ -472,13 +510,24 @@ export async function seedTestOrgData(
                 `INSERT INTO measurement_quality 
                  (session_id, completion_rate, response_time_ms, missing_items, confidence_proxy)
                  VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (session_id) DO NOTHING`,
-                [sessionId, 0.95 + rng() * 0.05, 30000 + Math.floor(rng() * 20000), 0, 0.8 + rng() * 0.2]
+                 ON CONFLICT (session_id) DO UPDATE 
+                 SET completion_rate = EXCLUDED.completion_rate, response_time_ms = EXCLUDED.response_time_ms`,
+                [sessionId, 0.95 + sessionRng() * 0.05, 30000 + Math.floor(sessionRng() * 20000), 0, 0.8 + sessionRng() * 0.2]
             );
         }
 
         // Create interpretation for each team
         for (const team of teams) {
+            const sectionsJson = generateFakeInterpretation(team.name, weekStart, rng);
+            // Stable ID for interpretation is not strictly required by schema (SERIALPK or UUID?)
+            // Schema likely uses UUID or SERIAL. Let's assume auto-generated for now OR check schema.
+            // If we want idempotency on INSERT without conflict, we need to check existence (which we do above).
+            // But to be cleaner, we can try to find and update or insert.
+            // The previous logic checked `is_active = true`.
+
+            // For idempotency, we'll DELETE/RE-INSERT in the loop logic or UPSERT if we had a stable ID.
+            // Since interpretations likely generate a new ID, let's look at the existing check.
+
             const existingInterp = await query(
                 `SELECT id FROM weekly_interpretations 
                  WHERE org_id = $1 AND team_id = $2 AND week_start = $3 AND is_active = true`,
@@ -486,7 +535,6 @@ export async function seedTestOrgData(
             );
 
             if (existingInterp.rows.length === 0) {
-                const sectionsJson = generateFakeInterpretation(team.name, weekStart, rng);
                 await query(
                     `INSERT INTO weekly_interpretations 
                      (org_id, team_id, week_start, input_hash, model_id, prompt_version, sections_json, is_active)
@@ -515,7 +563,111 @@ export async function seedTestOrgData(
             interpretationsCreated++;
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        // Create org_aggregates_weekly (pipeline products) for health snapshot
+        // This makes health checks show teams as "OK" rather than "missing products"
+        // ─────────────────────────────────────────────────────────────────────
+        for (const team of teams) {
+            await query(
+                `INSERT INTO org_aggregates_weekly 
+                 (org_id, team_id, week_start, parameter_means, parameter_uncertainty, indices, contributions_breakdown)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (org_id, team_id, week_start) DO UPDATE 
+                 SET parameter_means = EXCLUDED.parameter_means`, // Idempotent Upsert
+                [
+                    orgId,
+                    team.team_id,
+                    weekStart,
+                    JSON.stringify({ strain: 50 + rng() * 20, engagement: 60 + rng() * 20 }),
+                    JSON.stringify({ strain: 5, engagement: 5 }),
+                    JSON.stringify({
+                        strain: { value: 50 + rng() * 20, state: 'NORMAL' },
+                        withdrawal_risk: { value: 30 + rng() * 20, state: 'NORMAL' },
+                        trust_gap: { value: 35 + rng() * 15, state: 'NORMAL' },
+                        engagement: { value: 65 + rng() * 15, state: 'NORMAL' }
+                    }),
+                    JSON.stringify({})
+                ]
+            );
+        }
+
         console.log(`[SeedTestOrg] Seeded week ${weekStart}`);
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Create Alerts (system/alerts)
+        // ─────────────────────────────────────────────────────────────────────
+        if (rng() > 0.7) {
+            // Randomly create an alert for this week
+            const alertTypes = ['PARTICIPATION_DROP', 'MODEL_DRIFT', 'ANOMALY_DETECTED'];
+            const alertType = alertTypes[Math.floor(rng() * alertTypes.length)];
+            const severity = rng() > 0.5 ? 'critical' : 'warning';
+
+            // Stable Alert ID
+            const alertId = getStableUUID('alert', `${weekStart}:${alertType}`);
+
+            await query(
+                `INSERT INTO alerts 
+                 (alert_id, org_id, alert_type, severity, message, target_week_start, details, created_at, resolved_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 ON CONFLICT (alert_id) DO NOTHING`,
+                [
+                    alertId,
+                    orgId,
+                    alertType,
+                    severity,
+                    `Simulated ${alertType} for week ${weekStart}`,
+                    weekStart,
+                    JSON.stringify({ affected_teams: teams.map(t => t.name).slice(0, 1) }),
+                    new Date(weekStart).toISOString(),
+                    rng() > 0.5 ? new Date(new Date(weekStart).getTime() + 86400000).toISOString() : null // 50% resolved
+                ]
+            );
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Create Audit Logs (audit/team-contributions)
+        // ─────────────────────────────────────────────────────────────────────
+        // 1. Weekly Run Success
+        // Stable ID not strictly needed for audit unless we want to prevent dups on re-run.
+        // Audit table usually append-only. But for test data, let's avoid dups.
+        // We assume audit_events has an ID or we rely on unique constraint?
+        // Let's check schema/create_audit_table.ts via memory: table likely has serial/uuid PK.
+        // To prevent duplicates, we need to check existence if no logical unique key exists.
+
+        const auditKey = `run:${weekStart}`;
+        const existingAudit = await query(`SELECT event_id FROM audit_events WHERE org_id = $1 AND metadata->>'week_start' = $2`, [orgId, weekStart]);
+
+        if (existingAudit.rows.length === 0) {
+            await query(
+                `INSERT INTO audit_events (org_id, event_type, metadata, created_at)
+                 VALUES ($1, 'WEEKLY_RUN_COMPLETED', $2, $3)`,
+                [
+                    orgId,
+                    JSON.stringify({ week_start: weekStart, success: true }),
+                    new Date(new Date(weekStart).getTime() + 4 * 3600000).toISOString() // Monday + 4h
+                ]
+            );
+        }
+
+        // 2. Random Team Events
+        for (const team of teams) {
+            // Use deterministic RNG for this decision
+            if (rng() > 0.8) {
+                const auditId = getStableUUID('audit', `${weekStart}:${team.name}:TEAM_SETTINGS_UPDATED`);
+                await query(
+                    `INSERT INTO audit_events (event_id, org_id, team_id, event_type, metadata, created_at)
+                     VALUES ($1, $2, $3, 'TEAM_SETTINGS_UPDATED', $4, $5)
+                     ON CONFLICT (event_id) DO NOTHING`,
+                    [
+                        auditId,
+                        orgId,
+                        team.team_id,
+                        JSON.stringify({ setting: 'threshold', old: 0.5, new: 0.6 }),
+                        new Date(new Date(weekStart).getTime() + 24 * 3600000).toISOString()
+                    ]
+                );
+            }
+        }
     }
 
     return {

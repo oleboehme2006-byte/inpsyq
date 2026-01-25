@@ -12,6 +12,7 @@ import { requireAdminStrict } from '@/lib/access/guards';
 import { runWeekly } from '@/services/weeklyRunner/runner';
 import { query } from '@/db/client';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 interface RequestBody {

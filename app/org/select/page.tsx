@@ -25,9 +25,11 @@ export default function OrgSelectPage() {
     useEffect(() => {
         fetch('/api/org/list')
             .then(res => res.json())
-            .then((data: { orgs?: OrgOption[] }) => {
-                if (data.orgs) {
-                    setOrgs(data.orgs);
+            .then((data: { ok: boolean; data?: { orgs: OrgOption[] }; error?: { message: string } }) => {
+                if (data.ok && data.data?.orgs) {
+                    setOrgs(data.data.orgs);
+                } else if (data.error) {
+                    setError(data.error.message);
                 }
                 setLoading(false);
             })
@@ -88,6 +90,12 @@ export default function OrgSelectPage() {
                     )}
 
                     <div className="space-y-3">
+                        {orgs.length === 0 && !error && (
+                            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
+                                <p className="font-medium mb-1">No organizations found</p>
+                                <p>You don&apos;t have access to any organizations yet. Please contact an administrator to get invited.</p>
+                            </div>
+                        )}
                         {orgs.map((org) => (
                             <button
                                 key={org.orgId}

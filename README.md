@@ -1,56 +1,76 @@
-# InPsyQ Landing Page
+# InPsyq
 
-A modern, dark-themed, single-page marketing site for "InPsyQ" — a social sentiment analysis tool. Built with Next.js, TailwindCSS, and Framer Motion.
+**Organizational Wellbeing Intelligence Platform**
 
-## 🚀 Getting Started
+InPsyq provides continuous psychological measurement and AI-driven interpretation for organizational health. It transforms weekly employee sentiment data into actionable insights for team leads and executives.
 
-### Prerequisites
+## Architecture
 
-- Node.js (v18 or higher)
-- npm
+```
+Measurement → Aggregation → Attribution → Interpretation → Dashboards
+```
 
-### Installation
+| Layer | Purpose |
+|-------|---------|
+| **Measurement** | Weekly psychometric surveys with adaptive item selection |
+| **Aggregation** | Temporal series with trend, volatility, regime detection |
+| **Attribution** | Causal driver analysis (internal vs external factors) |
+| **Interpretation** | LLM-generated narrative insights per team/week |
+| **Dashboards** | Role-based UIs for employees, team leads, executives |
 
-1.  Isolate the project directory:
-    ```bash
-    cd inpsyq-landing
-    ```
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
-
-### Running Locally
-
-Start the development server:
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local with your database and API keys
+
+# Run development server
 npm run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) with your browser to see the result.
+## Environment Variables
 
-## 🛠 Tech Stack
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `AUTH_BASE_URL` | Production | Canonical origin (e.g., `https://www.inpsyq.com`) |
+| `EMAIL_PROVIDER` | Yes | `resend`, `test`, or `disabled` |
+| `RESEND_API_KEY` | If resend | Email API key |
+| `INTERNAL_ADMIN_SECRET` | Yes | Admin API authentication |
 
--   **Framework:** [Next.js 14](https://nextjs.org/) (App Router)
--   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
--   **Animations:** [Framer Motion](https://www.framer.com/motion/)
--   **Icons:** [Lucide React](https://lucide.dev/)
--   **Language:** TypeScript
+## Documentation
 
-## 📂 Project Structure
+| Topic | Location |
+|-------|----------|
+| System Architecture | [`docs/architecture/`](docs/architecture/) |
+| Security & Auth | [`docs/security/`](docs/security/) |
+| Operations & Deployment | [`docs/operations/`](docs/operations/) |
+| Local Development | [`docs/development/`](docs/development/) |
+| Legal | [`docs/legal/`](docs/legal/) |
 
--   `app/page.tsx`: Main entry point assembling all sections.
--   `app/layout.tsx`: Root layout configuration.
--   `components/`: Reusable UI components and page sections.
-    -   `ui/FadeIn.tsx`: Wrapper for scroll-triggered animations.
-    -   `BackgroundEffects.tsx`: Animated background gradients.
-    -   Sections: `Hero`, `ProblemSection`, `SolutionSection`, etc.
+## Verification
 
-## ✨ Features
+```bash
+# Build verification
+npm run build
+npm run lint
 
--   **Dark Mode Aesthetic:** Custom color palette with deep backgrounds and neon accents.
--   **Scroll Animations:** Elements fade and slide in as you scroll.
--   **Responsive Design:** Fully optimized for mobile, tablet, and desktop.
--   **Smooth Scrolling:** Navigation links smoothly scroll to sections.
--   **Interactive Elements:** Hover effects on cards, buttons, and mockup visualizations.
+# Local verification scripts
+npx tsx scripts/verification/origin.verify.ts
+npx tsx scripts/verification/test-org.verify.ts
+```
+
+## Deployment
+
+- **Staging**: Preview deployments on Vercel
+- **Production**: `git push origin production`
+
+See [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md) for complete deployment guide.
+
+## License
+
+Proprietary. All rights reserved.

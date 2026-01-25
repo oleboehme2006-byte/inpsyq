@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { decisionService } from '@/services/decision/decisionService';
 import { requireAdminStrict } from '@/lib/access/guards';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {

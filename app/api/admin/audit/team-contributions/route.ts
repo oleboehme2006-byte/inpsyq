@@ -3,6 +3,7 @@ import { query } from '@/db/client';
 import { aggregationService } from '@/services/aggregationService';
 import { requireAdminStrict } from '@/lib/access/guards';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 

@@ -4,8 +4,16 @@
  * Supports multiple providers:
  * - ResendTransport: Uses Resend API
  * - DisabledTransport: No-op (for local development)
- * - TestTransport: In-memory outbox for tests
+ * - TestTransport: File-based outbox for verification scripts
+ * 
+ * CRITICAL: Magic links MUST use getPublicOriginUrl() for canonical origins.
+ * Preview/staging deployments have last-mile email suppression.
+ * 
+ * PHASE 36.4: Email links point to /auth/consume (confirm page), NOT /api/auth/consume.
  */
+
+import { getPublicOriginUrl, getPublicOrigin } from '@/lib/env/publicOrigin';
+import { isProduction, isStaging } from '@/lib/env/appEnv';
 
 export interface EmailMessage {
     to: string;
@@ -14,8 +22,16 @@ export interface EmailMessage {
     text?: string;
 }
 
+export interface EmailResult {
+    ok: boolean;
+    id?: string;
+    error?: string;
+    suppressed?: boolean;
+    suppressedReason?: string;
+}
+
 export interface EmailTransport {
-    send(message: EmailMessage): Promise<{ ok: boolean; id?: string; error?: string }>;
+    send(message: EmailMessage): Promise<EmailResult>;
 }
 
 // =============================================================================
@@ -35,7 +51,7 @@ class ResendTransport implements EmailTransport {
         }
     }
 
-    async send(message: EmailMessage): Promise<{ ok: boolean; id?: string; error?: string }> {
+    async send(message: EmailMessage): Promise<EmailResult> {
         if (!this.apiKey) {
             return { ok: false, error: 'RESEND_API_KEY not configured' };
         }
@@ -76,14 +92,14 @@ class ResendTransport implements EmailTransport {
 // =============================================================================
 
 class DisabledTransport implements EmailTransport {
-    async send(message: EmailMessage): Promise<{ ok: boolean; id?: string; error?: string }> {
+    async send(message: EmailMessage): Promise<EmailResult> {
         console.log('[EMAIL] Disabled - would send to:', message.to, 'subject:', message.subject);
         return { ok: true, id: 'disabled' };
     }
 }
 
 // =============================================================================
-// Test Transport (In-memory outbox for tests)
+// Test Transport (File-based outbox for verification scripts)
 // =============================================================================
 
 interface TestMail extends EmailMessage {
@@ -93,9 +109,59 @@ interface TestMail extends EmailMessage {
 const testOutbox: TestMail[] = [];
 
 class TestTransport implements EmailTransport {
-    async send(message: EmailMessage): Promise<{ ok: boolean; id?: string; error?: string }> {
+    async send(message: EmailMessage): Promise<EmailResult> {
         const id = `test-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        testOutbox.push({ ...message, sentAt: new Date() });
+        const mail: TestMail = { ...message, sentAt: new Date() };
+        testOutbox.push(mail);
+
+        // Write to file for verification scripts
+        // Dynamic import to avoid bundling fs in edge/client
+        try {
+            const fs = await import('fs');
+            const path = await import('path');
+
+            const outboxDir = path.join(process.cwd(), 'artifacts', 'email_outbox');
+            if (!fs.existsSync(outboxDir)) {
+                fs.mkdirSync(outboxDir, { recursive: true });
+            }
+
+            // Extract magic link from HTML (Phase 36.4: now /auth/consume, not /api/auth/consume)
+            const linkMatch = message.html.match(/href="([^"]*\/auth\/consume[^"]*)"/);
+            const extractedLink = linkMatch ? linkMatch[1] : null;
+
+            // Parse URL components
+            let parsedUrl: URL | null = null;
+            let urlComponents: any = null;
+            if (extractedLink) {
+                try {
+                    parsedUrl = new URL(extractedLink);
+                    urlComponents = {
+                        protocol: parsedUrl.protocol,
+                        host: parsedUrl.host,
+                        pathname: parsedUrl.pathname,
+                        token: parsedUrl.searchParams.get('token'),
+                        tokenLength: parsedUrl.searchParams.get('token')?.length || 0,
+                    };
+                } catch { /* invalid URL */ }
+            }
+
+            const outboxFile = path.join(outboxDir, 'last_magic_link.json');
+            fs.writeFileSync(outboxFile, JSON.stringify({
+                id,
+                sentAt: new Date().toISOString(),
+                to: message.to.replace(/(.{2}).*(@.*)/, '$1***$2'), // Mask email
+                subject: message.subject,
+                extractedLink,
+                urlComponents,
+                textPreview: message.text?.substring(0, 200),
+            }, null, 2));
+
+            console.log(`[EMAIL] Test transport wrote to ${outboxFile}`);
+        } catch (e: any) {
+            // Ignore fs errors in non-node envs (though we shouldn't be here in non-node)
+            console.error('[EMAIL] Failed to write test outbox:', e.message);
+        }
+
         return { ok: true, id };
     }
 }
@@ -121,6 +187,26 @@ export function clearTestOutbox(): void {
 let transportInstance: EmailTransport | null = null;
 
 /**
+ * Get the effective email provider (after override).
+ */
+export function getEffectiveEmailProvider(): string {
+    const configured = process.env.EMAIL_PROVIDER || 'disabled';
+    const vercelEnv = process.env.VERCEL_ENV;
+
+    // Preview deployments: FORCE disabled
+    if (vercelEnv === 'preview') {
+        return 'disabled';
+    }
+
+    // Staging: FORCE disabled
+    if (isStaging()) {
+        return 'disabled';
+    }
+
+    return configured;
+}
+
+/**
  * Get the configured email transport.
  */
 export function getEmailTransport(): EmailTransport {
@@ -128,7 +214,7 @@ export function getEmailTransport(): EmailTransport {
         return transportInstance;
     }
 
-    const provider = process.env.EMAIL_PROVIDER || 'disabled';
+    const provider = getEffectiveEmailProvider();
 
     switch (provider) {
         case 'resend':
@@ -143,20 +229,67 @@ export function getEmailTransport(): EmailTransport {
             break;
     }
 
-    console.log(`[EMAIL] Using ${provider} transport`);
+    console.log(`[EMAIL] Using ${provider} transport (configured: ${process.env.EMAIL_PROVIDER}, vercel_env: ${process.env.VERCEL_ENV})`);
     return transportInstance;
 }
 
 /**
+ * Check if email should be suppressed (last-mile check).
+ */
+export function shouldSuppressEmail(): { suppress: boolean; reason: string } {
+    const vercelEnv = process.env.VERCEL_ENV;
+
+    // Preview: ALWAYS suppress (even if resend somehow configured)
+    if (vercelEnv === 'preview') {
+        return { suppress: true, reason: 'VERCEL_ENV=preview' };
+    }
+
+    // Staging: ALWAYS suppress
+    if (isStaging()) {
+        return { suppress: true, reason: 'APP_ENV=staging' };
+    }
+
+    // Disabled provider
+    if (getEffectiveEmailProvider() === 'disabled') {
+        return { suppress: true, reason: 'EMAIL_PROVIDER=disabled' };
+    }
+
+    return { suppress: false, reason: '' };
+}
+
+/**
  * Send a magic link email.
+ * 
+ * CRITICAL: Uses getPublicOriginUrl() for canonical origin - NEVER VERCEL_URL.
+ * PHASE 36.4: Links to /auth/consume (confirm page), NOT /api/auth/consume.
  */
 export async function sendMagicLinkEmail(
     email: string,
     token: string,
     expiresAt: Date
-): Promise<{ ok: boolean; error?: string }> {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'http://localhost:3001';
-    const consumeUrl = `${baseUrl}/api/auth/consume?token=${encodeURIComponent(token)}`;
+): Promise<EmailResult> {
+    // INVARIANT: Token must exist and be non-trivial
+    if (!token || token.length < 20) {
+        console.error(`[EMAIL] INVARIANT VIOLATION: token missing or too short (length=${token?.length || 0})`);
+        return { ok: false, error: 'INVARIANT_TOKEN_MISSING' };
+    }
+
+    // Last-mile suppression check
+    const suppressCheck = shouldSuppressEmail();
+    if (suppressCheck.suppress) {
+        console.log(`[EMAIL] SUPPRESSED: ${suppressCheck.reason}`);
+        return { ok: true, suppressed: true, suppressedReason: suppressCheck.reason };
+    }
+
+    // Get canonical origin (NEVER uses VERCEL_URL)
+    const originInfo = getPublicOrigin();
+    const baseUrl = originInfo.origin;
+
+    // Log origin for debugging
+    console.log(`[EMAIL] Magic link origin: ${baseUrl} (source: ${originInfo.source}, enforced: ${originInfo.enforced})`);
+
+    // PHASE 36.4: Link to confirm page, NOT direct API
+    const consumeUrl = `${baseUrl}/auth/consume?token=${encodeURIComponent(token)}`;
 
     const expiresInMinutes = Math.round((expiresAt.getTime() - Date.now()) / 60000);
 

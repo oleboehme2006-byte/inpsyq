@@ -212,7 +212,7 @@ export function getRedirectForRole(role: Role, teamId: string | null): string {
             return teamId ? `/team/${teamId}` : '/team';
         case 'EMPLOYEE':
         default:
-            return '/session';
+            return '/measure';
     }
 }
 

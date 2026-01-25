@@ -13,6 +13,7 @@ import { isValidRole, Role } from '@/lib/access/roles';
 import { SECURITY_LIMITS } from '@/lib/security/limits';
 import { getEmailTransport } from '@/services/email/transport';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
