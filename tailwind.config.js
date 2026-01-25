@@ -67,28 +67,28 @@ module.exports = {
                     muted: 'rgba(239, 68, 68, 0.15)',
                 },
 
-                // Semantic: Withdrawal Risk (higher = worse) - Amber/Orange
+                // Semantic: Withdrawal Risk (higher = worse) - Orange
                 'withdrawal': {
                     low: '#22c55e',            // Good
-                    DEFAULT: '#f59e0b',        // Elevated - amber
-                    high: '#ea580c',           // Critical - orange
-                    muted: 'rgba(245, 158, 11, 0.15)',
+                    DEFAULT: '#f97316',        // Elevated - orange-500
+                    high: '#ea580c',           // Critical - orange-600
+                    muted: 'rgba(249, 115, 22, 0.15)',
                 },
 
-                // Semantic: Trust Gap (higher = worse) - Cyan/Blue
+                // Semantic: Trust Gap (higher = worse) - Blue
                 'trust-gap': {
                     low: '#22c55e',            // Good
-                    DEFAULT: '#06b6d4',        // Elevated - cyan
-                    high: '#0284c7',           // Critical - blue
-                    muted: 'rgba(6, 182, 212, 0.15)',
+                    DEFAULT: '#3b82f6',        // Elevated - blue-500
+                    high: '#2563eb',           // Critical - blue-600
+                    muted: 'rgba(59, 130, 246, 0.15)',
                 },
 
-                // Semantic: Engagement (higher = better) - Green/Teal
+                // Semantic: Engagement (higher = better) - Green
                 'engagement': {
                     low: '#ef4444',            // Bad - red
-                    DEFAULT: '#10b981',        // Good - emerald
-                    high: '#14b8a6',           // Excellent - teal
-                    muted: 'rgba(16, 185, 129, 0.15)',
+                    DEFAULT: '#22c55e',        // Good - green-500
+                    high: '#16a34a',           // Excellent - green-600
+                    muted: 'rgba(34, 197, 94, 0.15)',
                 },
 
                 // Semantic: Meta/Confidence - Violet
