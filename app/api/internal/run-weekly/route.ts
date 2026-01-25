@@ -17,7 +17,6 @@ import { RunMode } from '@/services/weeklyRunner/types';
 import { measure } from '@/lib/diagnostics/timing';
 
 const CRON_SECRET = process.env.INTERNAL_CRON_SECRET;
-export const dynamic = 'force-dynamic';
 
 interface RequestBody {
     week_start?: string;

@@ -33,7 +33,7 @@ export function WeeklySummary() {
                         Positive note: Sales and HR demonstrate strong engagement trajectories, suggesting organizational culture fundamentals remain healthy. The risk is operational, not cultural.
                     </p>
                     <p>
-                        The most significant concern is the Product team&apos;s accelerating strain trajectory. Without intervention, there is a <span className="text-orange-400">70% probability</span> of engagement decline spreading to dependent teams within 3 weeks. Early signals of contagion are already visible in Engineering&apos;s elevated strain.
+                        The most significant concern is the Product team's accelerating strain trajectory. Without intervention, there is a <span className="text-orange-400">70% probability</span> of engagement decline spreading to dependent teams within 3 weeks. Early signals of contagion are already visible in Engineering's elevated strain.
                     </p>
                     <div className="bg-[#18181b] p-3 rounded border border-white/5 text-xs text-slate-400">
                         Recommended executive focus: • Immediate: Resource rebalancing for Product team • Short-term: Review Q4 commitments.

@@ -1,4 +1,4 @@
-// import { engagementData } from "@/lib/data"; // Placeholder import logic if needed, but we used local mock
+import { engagementData } from "@/lib/data"; // Placeholder import logic if needed, but we used local mock
 import { MetricCard } from "@/components/executive/MetricCard";
 import { EngagementTrend } from "@/components/executive/EngagementTrend";
 import { TeamPortfolio } from "@/components/executive/TeamPortfolio";

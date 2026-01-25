@@ -11,7 +11,6 @@ import { getCanonicalWeek } from '@/lib/week';
 import { query } from '@/db/client';
 
 const ADMIN_SECRET = process.env.INTERNAL_ADMIN_SECRET;
-export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
     // Validate admin secret
