@@ -27,22 +27,22 @@
     --color-strain-muted: rgba(239, 68, 68, 0.15);
 
     /* Semantic: Withdrawal Risk (higher = worse) */
-    --color-withdrawal: #f59e0b;
+    --color-withdrawal: #f97316;
     --color-withdrawal-low: #22c55e;
     --color-withdrawal-high: #ea580c;
-    --color-withdrawal-muted: rgba(245, 158, 11, 0.15);
+    --color-withdrawal-muted: rgba(249, 115, 22, 0.15);
 
     /* Semantic: Trust Gap (higher = worse) */
-    --color-trust-gap: #06b6d4;
+    --color-trust-gap: #3b82f6;
     --color-trust-gap-low: #22c55e;
-    --color-trust-gap-high: #0284c7;
-    --color-trust-gap-muted: rgba(6, 182, 212, 0.15);
+    --color-trust-gap-high: #2563eb;
+    --color-trust-gap-muted: rgba(59, 130, 246, 0.15);
 
     /* Semantic: Engagement (higher = better) */
-    --color-engagement: #10b981;
+    --color-engagement: #22c55e;
     --color-engagement-low: #ef4444;
-    --color-engagement-high: #14b8a6;
-    --color-engagement-muted: rgba(16, 185, 129, 0.15);
+    --color-engagement-high: #16a34a;
+    --color-engagement-muted: rgba(34, 197, 94, 0.15);
 
     /* Meta/Confidence */
     --color-meta: #8b5cf6;

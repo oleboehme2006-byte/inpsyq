@@ -4,6 +4,7 @@
  * Endpoint for fetching cached or generating new interpretations.
  */
 
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { weeklyInterpretationService, type InterpretationContext } from '@/services/llm/weeklyInterpretation';
 
