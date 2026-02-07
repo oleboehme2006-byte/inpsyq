@@ -1,105 +1,88 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { executiveMockData } from '@/lib/mock/executiveData';
-import { Globe, Building2, User } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
-export function SystemicDrivers({
-    selectedId,
-    onSelect,
-    compact = false
-}: {
-    selectedId?: string,
-    onSelect?: (id: string) => void,
-    compact?: boolean
-}) {
-    const drivers = executiveMockData.drivers.slice(0, 3);
+interface SystemicDriversProps {
+    selectedId?: string;
+    onSelect?: (id: string) => void;
+    isCompact?: boolean;
+}
+
+export function SystemicDrivers({ selectedId, onSelect, isCompact }: SystemicDriversProps) {
+    const drivers = executiveMockData.drivers.slice(0, 3); // Top 3
 
     return (
-        <div className={cn(
-            "w-full h-full bg-[#050505] rounded-xl border border-white/10 flex flex-col transition-all duration-500 overflow-hidden",
-            compact ? "p-3" : "p-5"
-        )}>
-            {!compact && (
-                <div className="flex items-center justify-between mb-4 animate-in fade-in duration-300">
-                    <h3 className="text-xl font-display font-medium text-white">Systemic Drivers</h3>
-                    <span className="text-xs font-mono text-text-tertiary uppercase tracking-widest">
-                        Influence
-                    </span>
-                </div>
-            )}
+        <div className="w-full h-full bg-[#050505] rounded-xl border border-white/10 p-5 flex flex-col transition-all duration-500 overflow-hidden">
+            <div className="flex items-center justify-between mb-4 shrink-0 h-8">
+                <h3 className="font-display text-xl font-medium text-white transition-all duration-500 whitespace-nowrap">
+                    Systemic Drivers
+                </h3>
+                <span className={cn("text-xs font-mono text-text-tertiary uppercase tracking-widest transition-opacity duration-300 delay-100",
+                    isCompact ? "opacity-0" : "opacity-100"
+                )}>
+                    Influence
+                </span>
+            </div>
 
-            <div className="flex-1 space-y-2 flex flex-col justify-center">
+            <div className="flex-1 flex flex-col gap-3">
                 {drivers.map((driver) => {
                     const isSelected = selectedId === driver.id;
-
-                    let Icon = User;
-                    if (driver.scope.toLowerCase() === 'organization') Icon = Globe;
-                    if (driver.scope.toLowerCase() === 'department') Icon = Building2;
-
                     return (
                         <button
                             key={driver.id}
                             onClick={() => onSelect?.(driver.id)}
                             className={cn(
-                                "group w-full text-left transition-all duration-300 rounded-lg border relative overflow-hidden",
-                                compact ? "p-2 py-3 flex flex-col items-center justify-center gap-2 h-auto" : "p-3",
+                                "group w-full text-left transition-all duration-500 rounded-lg border relative flex flex-col justify-center h-20 p-3",
                                 isSelected
                                     ? "bg-white/[0.03] border-white/20"
                                     : "bg-transparent border-transparent hover:bg-white/[0.02]"
                             )}
                         >
-                            {compact ? (
-                                <>
-                                    <Icon className={cn("w-5 h-5 transition-colors",
-                                        isSelected ? "text-white" : "text-text-tertiary group-hover:text-white"
-                                    )} />
-                                    <span className={cn("text-[10px] font-medium truncate w-full text-center leading-tight",
-                                        isSelected ? "text-white" : "text-text-secondary"
-                                    )}>
-                                        {driver.label}
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Icon className="w-4 h-4 text-text-tertiary opacity-50" />
-                                            <span className={cn("text-sm font-medium transition-colors", isSelected ? "text-white" : "text-text-secondary group-hover:text-white")}>
-                                                {driver.label}
-                                            </span>
-                                        </div>
-                                        <span className={cn(
-                                            "px-0 py-0 text-[10px] font-mono uppercase tracking-widest",
-                                            driver.scope.toLowerCase() === 'organization' ? "text-strain" :
-                                                driver.scope.toLowerCase() === 'department' ? "text-withdrawal" :
-                                                    "text-engagement"
-                                        )}>
-                                            {driver.scope}
-                                        </span>
-                                    </div>
+                            <div className="flex items-center justify-between w-full">
+                                <span className={cn("font-medium transition-all duration-300 whitespace-nowrap text-lg",
+                                    isSelected ? "text-white" : "text-text-secondary group-hover:text-white"
+                                )}>
+                                    {driver.label}
+                                </span>
 
-                                    {/* Progress Bar with Orange->Red Fade */}
-                                    <div className="relative w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                                        <div
-                                            className="absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out"
-                                            style={{
-                                                width: `${driver.score}%`,
-                                                background: 'linear-gradient(90deg, #F97316 0%, #DC2626 100%)' // Orange-500 to Red-600
-                                            }}
-                                        />
-                                    </div>
-                                </>
-                            )}
+                                {/* Scope Label - Fades out in compact */}
+                                <span className={cn(
+                                    "px-0 py-0 text-xs font-mono uppercase tracking-widest transition-opacity duration-300",
+                                    driver.scope.toLowerCase() === 'organization' ? "text-strain" :
+                                        driver.scope.toLowerCase() === 'department' ? "text-withdrawal" :
+                                            "text-engagement",
+                                    isCompact ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                                )}>
+                                    {driver.scope}
+                                </span>
+                            </div>
+
+                            {/* Progress Bar - Fades out in compact */}
+                            <div className={cn("relative w-full rounded-full overflow-hidden transition-all duration-500 ease-in-out mt-3",
+                                isCompact ? "h-0 opacity-0 mt-0" : "h-1 opacity-100"
+                            )}>
+                                <div
+                                    className="absolute left-0 top-0 h-full rounded-full"
+                                    style={{
+                                        width: `${driver.score}%`,
+                                        background: 'linear-gradient(90deg, var(--color-withdrawal) 0%, var(--color-strain) 100%)'
+                                    }}
+                                />
+                            </div>
                         </button>
                     );
                 })}
             </div>
 
-            {!compact && (
-                <button className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary hover:text-white transition-colors mt-2 text-left pl-1 animate-in fade-in">
-                    + View All Drivers
+            {/* View All - Fades out in compact */}
+            <div className={cn("mt-2 transition-all duration-500 overflow-hidden shrink-0",
+                isCompact ? "max-h-0 opacity-0" : "max-h-8 opacity-100"
+            )}>
+                <button className="text-[10px] font-mono uppercase tracking-widest text-text-tertiary hover:text-white transition-colors text-left pl-1">
+                    + View All
                 </button>
-            )}
+            </div>
         </div>
     );
 }

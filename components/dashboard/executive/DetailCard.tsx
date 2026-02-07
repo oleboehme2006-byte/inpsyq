@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { AlertTriangle, AlertCircle, Info, Activity } from 'lucide-react';
 
 interface DetailCardProps {
     type: 'driver' | 'watchlist';
@@ -10,101 +11,101 @@ interface DetailCardProps {
 export function DetailCard({ type, data, onClose }: DetailCardProps) {
     if (!data || !data.details) return null;
 
+    // Determine Icon and Colors based on data
+    const getIcon = () => {
+        if (type === 'watchlist') {
+            if (data.severity === 'critical') return <AlertTriangle className="w-5 h-5 text-strain" />;
+            if (data.severity === 'warning') return <AlertCircle className="w-5 h-5 text-withdrawal" />;
+            return <Info className="w-5 h-5 text-engagement" />;
+        }
+
+        // Systemic Drivers - Map score to Criticality Icons as requested
+        if (data.score > 70) return <AlertTriangle className="w-5 h-5 text-strain" />;
+        if (data.score > 40) return <AlertCircle className="w-5 h-5 text-withdrawal" />;
+        return <Info className="w-5 h-5 text-engagement" />;
+    };
+
+    // User requested "Use the same white... for every other", so always white.
+    const titleColor = "text-white";
+
     return (
-        <div className="w-full h-full bg-[#050505] rounded-xl border border-white/10 p-6 flex flex-col animate-in fade-in duration-500 slide-in-from-bottom-2">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-display font-medium text-white">Details</h3>
-                <span className="text-xs font-mono text-text-tertiary uppercase tracking-widest">
-                    {type === 'driver' ? 'Systemic Analysis' : 'Risk Analysis'}
-                </span>
-            </div>
+        <div className="w-full h-full bg-[#050505] rounded-xl border border-white/10 p-6 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header - Combined Line */}
+            <div className="flex items-center gap-4 mb-6 shrink-0 border-b border-white/5 pb-4">
+                <h3 className="text-2xl font-display font-medium text-white">Details</h3>
 
-            {/* Content */}
-            <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                {/* Separator / Icon Wrapper */}
+                <div className="h-6 w-px bg-white/10 mx-2" />
 
-                {/* Header for the Item */}
-                <div>
-                    <h4 className={cn("text-lg font-medium mb-1",
-                        type === 'watchlist' ? "text-strain" : "text-white"
-                    )}>
+                <div className="flex items-center gap-3">
+                    {getIcon()}
+                    <h4 className={cn("text-xl font-medium", titleColor)}>
                         {type === 'driver' ? data.label : data.team}
                     </h4>
-                    {type === 'driver' && (
-                        <div className="flex items-center gap-2">
-                            <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden max-w-[100px]">
-                                <div style={{ width: `${data.score}%` }} className="h-full bg-gradient-to-r from-strain to-withdrawal" />
-                            </div>
-                            <span className="text-xs text-text-secondary">{data.score}% Impact</span>
-                        </div>
-                    )}
-                    {type === 'watchlist' && (
-                        <span className="text-xs font-mono text-text-secondary uppercase tracking-wider">
-                            Most Critical Issue
-                        </span>
-                    )}
                 </div>
+            </div>
 
-                <div className="h-px bg-white/5 w-full my-2" />
+            {/* Content Wrapper */}
+            <div className="flex-1 overflow-hidden flex flex-col gap-6">
 
-                {/* Sections */}
-                <div className="space-y-4 text-sm leading-relaxed text-text-secondary">
+                {/* Content Grid - 2 Columns for better space usage in 3/4 width */}
+                <div className="grid grid-cols-2 gap-8 overflow-y-auto pr-2 custom-scrollbar">
 
-                    {/* DRIVER CONTENT */}
-                    {type === 'driver' && (
-                        <>
-                            <div>
-                                <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Mechanism</span>
-                                <p>{data.details.mechanism}</p>
-                            </div>
-                            <div>
-                                <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Influence</span>
-                                <p>{data.details.influence}</p>
-                            </div>
-                            <div>
-                                <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Recommendation</span>
-                                <p className="text-white bg-white/5 p-3 rounded-lg border border-white/5">
+                    {/* Left Column */}
+                    <div className="space-y-6">
+                        {type === 'driver' && (
+                            <>
+                                <div>
+                                    <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-2">Mechanism</span>
+                                    <p className="text-sm text-text-secondary leading-relaxed">{data.details.mechanism}</p>
+                                </div>
+                                <div>
+                                    <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-2">Influence</span>
+                                    <p className="text-sm text-text-secondary leading-relaxed">{data.details.influence}</p>
+                                </div>
+                            </>
+                        )}
+
+                        {type === 'watchlist' && (
+                            <>
+                                <div>
+                                    <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-2">Context & Causality</span>
+                                    <p className="text-sm text-text-secondary leading-relaxed mb-3">{data.details.context}</p>
+                                    <p className="text-sm text-text-tertiary italic">{data.details.causality}</p>
+                                </div>
+                                <div>
+                                    <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-2">Effects</span>
+                                    <p className="text-sm text-text-secondary leading-relaxed">{data.details.effects}</p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-6">
+                        <div>
+                            <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-2">Recommendation</span>
+                            <div className="bg-white/5 p-4 rounded-lg border border-white/5">
+                                <p className="text-sm text-white leading-relaxed">
                                     {data.details.recommendation}
                                 </p>
                             </div>
-                        </>
-                    )}
+                        </div>
 
-                    {/* WATCHLIST CONTENT */}
-                    {type === 'watchlist' && (
-                        <>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Criticality</span>
-                                    <span className={cn("text-xs font-bold px-2 py-0.5 rounded border uppercase",
-                                        data.details.criticality === 'HIGH' ? "text-strain bg-strain/10 border-strain/20" :
-                                            data.details.criticality === 'AT RISK' ? "text-withdrawal bg-withdrawal/10 border-withdrawal/20" :
-                                                "text-engagement bg-engagement/10 border-engagement/20"
-                                    )}>
-                                        {data.details.criticality}
-                                    </span>
+                        {/* Metrics or Status (Visual filler) */}
+                        {type === 'driver' && (
+                            <div className="pt-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs text-text-tertiary uppercase">Impact Score</span>
+                                    <span className="text-xl font-mono text-white">{data.score}%</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                    <div style={{ width: `${data.score}%` }} className="h-full bg-gradient-to-r from-withdrawal to-strain" />
                                 </div>
                             </div>
+                        )}
+                    </div>
 
-                            <div>
-                                <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Context & Causality</span>
-                                <p className="mb-2">{data.details.context}</p>
-                                <p className="opacity-80 italic">{data.details.causality}</p>
-                            </div>
-
-                            <div>
-                                <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Effects</span>
-                                <p>{data.details.effects}</p>
-                            </div>
-
-                            <div>
-                                <span className="block text-[10px] font-mono text-text-tertiary uppercase tracking-widest mb-1">Recommendation</span>
-                                <p className="text-white bg-white/5 p-3 rounded-lg border border-white/5">
-                                    {data.details.recommendation}
-                                </p>
-                            </div>
-                        </>
-                    )}
                 </div>
             </div>
         </div>
