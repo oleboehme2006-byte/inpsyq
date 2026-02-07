@@ -39,6 +39,7 @@ const NAV_SECTIONS: NavSection[] = [
         items: [
             { label: 'Members', href: '/admin/users' },
             { label: 'Invites', href: '/admin/invites' },
+            { label: 'Roster Import', href: '/admin/roster' },
             { label: 'Roles', href: '/admin/roles' },
         ],
     },
@@ -101,8 +102,8 @@ export default function AdminShell({ children, orgName }: AdminShellProps) {
                                             <Link
                                                 href={item.href}
                                                 className={`block px-3 py-2 rounded-lg text-sm transition-colors ${isActive
-                                                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
+                                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                                                     }`}
                                             >
                                                 {item.label}
@@ -127,8 +128,8 @@ export default function AdminShell({ children, orgName }: AdminShellProps) {
                     <div className="flex items-center gap-2">
                         <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isDev
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                                    : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                 }`}
                         >
                             {isDev ? 'DEV' : 'PROD'}

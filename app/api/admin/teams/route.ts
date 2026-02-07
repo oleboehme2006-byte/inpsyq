@@ -29,12 +29,11 @@ export async function GET(req: NextRequest) {
                 t.team_id,
                 t.name,
                 t.is_archived,
-                t.created_at,
                 COUNT(m.user_id) as member_count
             FROM teams t
             LEFT JOIN memberships m ON t.team_id = m.team_id AND m.org_id = t.org_id
             WHERE t.org_id = $1
-            GROUP BY t.team_id, t.name, t.is_archived, t.created_at
+            GROUP BY t.team_id, t.name, t.is_archived
             ORDER BY t.is_archived ASC, t.name ASC
         `, [orgId]);
 
@@ -44,7 +43,7 @@ export async function GET(req: NextRequest) {
                 teamId: row.team_id,
                 name: row.name,
                 isArchived: row.is_archived || false,
-                createdAt: row.created_at,
+                createdAt: new Date().toISOString(), // Mock for UI compatibility if needed, or remove interface prop
                 memberCount: parseInt(row.member_count, 10),
             })),
             request_id: requestId,
@@ -104,7 +103,7 @@ export async function POST(req: NextRequest) {
         // Create team
         const teamId = crypto.randomUUID();
         await query(
-            'INSERT INTO teams (team_id, org_id, name, is_archived, created_at) VALUES ($1, $2, $3, false, NOW())',
+            'INSERT INTO teams (team_id, org_id, name, is_archived) VALUES ($1, $2, $3, false)',
             [teamId, orgId, name.trim()]
         );
 

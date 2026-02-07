@@ -215,8 +215,8 @@ export default function AdminTeamsPage() {
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${team.isArchived
-                                                ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                            ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                             }`}>
                                             {team.isArchived ? 'Archived' : 'Active'}
                                         </span>
@@ -240,12 +240,19 @@ export default function AdminTeamsPage() {
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-3">
+                                                <a
+                                                    href={`/team/${team.teamId}`}
+                                                    className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors"
+                                                >
+                                                    View Dashboard
+                                                </a>
+                                                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
                                                 <button
                                                     onClick={() => {
                                                         setEditingId(team.teamId);
                                                         setEditName(team.name);
                                                     }}
-                                                    className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                                                    className="text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
                                                 >
                                                     Rename
                                                 </button>

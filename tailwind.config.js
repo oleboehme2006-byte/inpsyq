@@ -45,79 +45,61 @@ module.exports = {
             colors: {
                 // Background Layers
                 'bg': {
-                    base: '#0a0a0b',          // Near-black
-                    elevated: '#111113',       // Slightly lighter
-                    surface: '#18181b',        // Card backgrounds
-                    hover: '#27272a',          // Hover states
+                    base: 'var(--bg-base)',
+                    elevated: 'var(--bg-elevated)',
+                    surface: 'var(--bg-surface)',
+                    hover: 'var(--bg-hover)',
                 },
 
                 // Text Hierarchy
                 'text': {
-                    primary: '#f8fafc',        // White/light
-                    secondary: '#94a3b8',      // Muted
-                    tertiary: '#64748b',       // Very muted
-                    inverse: '#0a0a0b',        // Dark on light
+                    primary: 'var(--text-primary)',
+                    secondary: 'var(--text-secondary)',
+                    tertiary: 'var(--text-tertiary)',
                 },
 
-                // Semantic: Strain/Load (higher = worse) - Red → Magenta
+                // Semantic: Strain (Red/Neon)
                 'strain': {
-                    low: '#22c55e',            // Good - green
-                    DEFAULT: '#ef4444',        // Elevated - red
-                    high: '#db2777',           // Critical - magenta
-                    muted: 'rgba(239, 68, 68, 0.15)',
+                    DEFAULT: 'var(--color-strain)',
+                    dim: 'var(--color-strain-dim)',
+                    muted: 'var(--color-strain-dim)',
+                    high: 'var(--color-strain)',
                 },
 
-                // Semantic: Withdrawal Risk (higher = worse) - Orange
+                // Semantic: Withdrawal (Orange/Neon)
                 'withdrawal': {
-                    low: '#22c55e',            // Good
-                    DEFAULT: '#f97316',        // Elevated - orange-500
-                    high: '#ea580c',           // Critical - orange-600
-                    muted: 'rgba(249, 115, 22, 0.15)',
+                    DEFAULT: 'var(--color-withdrawal)',
+                    dim: 'var(--color-withdrawal-dim)',
+                    muted: 'var(--color-withdrawal-dim)',
+                    high: 'var(--color-withdrawal)',
                 },
 
-                // Semantic: Trust Gap (higher = worse) - Blue
+                // Semantic: Trust Gap (Blue/Neon)
                 'trust-gap': {
-                    low: '#22c55e',            // Good
-                    DEFAULT: '#3b82f6',        // Elevated - blue-500
-                    high: '#2563eb',           // Critical - blue-600
-                    muted: 'rgba(59, 130, 246, 0.15)',
+                    DEFAULT: 'var(--color-trust)',
+                    dim: 'var(--color-trust-dim)',
+                    muted: 'var(--color-trust-dim)',
+                    high: 'var(--color-trust)',
                 },
 
-                // Semantic: Engagement (higher = better) - Green
+                // Semantic: Engagement (Green/Neon)
                 'engagement': {
-                    low: '#ef4444',            // Bad - red
-                    DEFAULT: '#22c55e',        // Good - green-500
-                    high: '#16a34a',           // Excellent - green-600
-                    muted: 'rgba(34, 197, 94, 0.15)',
+                    DEFAULT: 'var(--color-engagement)',
+                    dim: 'var(--color-engagement-dim)',
+                    muted: 'var(--color-engagement-dim)',
+                    high: 'var(--color-engagement)',
                 },
 
-                // Semantic: Meta/Confidence - Violet
-                'meta': {
-                    DEFAULT: '#8b5cf6',        // Violet
-                    low: '#6366f1',            // Indigo (low confidence)
-                    high: '#a855f7',           // Purple (high confidence)
-                    muted: 'rgba(139, 92, 246, 0.15)',
+                // Borders
+                'border': {
+                    DEFAULT: 'var(--border)',
+                    highlight: 'var(--border-highlight)',
                 },
 
                 // UI Accents
                 'accent': {
                     primary: '#8b5cf6',        // Violet
                     secondary: '#06b6d4',      // Cyan
-                },
-
-                // State Colors (universal)
-                'state': {
-                    success: '#22c55e',
-                    warning: '#f59e0b',
-                    error: '#ef4444',
-                    info: '#3b82f6',
-                },
-
-                // Borders
-                'border': {
-                    DEFAULT: '#27272a',
-                    subtle: '#1f1f23',
-                    accent: '#3f3f46',
                 },
             },
 

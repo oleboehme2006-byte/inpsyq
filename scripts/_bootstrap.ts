@@ -13,6 +13,7 @@ const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, '..');
 
 // Load env files in priority order
+config({ path: resolve(projectRoot, '.env.development.local'), override: false });
 config({ path: resolve(projectRoot, '.env.local'), override: false });
 config({ path: resolve(projectRoot, '.env'), override: false });
 

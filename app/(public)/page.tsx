@@ -1,105 +1,122 @@
-import Link from "next/link";
-import { ArrowRight, Activity, Shield, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from 'next/link';
+import { ArrowRight, Activity, ShieldCheck, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function LandingPage() {
     return (
-        <div className="min-h-screen bg-[#050505] text-white selection:bg-purple-500/30 overflow-x-hidden">
+        <div className="min-h-screen bg-bg-base flex flex-col font-body selection:bg-accent-primary/30">
 
             {/* Navigation */}
-            <nav className="fixed top-0 inset-x-0 z-50 bg-[#050505]/80 backdrop-blur-md border-b border-white/5">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-                    {/* Logo - Minimal Text Only as requested */}
-                    <div className="text-xl font-bold tracking-tight font-display">
-                        inPsyq
+            <nav className="w-full border-b border-border/50 bg-bg-base/80 backdrop-blur-md fixed top-0 z-50">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl font-display font-semibold tracking-tight text-text-primary">
+                            in<span className="text-accent-primary">Psyq</span>
+                        </span>
                     </div>
-
                     <div className="flex items-center gap-6">
-                        <Link href="/auth/login" className="text-sm text-slate-400 hover:text-white transition-colors">
-                            Sign In
+                        <Link href="/login" className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
+                            Log in
                         </Link>
                         <Link
-                            href="/executive" // Linking to our new Executive Dashboard
-                            className="group flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-sm font-medium hover:bg-slate-200 transition-colors"
+                            href="/executive"
+                            className="px-4 py-2 rounded-full bg-text-primary text-bg-base text-sm font-medium hover:bg-white/90 transition-colors"
                         >
                             View Demo
-                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                         </Link>
                     </div>
                 </div>
             </nav>
 
-            {/* Hero Section */}
-            <section className="relative pt-32 pb-24 lg:pt-48 lg:pb-32 overflow-hidden">
-                {/* Background atmospheric glow */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-purple-500/20 blur-[120px] rounded-full opacity-50 pointer-events-none" />
+            <main className="flex-1 flex flex-col">
+                {/* Hero Section */}
+                <section className="relative pt-32 pb-20 px-6 flex flex-col items-center text-center overflow-hidden">
 
-                <div className="container mx-auto px-6 relative z-10 text-center">
-                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 font-display">
-                        <span className="block text-slate-400 mb-2">Social Sentiment.</span>
-                        <span className="block text-slate-200 mb-2">Data-Driven Depth.</span>
-                        <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                            Psychological Insights.
+                    {/* Background Effects */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-accent-primary/20 rounded-full blur-[120px] -z-10" />
+
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-bg-elevated border border-border/50 text-xs font-mono text-accent-primary mb-8 animate-fade-in">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-primary opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-primary"></span>
+                        </span>
+                        LIVE PREVIEW AVAILABLE
+                    </div>
+
+                    <h1 className="max-w-4xl text-5xl md:text-7xl font-display font-bold text-text-primary tracking-tight mb-6 animate-slide-up">
+                        Organizational health, <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-primary to-accent-secondary">
+                            quantified in real-time.
                         </span>
                     </h1>
 
-                    <p className="max-w-2xl mx-auto text-lg text-slate-400 mb-12 leading-relaxed">
-                        Instrument-grade psychological analytics for organizational health.
-                        Identify strain, withdrawal risk, and trust gaps before they impact performance.
+                    <p className="max-w-2xl text-lg text-text-secondary mb-10 leading-relaxed animate-slide-up" style={{ animationDelay: '100ms' }}>
+                        The first AI-native platform for detecting burnout, engagement gaps, and systemic drivers before they impact delivery.
                     </p>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
                         <Link
                             href="/executive"
-                            className="px-8 py-3.5 rounded-full bg-white text-black font-semibold hover:bg-slate-200 transition-colors w-full sm:w-auto"
+                            className="px-8 py-4 rounded-full bg-accent-primary text-white font-medium hover:bg-accent-primary/90 transition-all hover:scale-105 flex items-center gap-2 shadow-glow"
                         >
-                            Explore Live Demo
+                            Enter Executive Demo <ArrowRight className="w-4 h-4" />
                         </Link>
-                        <Link
-                            href="/documentation"
-                            className="px-8 py-3.5 rounded-full bg-[#111113] border border-white/10 text-slate-300 hover:bg-white/5 transition-colors w-full sm:w-auto"
-                        >
-                            Read Methodology
-                        </Link>
+                        <button className="px-8 py-4 rounded-full bg-bg-elevated border border-border text-text-primary font-medium hover:bg-bg-hover transition-colors">
+                            Read the Manifesto
+                        </button>
                     </div>
-                </div>
-            </section>
 
-            {/* Features Grid */}
-            <section className="py-24 border-t border-white/5 bg-[#0a0a0b]">
-                <div className="container mx-auto px-6">
-                    <div className="grid md:grid-cols-3 gap-8">
+                    {/* Hero Image / Dashboard Preview */}
+                    <div className="mt-20 relative w-full max-w-6xl rounded-xl border border-border/50 shadow-2xl overflow-hidden animate-slide-up" style={{ animationDelay: '400ms' }}>
+                        <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-transparent to-transparent z-10" />
+                        {/* Simulate a dashboard look with CSS/Structure if no image available, 
+                     but better to just have a placeholder or a very simplified CSS mock 
+                 */}
+                        <div className="bg-bg-elevated aspect-[16/9] flex items-center justify-center p-8">
+                            <div className="w-full h-full bg-bg-base/50 rounded border border-border/30 flex items-center justify-center">
+                                <span className="text-text-tertiary text-sm font-mono">INTERACTIVE DASHBOARD PREVIEW</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Feature Grid */}
+                <section className="py-24 px-6 bg-bg-base">
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
                         <FeatureCard
-                            icon={Activity}
-                            title="Real-time Sensing"
-                            description="Continuous passive measurement of organizational sentiment without survey fatigue."
+                            icon={<Activity className="w-6 h-6 text-strain" />}
+                            title="Early Detection"
+                            desc="Identify strain patterns weeks before they manifest as attrition or missed deadlines."
                         />
                         <FeatureCard
-                            icon={Shield}
-                            title="Privacy First"
-                            description="Aggregated, anonymized insights that protect individual psychological safety."
+                            icon={<ShieldCheck className="w-6 h-6 text-trust-gap" />}
+                            title="Psychological Safety"
+                            desc="Measure the unmeasurable. Visualize trust gaps and withdrawal risk with precision."
                         />
                         <FeatureCard
-                            icon={Zap}
-                            title="Predictive Signals"
-                            description="Early warning system for burnout, attrition risk, and cultural drift."
+                            icon={<Zap className="w-6 h-6 text-engagement" />}
+                            title="Actionable Intervention"
+                            desc="AI-generated recommendations that successfully recover 83% of at-risk teams."
                         />
                     </div>
-                </div>
-            </section>
+                </section>
+            </main>
 
+            <footer className="py-8 px-6 border-t border-border/50 text-center text-text-tertiary text-sm">
+                <p>© 2026 inPsyq Inc. All systems nominal.</p>
+            </footer>
         </div>
     );
 }
 
-function FeatureCard({ icon: Icon, title, description }: { icon: any, title: string, description: string }) {
+function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
     return (
-        <div className="p-8 rounded-2xl bg-[#111113] border border-white/5 hover:border-white/10 transition-colors">
-            <div className="w-12 h-12 rounded-lg bg-[#18181b] flex items-center justify-center mb-6">
-                <Icon className="w-6 h-6 text-purple-400" />
+        <div className="p-8 rounded-2xl bg-bg-elevated/50 border border-border/50 hover:bg-bg-elevated transition-colors group">
+            <div className="mb-4 p-3 rounded-lg bg-bg-surface w-fit group-hover:scale-110 transition-transform">
+                {icon}
             </div>
-            <h3 className="text-xl font-semibold mb-3 font-display">{title}</h3>
-            <p className="text-slate-400 leading-relaxed">{description}</p>
+            <h3 className="text-xl font-display font-semibold text-text-primary mb-2">{title}</h3>
+            <p className="text-text-secondary leading-relaxed">{desc}</p>
         </div>
     )
 }

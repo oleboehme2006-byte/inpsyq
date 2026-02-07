@@ -25,9 +25,17 @@ export default function AdminOverviewPage() {
 
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
                     <h3 className="font-medium text-slate-900 dark:text-white mb-2">Users</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                         Manage team members, send invites, and configure role assignments.
                     </p>
+                    <div className="flex gap-2">
+                        <a href="/admin/roster" className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200 hover:bg-purple-100 transition-colors">
+                            Upload Roster
+                        </a>
+                        <a href="/admin/invites" className="text-xs bg-slate-50 text-slate-700 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
+                            Manage Invites
+                        </a>
+                    </div>
                 </div>
 
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
