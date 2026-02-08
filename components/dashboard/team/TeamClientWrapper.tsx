@@ -19,35 +19,35 @@ export function TeamClientWrapper({ data, teamName }: TeamClientWrapperProps) {
     // KPIs
     const kpis = [
         {
+            id: 'strain',
             label: "STRAIN",
             value: `${(data.latestIndices.strain.value * 100).toFixed(0)}%`,
             status: data.latestIndices.strain.qualitative === 'HIGH' ? "Critical" : "Moderate",
-            trend: "0%", // Trend calc not in DTO yet, placeholder
-            trendDirection: "down" as "down",
+            trendValue: "+0%", // Placeholder as per DTO
             color: "strain" as "strain"
         },
         {
+            id: 'withdrawal',
             label: "WITHDRAWAL RISK",
             value: `${(data.latestIndices.withdrawalRisk.value * 100).toFixed(0)}%`,
             status: data.latestIndices.withdrawalRisk.qualitative,
-            trend: "0%",
-            trendDirection: "up" as "up",
+            trendValue: "+0%",
             color: "withdrawal" as "withdrawal"
         },
         {
+            id: 'trust-gap',
             label: "TRUST GAP",
             value: `${(data.latestIndices.trustGap.value * 100).toFixed(0)}%`,
             status: data.latestIndices.trustGap.qualitative === 'LOW' ? "Stable" : "Critical",
-            trend: "0%",
-            trendDirection: "up" as "up",
+            trendValue: "+0%",
             color: "trust-gap" as "trust-gap"
         },
         {
+            id: 'engagement',
             label: "ENGAGEMENT",
             value: `${(data.latestIndices.engagement.value * 100).toFixed(0)}%`,
             status: data.latestIndices.engagement.qualitative === 'HIGH' ? "Stable" : "Low",
-            trend: "0%",
-            trendDirection: "down" as "down",
+            trendValue: "-0%",
             color: "engagement" as "engagement"
         }
     ];

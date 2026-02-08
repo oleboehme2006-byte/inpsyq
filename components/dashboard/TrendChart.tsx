@@ -285,7 +285,7 @@ function TrendChartComponent({
                         domain={[minValue, maxValue]}
                         ticks={semanticTicks}
                         tick={showSemanticAxis
-                            ? (props) => <SemanticAxisTick {...props} indexId={indexId} />
+                            ? (props: any) => <SemanticAxisTick {...props} indexId={indexId} />
                             : { fill: '#64748b', fontSize: 12, fontFamily: 'Roboto Mono' }
                         }
                         axisLine={{ stroke: '#27272a' }}
