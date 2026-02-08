@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, AlertCircle, Info, Activity } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
 
 interface DetailCardProps {
     type: 'driver' | 'watchlist';
