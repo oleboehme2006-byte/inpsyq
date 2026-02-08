@@ -32,7 +32,7 @@ export function Briefing() {
                 <div className="prose prose-invert max-w-none">
                     <div className="space-y-6 text-base text-text-secondary leading-relaxed font-body">
                         <p>
-                            <span className="text-white font-medium">Critical Observation:</span> Organization-wide strain has increased by <span className="text-strain">12%</span> week-over-week. This trend is primarily driven by the 'Product' team, where resource contention is creating localized burnout risks.
+                            <span className="text-white font-medium">Critical Observation:</span> Organization-wide strain has increased by <span className="text-strain">12%</span> week-over-week. This trend is primarily driven by the &apos;Product&apos; team, where resource contention is creating localized burnout risks.
                         </p>
 
                         <div className="grid grid-cols-2 gap-8 my-6">
