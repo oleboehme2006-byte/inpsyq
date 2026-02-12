@@ -3,6 +3,9 @@
  * 
  * Enforces server-side auth gating for all dashboard routes.
  * Unauthenticated users are redirected to /login.
+ * 
+ * When NEXT_PUBLIC_DEMO_MODE=true, auth is bypassed entirely
+ * (dashboards use only mock data, no real user data is exposed).
  */
 
 import '@/app/globals.css';
@@ -16,22 +19,27 @@ export const metadata: Metadata = {
     description: 'Instrument-grade psychological analytics for organizational health',
 };
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
 export default async function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    // Server-side auth gate
-    const authResult = await resolveAuthContext();
+    // In demo mode, skip auth entirely — dashboards use only mock data
+    if (!DEMO_MODE) {
+        // Server-side auth gate
+        const authResult = await resolveAuthContext();
 
-    // Redirect if not authenticated or missing org
-    if (!authResult.authenticated || !authResult.context) {
-        redirect(authResult.redirectTo || '/login');
-    }
+        // Redirect if not authenticated or missing org
+        if (!authResult.authenticated || !authResult.context) {
+            redirect(authResult.redirectTo || '/login');
+        }
 
-    // EMPLOYEE should go to /measure
-    if (authResult.context.role === 'EMPLOYEE') {
-        redirect('/measure');
+        // EMPLOYEE should go to /measure
+        if (authResult.context.role === 'EMPLOYEE') {
+            redirect('/measure');
+        }
     }
 
     return (
@@ -41,9 +49,10 @@ export default async function DashboardLayout({
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
             </head>
             <body className="bg-bg-base text-text-primary antialiased">
-                <MockBanner />
+                {!DEMO_MODE && <MockBanner />}
                 {children}
             </body>
         </html>
     );
 }
+
