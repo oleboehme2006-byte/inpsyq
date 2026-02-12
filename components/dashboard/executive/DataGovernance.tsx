@@ -2,7 +2,23 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { ShieldCheck, Database, History, Activity } from 'lucide-react';
 
-export function DataGovernance() {
+interface DataGovernanceProps {
+    coverage?: number;
+    dataQuality?: number;
+    temporalStability?: number;
+    signalConfidence?: number;
+    totalSessions?: number;
+    lastUpdated?: string;
+}
+
+export function DataGovernance({
+    coverage = 91,
+    dataQuality = 88,
+    temporalStability = 81,
+    signalConfidence = 75,
+    totalSessions = 50,
+    lastUpdated = 'Dec 24, 2025'
+}: DataGovernanceProps) {
     return (
         <div className="w-full rounded-xl border border-white/10 bg-[#050505] p-6">
             {/* Header */}
@@ -23,7 +39,7 @@ export function DataGovernance() {
                 {/* Metric 1: Coverage */}
                 <GovernanceMetric
                     label="Coverage"
-                    value={91}
+                    value={coverage}
                     icon={<Database className="w-4 h-4" />}
                     color="engagement"
                 />
@@ -31,7 +47,7 @@ export function DataGovernance() {
                 {/* Metric 2: Data Quality */}
                 <GovernanceMetric
                     label="Data Quality"
-                    value={88}
+                    value={dataQuality}
                     icon={<ShieldCheck className="w-4 h-4" />}
                     color="engagement"
                 />
@@ -39,7 +55,7 @@ export function DataGovernance() {
                 {/* Metric 3: Temporal Stability */}
                 <GovernanceMetric
                     label="Temporal Stability"
-                    value={81}
+                    value={temporalStability}
                     icon={<History className="w-4 h-4" />}
                     color="engagement"
                 />
@@ -47,9 +63,9 @@ export function DataGovernance() {
                 {/* Metric 4: Signal Confidence */}
                 <GovernanceMetric
                     label="Signal Confidence"
-                    value={75}
+                    value={signalConfidence}
                     icon={<Activity className="w-4 h-4" />}
-                    color="signal" // Custom color handling
+                    color="signal"
                 />
 
             </div>
@@ -58,11 +74,11 @@ export function DataGovernance() {
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/5 text-xs text-text-tertiary font-mono">
                 <div className="flex items-center gap-2">
                     <Database className="w-3 h-3" />
-                    <span>50 total sessions</span>
+                    <span>{totalSessions} total sessions</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <History className="w-3 h-3" />
-                    <span>Last updated: Dec 24, 2025</span>
+                    <span>Last updated: {lastUpdated}</span>
                 </div>
             </div>
         </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { executiveMockData } from '@/lib/mock/executiveData';
 import { AlertTriangle, AlertCircle, CheckCircle, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 export function TeamPortfolioTable() {
     const teams = executiveMockData.teams;
@@ -55,8 +56,8 @@ export function TeamPortfolioTable() {
                     {healthyWidth > 0 && <div style={{ width: `${healthyWidth}%` }} className="h-full bg-engagement" />}
                 </div>
 
-                {/* Labels Layout - Flex row matching the bar logic to center labels under their segments */}
-                <div className="flex w-full text-sm font-medium text-text-secondary w-full">
+                {/* Labels Layout */}
+                <div className="flex w-full text-sm font-medium text-text-secondary">
                     {criticalWidth > 0 && (
                         <div style={{ width: `${criticalWidth}%` }} className="flex justify-center items-center">
                             <span className="flex items-center gap-2 text-strain whitespace-nowrap">
@@ -99,17 +100,15 @@ export function TeamPortfolioTable() {
                         {sortedTeams.map((team) => (
                             <tr key={team.name} className="group hover:bg-white/[0.02] transition-colors cursor-pointer">
                                 <td className="px-4 py-2 group-hover:text-accent-primary transition-colors">
-                                    <div className="flex items-center gap-2 font-medium text-base text-text-primary">
+                                    <Link href={`/team/${team.name.toLowerCase()}`} className="flex items-center gap-2 font-medium text-base text-text-primary group-hover:text-accent-primary transition-colors">
                                         {team.name}
                                         <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-4px] group-hover:translate-x-0" />
-                                    </div>
+                                    </Link>
                                     <div className="text-xs text-text-tertiary font-mono mt-0.5">
-                                        {/* @ts-ignore - adding members prop dynamically */}
                                         {team.members || 20} Members
                                     </div>
                                 </td>
                                 <td className="px-4 py-2 pl-2">
-                                    {/* Status Badge: No Outline, just bg/text */}
                                     <div className={cn("inline-flex items-center gap-2 px-0 py-0.5 rounded text-sm font-bold",
                                         team.status === 'Critical' ? "text-strain" :
                                             team.status === 'At Risk' ? "text-withdrawal" :
@@ -142,3 +141,4 @@ export function TeamPortfolioTable() {
         </div>
     );
 }
+
