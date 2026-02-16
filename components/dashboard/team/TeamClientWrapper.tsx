@@ -14,7 +14,7 @@ import { TeamDashboardData } from '@/services/dashboard/teamReader';
 
 interface TeamClientWrapperProps {
     initialData: TeamDashboardData;
-    interpretation: WeeklyInterpretationRecord;
+    interpretation: WeeklyInterpretationRecord | null;
 }
 
 export function TeamClientWrapper({ initialData, interpretation }: TeamClientWrapperProps) {

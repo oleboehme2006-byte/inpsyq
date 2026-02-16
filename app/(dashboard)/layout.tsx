@@ -26,19 +26,20 @@ export default async function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    // Authenticate, but do NOT redirect if unauthenticated.
-    // This allows public access to /executive and /team/* for demo purposes.
-    // The individual pages will check for auth and show demo data if missing.
+    // In demo mode, skip auth entirely — dashboards use only mock data
     if (!DEMO_MODE) {
+        // Server-side auth gate
         const authResult = await resolveAuthContext();
 
-        // Only redirect if explicitly denied access (e.g. banned) or if we need to enforce strictly.
-        // For now, we allow "no context" to proceed to pages.
-
-        // EMPLOYEE role check still applies if we HAVE a context
-        if (authResult.context?.role === 'EMPLOYEE') {
+        // If authenticated as EMPLOYEE, they shouldn't be here (dashboard is for admins/leaders)
+        if (authResult.authenticated && authResult.context?.role === 'EMPLOYEE') {
             redirect('/measure');
         }
+
+        // Note: We no longer redirect to /login here for unauthenticated users.
+        // This allows specific pages (Executive, Team) to fall back to "Public Demo Mode"
+        // if the user is not logged in.
+        // Protected pages must enforce their own auth checks.
     }
 
     return (
