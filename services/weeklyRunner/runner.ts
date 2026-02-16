@@ -8,7 +8,8 @@
 import { query } from '@/db/client';
 import { getCanonicalWeek, getPreviousWeeks } from '@/lib/week';
 import { runWeeklyRollup } from '@/services/pipeline/runner';
-import { getOrCreateTeamInterpretation } from '@/services/interpretation/service';
+import { runWeeklyOrgRollup } from '@/services/pipeline/orgRunner';
+import { getOrCreateTeamInterpretation, getOrCreateOrgInterpretation } from '@/services/interpretation/service';
 import { startRun, finishRun } from './audit';
 import { buildLockKey, acquireLock, releaseLock } from './lock';
 import { sendRunFailureAlert, shouldAlert } from '@/services/alerts/webhook';
@@ -347,6 +348,23 @@ async function runWeeklyForOrg(
 
     const durationMs = Date.now() - startTime;
     const status: RunStatus = counts.pipelineFailed > 0 ? 'partial' : 'completed';
+
+    // Phase 8: Org Level Rollup & Interpretation
+    // Only run if we had success with teams (at least one)
+    if (counts.pipelineSuccess > 0) {
+        try {
+            console.log(`[WeeklyRunner] Running Org Rollup for ${orgId}`);
+            await runWeeklyOrgRollup(orgId, weekStart);
+
+            // Org Interpretation
+            console.log(`[WeeklyRunner] Generating Org Interpretation for ${orgId}`);
+            await getOrCreateOrgInterpretation(orgId, weekStartStr);
+        } catch (e: any) {
+            console.error(`[WeeklyRunner] Org Rollup/Interp Failed: ${e.message}`);
+            // Don't fail the whole run, but maybe mark partial?
+            // For now, just log.
+        }
+    }
 
     return {
         orgId,

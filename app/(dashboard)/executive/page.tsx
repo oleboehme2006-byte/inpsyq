@@ -19,6 +19,7 @@ export default async function ExecutiveDashboard() {
             teams: [],
             systemicDrivers: [],
             watchlist: [],
+            history: [],
         };
         return <ExecutiveClientWrapper initialData={demoData} />;
     }
@@ -26,6 +27,7 @@ export default async function ExecutiveDashboard() {
     // Production with auth
     const { resolveAuthContext } = await import('@/lib/auth/context');
     const { getExecutiveDashboardData } = await import('@/services/dashboard/executiveReader');
+    const { getOrCreateOrgInterpretation } = await import('@/services/interpretation/service');
 
     const auth = await resolveAuthContext();
     if (!auth.context?.orgId) return <div>No Organization Selected</div>;
@@ -33,5 +35,14 @@ export default async function ExecutiveDashboard() {
     const data = await getExecutiveDashboardData(auth.context.orgId);
     if (!data) return <div>No Data Available. Run seed:demo?</div>;
 
-    return <ExecutiveClientWrapper initialData={data} />;
+    // Fetch Intepretation
+    let interpretation = null;
+    try {
+        const interpResult = await getOrCreateOrgInterpretation(auth.context.orgId, data.meta.latestWeek);
+        interpretation = interpResult.record;
+    } catch (e) {
+        console.error('Failed to load interpretation:', e);
+    }
+
+    return <ExecutiveClientWrapper initialData={data} interpretation={interpretation} />;
 }

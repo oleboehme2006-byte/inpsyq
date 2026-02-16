@@ -1,49 +1,59 @@
-/**
- * ADMIN OVERVIEW PAGE — Admin dashboard entry point
- */
 
-export default function AdminOverviewPage() {
+import Link from 'next/link';
+import { Users, LayoutGrid, Activity } from 'lucide-react';
+
+export default function AdminDashboardPage() {
+    const cards = [
+        {
+            title: 'User Management',
+            description: 'Invite members, assign teams, and manage roles.',
+            href: '/admin/users',
+            icon: Users,
+            color: 'text-blue-400',
+            bg: 'bg-blue-400/10'
+        },
+        {
+            title: 'Team Structure',
+            description: 'Manage organizations and team hierarchies.',
+            href: '/admin/teams',
+            icon: LayoutGrid,
+            color: 'text-purple-400',
+            bg: 'bg-purple-400/10'
+        },
+        {
+            title: 'Pipeline Status',
+            description: 'Monitor data processing and weekly report generation.',
+            href: '/admin/pipeline', // Hypothetical
+            icon: Activity,
+            color: 'text-green-400',
+            bg: 'bg-green-400/10'
+        }
+    ];
+
     return (
-        <div className="p-8">
-            <header className="mb-8">
-                <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">
-                    Admin Overview
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400">
-                    Welcome to the InPsyq admin control panel. Use the navigation to access
-                    organization settings, user management, and system monitoring.
-                </p>
-            </header>
+        <div className="space-y-8">
+            <div>
+                <h1 className="text-3xl font-display font-semibold text-white">Admin Dashboard</h1>
+                <p className="text-text-secondary mt-2">Overview of organization health and system status.</p>
+            </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-                    <h3 className="font-medium text-slate-900 dark:text-white mb-2">Organization</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Configure organization settings, view health metrics, and access audit logs.
-                    </p>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-                    <h3 className="font-medium text-slate-900 dark:text-white mb-2">Users</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                        Manage team members, send invites, and configure role assignments.
-                    </p>
-                    <div className="flex gap-2">
-                        <a href="/admin/roster" className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-200 hover:bg-purple-100 transition-colors">
-                            Upload Roster
-                        </a>
-                        <a href="/admin/invites" className="text-xs bg-slate-50 text-slate-700 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition-colors">
-                            Manage Invites
-                        </a>
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-                    <h3 className="font-medium text-slate-900 dark:text-white mb-2">System</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Monitor weekly pipeline runs, system alerts, and diagnostics.
-                    </p>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cards.map((card) => {
+                    const Icon = card.icon;
+                    return (
+                        <Link
+                            key={card.href}
+                            href={card.href}
+                            className="block p-6 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all group"
+                        >
+                            <div className={`w-12 h-12 rounded-lg ${card.bg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                                <Icon className={`w-6 h-6 ${card.color}`} />
+                            </div>
+                            <h3 className="text-lg font-medium text-white mb-2">{card.title}</h3>
+                            <p className="text-sm text-text-secondary">{card.description}</p>
+                        </Link>
+                    )
+                })}
             </div>
         </div>
     );

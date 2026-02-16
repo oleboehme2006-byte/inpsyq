@@ -332,3 +332,9 @@
         @apply backdrop-blur-sm;
     }
 }
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}/* force rebuild */

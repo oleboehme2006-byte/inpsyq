@@ -3,6 +3,7 @@ import { safeToFixed } from '@/lib/utils/safeNumber';
 import { CodingResult } from '@/services/measurement/evidence';
 import { Parameter } from '@/lib/constants';
 import { CONSTRUCTS } from '@/services/measurement/constructs';
+import { RESPONSE_CODING_PROMPT } from './prompts/response-coding';
 
 import { InterpretationContext } from '../interpretation/context';
 
@@ -21,31 +22,19 @@ export class ResponseInterpreter {
                     .join('\n');
             }
 
-            const systemPrompt = `
-            You are an expert organizational psychologist.
-            Task: Code the employee response into "Evidence" signals for psychological constructs.
-            
-            Constructs: ${CONSTRUCTS.join(', ')}.
-            
-            Contextual Awareness:
-            The user has the following historical patterns (Interpretation Context):
-            ${temporalContext}
-            
-            EPISTEMIC CONTRACT:
-            - OBSERVED: Explicit statements or behaviors (e.g., "I quit"). High Confidence.
-            - INFERRED: Latent states (e.g., "I feel unsafe"). Medium Confidence unless explicit.
-            - HYPOTHETICAL: "If X then Y". Label as 'cognition' with Low Confidence.
-            
-            Rules:
-            - If text is irrelevant/nonsense, return empty evidence and flag off_topic.
-            - If text is vague, use low confidence.
-            - If new text contradicts historical trend, flag meaningful shift.
-            - Max 3 evidence items per response.
-            - Primary Construct: ${context.construct || 'Infer from text'}.
-            - DO NOT hallucinate metrics not present in text.
-            
-            Output strictly valid JSON.
-            `;
+            const template = RESPONSE_CODING_PROMPT;
+            const systemPrompt = template.system({
+                contextHistory: temporalContext,
+                primaryConstruct: context.construct || 'Infer from text',
+                promptText: context.prompt || '',
+                responseText: text
+            });
+            const userPrompt = template.user({
+                contextHistory: temporalContext,
+                primaryConstruct: context.construct || 'Infer from text',
+                promptText: context.prompt || '',
+                responseText: text
+            });
 
             const schema = {
                 type: "json_schema",
@@ -92,7 +81,7 @@ export class ResponseInterpreter {
                 model: LLM_CONFIG.model,
                 messages: [
                     { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Context: "${context.prompt || ''}"\nInput: "${text}"` }
+                    { role: 'user', content: userPrompt }
                 ],
                 // @ts-ignore
                 response_format: schema,

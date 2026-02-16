@@ -11,7 +11,8 @@ import {
     DependencyLine,
     PROMPT_VERSION,
     MODEL_ID_FALLBACK,
-    MODEL_ID_GPT4
+    MODEL_ID_GPT4,
+    Controllability
 } from './types';
 import { WeeklyInterpretationInput } from './input';
 import { evaluatePolicy, PolicyResult, enforcePolicy } from './policy';
@@ -160,11 +161,21 @@ function buildPrimaryDrivers(input: WeeklyInterpretationInput): { internal: Driv
     const external: DependencyLine[] = input.attribution.externalDependencies.slice(0, 3).map(d => ({
         label: d.dependency,
         impactLevel: d.impactLevel,
-        controllability: d.controllability,
+        controllability: mapControllability(d.controllability),
         evidenceTag: `Via ${d.pathway}`,
     }));
 
     return { internal, external };
+}
+
+function mapControllability(c: import('./input').Controllability): Controllability {
+    switch (c) {
+        case 'HIGH': return 'FULL';
+        case 'PARTIAL': return 'PARTIAL';
+        case 'LOW': return 'MINIMAL';
+        case 'NONE': return 'NONE';
+        default: return 'MINIMAL';
+    }
 }
 
 function buildRiskOutlook(input: WeeklyInterpretationInput, policy: PolicyResult): string[] {

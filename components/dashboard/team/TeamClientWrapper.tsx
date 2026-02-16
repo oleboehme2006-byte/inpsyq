@@ -6,16 +6,18 @@ import { EngagementIndexGraph } from '@/components/dashboard/executive/Engagemen
 import { DriversActionsSection } from '@/components/dashboard/team/DriversActionsSection';
 import { TeamBriefing } from '@/components/dashboard/team/TeamBriefing';
 import { DataGovernance } from '@/components/dashboard/executive/DataGovernance';
-import { getTeamData } from '@/lib/mock/teamDashboardData';
 import { Globe, ArrowLeft, Users } from 'lucide-react';
-import { format, subWeeks } from 'date-fns';
+import { format } from 'date-fns';
 import Link from 'next/link';
+import { WeeklyInterpretationRecord } from '@/lib/interpretation/types';
+import { TeamDashboardData } from '@/services/dashboard/teamReader';
 
 interface TeamClientWrapperProps {
-    teamId: string;
+    initialData: TeamDashboardData;
+    interpretation: WeeklyInterpretationRecord;
 }
 
-export function TeamClientWrapper({ teamId }: TeamClientWrapperProps) {
+export function TeamClientWrapper({ initialData, interpretation }: TeamClientWrapperProps) {
     const [selectedKpi, setSelectedKpi] = useState('engagement');
     const [mounted, setMounted] = useState(false);
 
@@ -23,53 +25,26 @@ export function TeamClientWrapper({ teamId }: TeamClientWrapperProps) {
         setMounted(true);
     }, []);
 
-    const teamData = getTeamData(teamId);
+    const teamData = initialData;
+    const meta = teamData.meta;
+    const history = teamData.series;
 
-    // Deterministic Graph Data Generation using team-specific seeds
+    // Graph Data from History
     const graphData = useMemo(() => {
-        if (!teamData) return [];
-        const { kpiSeeds } = teamData;
-        const now = new Date();
-
-        return Array.from({ length: 12 }).map((_, i) => {
-            const date = subWeeks(now, 11 - i);
-            const baseConfidence = 3 + (Math.sin(i * 0.5) * 2);
-
-            const strain = kpiSeeds.strainBase + (i * kpiSeeds.strainGrowth) + (Math.sin(i) * 5);
-            const withdrawal = kpiSeeds.withdrawalBase + (i * kpiSeeds.withdrawalGrowth) + (Math.cos(i) * 3);
-            const trust = kpiSeeds.trustBase + (i * kpiSeeds.trustGrowth) + (Math.sin(i * 0.5) * 2);
-            const engagement = kpiSeeds.engagementBase + (i * kpiSeeds.engagementGrowth) + (Math.sin(i * 2) * 4);
-
-            return {
-                date: format(date, 'MMM d'),
-                fullDate: date.toISOString(),
-                strain: Math.max(0, Math.min(100, strain)),
-                withdrawal: Math.max(0, Math.min(100, withdrawal)),
-                trust: Math.max(0, Math.min(100, trust)),
-                engagement: Math.max(0, Math.min(100, engagement)),
-                confidence: Math.abs(baseConfidence)
-            };
-        }).map(d => ({
-            ...d,
-            strainRange: [d.strain - d.confidence, d.strain + d.confidence],
-            withdrawalRange: [d.withdrawal - d.confidence, d.withdrawal + d.confidence],
-            trustRange: [d.trust - d.confidence, d.trust + d.confidence],
-            engagementRange: [d.engagement - d.confidence, d.engagement + d.confidence],
+        return history.map(h => ({
+            date: h.date,
+            fullDate: h.fullDate,
+            strain: h.strain,
+            withdrawal: h.withdrawal,
+            trust: h.trust,
+            engagement: h.engagement,
+            confidence: h.confidence,
+            strainRange: [h.strain - h.confidence, h.strain + h.confidence],
+            withdrawalRange: [h.withdrawal - h.confidence, h.withdrawal + h.confidence],
+            trustRange: [h.trust - h.confidence, h.trust + h.confidence],
+            engagementRange: [h.engagement - h.confidence, h.engagement + h.confidence],
         }));
-    }, [teamData]);
-
-    if (!teamData) {
-        return (
-            <div className="min-h-screen flex items-center justify-center text-text-secondary">
-                <div className="text-center space-y-4">
-                    <p className="text-2xl font-display">Team not found</p>
-                    <Link href="/executive" className="text-accent-primary hover:underline text-sm">
-                        ← Back to Executive Dashboard
-                    </Link>
-                </div>
-            </div>
-        );
-    }
+    }, [history]);
 
     // Extract Latest Values for KPIs
     const latest = graphData[graphData.length - 1];
@@ -133,7 +108,7 @@ export function TeamClientWrapper({ teamId }: TeamClientWrapperProps) {
                     <div className="flex items-center gap-3">
                         <Users className="w-5 h-5 text-[#8B5CF6]" strokeWidth={1.5} />
                         <span className="text-2xl font-display font-medium text-[#8B5CF6] tracking-tight">
-                            {teamData.name}
+                            {meta.teamName}
                         </span>
                     </div>
                 </div>
@@ -180,7 +155,7 @@ export function TeamClientWrapper({ teamId }: TeamClientWrapperProps) {
             {/* Team Briefing & Governance */}
             <div className="space-y-8 pb-12">
                 <TeamBriefing
-                    teamName={teamData.name}
+                    teamName={meta.teamName}
                     paragraphs={teamData.briefing}
                 />
                 <DataGovernance

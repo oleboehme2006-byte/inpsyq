@@ -6,6 +6,12 @@ module.exports = {
         './app/**/*.{js,ts,jsx,tsx,mdx}',
     ],
     darkMode: 'class',
+    safelist: [
+        {
+            pattern: /(bg|text|border)-(strain|withdrawal|trust-gap|engagement)/,
+            variants: ['hover', 'group-hover'],
+        },
+    ],
     theme: {
         extend: {
             // ==========================================

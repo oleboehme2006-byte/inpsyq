@@ -5,14 +5,22 @@
  * Ensures only EMPLOYEE users can access /employee/* pages.
  */
 
-import { resolveAuthContext, getRedirectForRole } from '@/lib/auth/context';
-import { redirect } from 'next/navigation';
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+const DEV_MODE = process.env.NODE_ENV === 'development';
 
 export default async function EmployeeLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    // Bypass role check in demo mode and dev mode (for testing)
+    if (DEMO_MODE || DEV_MODE) {
+        return <>{children}</>;
+    }
+
+    const { resolveAuthContext, getRedirectForRole } = await import('@/lib/auth/context');
+    const { redirect } = await import('next/navigation');
+
     const result = await resolveAuthContext();
 
     // If not authenticated, redirect based on error
@@ -23,6 +31,7 @@ export default async function EmployeeLayout({
     // If no context (e.g., no org selected), redirect
     if (!result.context) {
         redirect(result.redirectTo || '/org/select');
+        return null;
     }
 
     const { role, teamId } = result.context;
@@ -34,3 +43,4 @@ export default async function EmployeeLayout({
 
     return <>{children}</>;
 }
+

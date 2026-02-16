@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { Role, hasPermission, Permission, isAtLeast } from './roles';
 import { getMembershipForOrg, getMembershipForTeam, getMembershipsForUser, Membership } from './tenancy';
 import { query } from '@/db/client';
+import { auth } from '@clerk/nextjs/server';
 
 // ============================================================================
 // Types
@@ -49,7 +50,7 @@ export type RBACGuardResult<T> =
 
 const DEV_USER_HEADER = 'x-dev-user-id';
 const DEV_MODE = process.env.NODE_ENV === 'development';
-const SESSION_COOKIE_NAME = 'inpsyq_session';
+
 
 /**
  * Get the authenticated user from the request.
@@ -60,22 +61,10 @@ const SESSION_COOKIE_NAME = 'inpsyq_session';
 export async function getAuthenticatedUser(
     req: Request
 ): Promise<GuardResult<AuthenticatedUser>> {
-    const cookieHeader = req.headers.get('cookie') || '';
-
-    // 1. Try session cookie (production auth)
-    const sessionMatch = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
-    if (sessionMatch && sessionMatch[1]) {
-        const sessionToken = sessionMatch[1];
-        const session = await validateSessionToken(sessionToken);
-
-        if (session) {
-            return { ok: true, value: { userId: session.userId } };
-        }
-    }
-
-    // 2. Dev mode: accept X-DEV-USER-ID header or inpsyq_dev_user cookie
+    // 1. Dev mode: accept X-DEV-USER-ID header or inpsyq_dev_user cookie
     if (DEV_MODE) {
         let devUserId: string | null = null;
+        const cookieHeader = req.headers.get('cookie') || '';
 
         // Try Header
         devUserId = req.headers.get(DEV_USER_HEADER);
@@ -120,35 +109,39 @@ export async function getAuthenticatedUser(
         }
     }
 
-    return {
-        ok: false,
-        response: NextResponse.json(
-            { error: 'Authentication required', code: 'UNAUTHORIZED' },
-            { status: 401 }
-        ),
-    };
-}
+    // 2. Production / Clerk Auth
+    const { userId: clerkId } = await auth();
 
-/**
- * Validate a session token and return user info.
- */
-async function validateSessionToken(token: string): Promise<{ userId: string } | null> {
-    const { createHash } = await import('crypto');
-    const tokenHash = createHash('sha256').update(token).digest('hex');
+    if (!clerkId) {
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { error: 'Authentication required', code: 'UNAUTHORIZED' },
+                { status: 401 }
+            ),
+        };
+    }
 
+    // Resolve internal ID from DB
     const result = await query(
-        `SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > NOW()`,
-        [tokenHash]
+        'SELECT user_id FROM users WHERE clerk_id = $1',
+        [clerkId]
     );
 
     if (result.rows.length === 0) {
-        return null;
+        // User is authenticated in Clerk but not yet synced to DB
+        // This can happen if webhook fails or is slow
+        console.error(`[AUTH] User ${clerkId} not found in DB`);
+        return {
+            ok: false,
+            response: NextResponse.json(
+                { error: 'User synchronization pending', code: 'UNAUTHORIZED' },
+                { status: 401 }
+            ),
+        };
     }
 
-    // Update last_seen_at
-    await query(`UPDATE sessions SET last_seen_at = NOW() WHERE token_hash = $1`, [tokenHash]);
-
-    return { userId: result.rows[0].user_id };
+    return { ok: true, value: { userId: result.rows[0].user_id } };
 }
 
 // ============================================================================

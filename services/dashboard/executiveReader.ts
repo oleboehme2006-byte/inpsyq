@@ -58,6 +58,13 @@ export interface ExecutiveDashboardData {
         reason: string;
         severity: number;
     }>;
+    history: Array<{
+        weekStart: string;
+        strain: number;
+        withdrawalRisk: number;
+        trustGap: number;
+        engagement: number;
+    }>;
 }
 
 // ============================================================================
@@ -71,7 +78,7 @@ export async function getExecutiveDashboardData(
     orgId: string,
     weeksBack: number = 9
 ): Promise<ExecutiveDashboardData | null> {
-    // Get all teams in org
+    // 1. Get all teams in org
     const teamsResult = await query(
         `SELECT team_id, name FROM teams WHERE org_id = $1`,
         [orgId]
@@ -81,7 +88,7 @@ export async function getExecutiveDashboardData(
         return null;
     }
 
-    // Fetch dashboard data for each team
+    // 2. Fetch dashboard data for each team (needed for Table & Risk Dist)
     const teamDataPromises = teamsResult.rows.map(async (team) => {
         const data = await getTeamDashboardData(orgId, team.team_id, weeksBack);
         return { teamId: team.team_id, teamName: team.name, data };
@@ -91,19 +98,58 @@ export async function getExecutiveDashboardData(
     const validTeams = teamsWithData.filter(t => t.data !== null);
 
     if (validTeams.length === 0) {
-        return null;
+        return null; // No data at all
     }
 
-    // Aggregate org-level indices (average across teams)
-    const orgIndices = aggregateOrgIndices(validTeams.map(t => t.data!));
+    // 3. Try to fetch pre-computed Org Stats (Real Intelligence)
+    const orgStats = await getOrgWeeklyStats(orgId);
 
-    // Aggregate org trend
-    const orgTrend = aggregateOrgTrend(validTeams.map(t => t.data!));
+    // 4. Build Org-Level Metrics (Prefer OrgStats, fallback to Aggregation)
+    let orgIndices: ExecutiveDashboardData['orgIndices'];
+    let systemicDrivers: ExecutiveDashboardData['systemicDrivers'];
+    let orgTrend: ExecutiveDashboardData['orgTrend'];
 
-    // Build risk distribution
+    if (orgStats) {
+        // Use pre-computed
+        orgIndices = {
+            strain: { value: orgStats.indices.strain.value, qualitative: orgStats.indices.strain.qualitative },
+            withdrawalRisk: { value: orgStats.indices.withdrawal_risk.value, qualitative: orgStats.indices.withdrawal_risk.qualitative },
+            trustGap: { value: orgStats.indices.trust_gap.value, qualitative: orgStats.indices.trust_gap.qualitative },
+            engagement: { value: orgStats.indices.engagement.value, qualitative: orgStats.indices.engagement.qualitative },
+        };
+
+        systemicDrivers = orgStats.systemicDrivers.map((d: any) => ({
+            driverFamily: d.driverFamily,
+            label: d.driverFamily.replace(/_/g, ' '), // Simple label
+            affectedTeams: d.affectedTeams,
+            aggregateImpact: d.aggregateImpact
+        }));
+
+        // Compute Trend from Series
+        const series = orgStats.series?.points || [];
+        if (series.length >= 2) {
+            const p1 = series[series.length - 1].strain; // Current
+            const p2 = series[series.length - 2].strain; // Previous
+            const delta = p1 - p2;
+            let direction: any = 'STABLE';
+            if (delta > 0.05) direction = 'UP'; // Strain increasing = Bad
+            else if (delta < -0.05) direction = 'DOWN'; // Strain decreasing = Good
+            orgTrend = { direction, volatility: 0.1 }; // Volatility placeholder or compute std dev
+        } else {
+            orgTrend = { direction: 'STABLE', volatility: 0.1 };
+        }
+
+    } else {
+        // Fallback: On-the-fly aggregation
+        orgIndices = aggregateOrgIndices(validTeams.map(t => t.data!));
+        systemicDrivers = aggregateSystemicDrivers(validTeams.map(t => t.data!));
+        orgTrend = aggregateOrgTrend(validTeams.map(t => t.data!));
+    }
+
+    // 5. Build components requiring Team Data
+    // Risk Distribution & Watchlist must come from current team states
     const riskDistribution = buildRiskDistribution(validTeams.map(t => t.data!));
 
-    // Build team summaries
     const teams: TeamSummaryData[] = validTeams.map(t => ({
         teamId: t.teamId,
         teamName: t.teamName,
@@ -114,24 +160,36 @@ export async function getExecutiveDashboardData(
         weeksAvailable: t.data!.meta.weeksAvailable,
     }));
 
-    // Aggregate systemic drivers
-    const systemicDrivers = aggregateSystemicDrivers(validTeams.map(t => t.data!));
-
-    // Build watchlist
     const watchlist = buildWatchlist(teams);
 
     // Find latest week
-    const latestWeek = validTeams
+    const latestWeek = orgStats?.weekStart || validTeams
         .map(t => t.data!.meta.latestWeek)
         .sort()
         .reverse()[0];
+
+    // Build History (Series)
+    let history: ExecutiveDashboardData['history'] = [];
+    if (orgStats?.series?.points) {
+        history = orgStats.series.points.map((p: any) => ({
+            weekStart: p.weekStart,
+            strain: p.strain,
+            withdrawalRisk: p.withdrawal_risk, // Map snake_case to camelCase
+            trustGap: p.trust_gap,
+            engagement: p.engagement
+        }));
+    } else {
+        // Fallback: No history or on-the-fly?
+        // On-the-fly history aggregation is hard without loading ALL team history.
+        // For now, if no org stats, history is empty.
+    }
 
     return {
         meta: {
             orgId,
             latestWeek,
             teamsCount: validTeams.length,
-            weeksAvailable: Math.max(...validTeams.map(t => t.data!.meta.weeksAvailable)),
+            weeksAvailable: orgStats ? (orgStats.series?.weeks || 1) : Math.max(...validTeams.map(t => t.data!.meta.weeksAvailable)),
             cacheHit: false,
         },
         orgIndices,
@@ -140,6 +198,31 @@ export async function getExecutiveDashboardData(
         teams,
         systemicDrivers,
         watchlist,
+        history,
+    };
+}
+
+/**
+ * Fetch latest Org Stats from DB.
+ */
+export async function getOrgWeeklyStats(orgId: string) {
+    const res = await query(
+        `SELECT week_start, indices, systemic_drivers, series
+         FROM org_stats_weekly
+         WHERE org_id = $1
+         ORDER BY week_start DESC
+         LIMIT 1`,
+        [orgId]
+    );
+
+    if (res.rows.length === 0) return null;
+
+    const row = res.rows[0];
+    return {
+        weekStart: new Date(row.week_start).toISOString().slice(0, 10),
+        indices: row.indices,
+        systemicDrivers: row.systemic_drivers,
+        series: row.series
     };
 }
 

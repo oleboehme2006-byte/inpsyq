@@ -57,9 +57,10 @@ export function KPICard({ id, label, value, trendValue, color, isActive, onClick
                 "w-full text-left relative p-6 rounded-xl border transition-all duration-300 group overflow-hidden",
                 "bg-[#050505]", // Strict dark surface
                 isActive
-                    ? `border-${color} shadow-[0_0_20px_rgba(var(--color-${color}),0.15)]`
+                    ? `border-${color}`
                     : "border-white/10 hover:border-white/20 hover:bg-[#0A0A0A]"
             )}
+            style={isActive ? { boxShadow: `0 0 20px rgba(var(--color-${color}),0.15)` } : undefined}
         >
             {/* Top Label Row */}
             <div className="flex items-center justify-between mb-2 relative z-10">

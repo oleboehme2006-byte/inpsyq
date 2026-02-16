@@ -1,5 +1,6 @@
 import '@/app/globals.css';
 import { Metadata } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
 
 export const metadata: Metadata = {
     title: 'inPsyq - Psychological Analytics Platform',
@@ -15,21 +16,23 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className="dark">
-            <head>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-                {IS_PROD && PLAUSIBLE_DOMAIN && (
-                    <script
-                        defer
-                        data-domain={PLAUSIBLE_DOMAIN}
-                        src="https://plausible.io/js/script.js"
-                    />
-                )}
-            </head>
-            <body className="bg-bg-base text-text-primary antialiased">
-                {children}
-            </body>
-        </html>
+        <ClerkProvider>
+            <html lang="en" className="dark">
+                <head>
+                    <link rel="preconnect" href="https://fonts.googleapis.com" />
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                    {IS_PROD && PLAUSIBLE_DOMAIN && (
+                        <script
+                            defer
+                            data-domain={PLAUSIBLE_DOMAIN}
+                            src="https://plausible.io/js/script.js"
+                        />
+                    )}
+                </head>
+                <body className="bg-bg-base text-text-primary antialiased">
+                    {children}
+                </body>
+            </html>
+        </ClerkProvider>
     );
 }

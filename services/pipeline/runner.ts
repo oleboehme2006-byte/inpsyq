@@ -106,7 +106,63 @@ export async function runWeeklyRollup(
         attribution: attributionResults,
     });
 
+    // 10. Snapshot Employee Profiles (Phase 8)
+    await snapshotEmployees(orgId, teamId, weekStart, gathered);
+
     return { upserted: true, inputHash, skipped: false };
+}
+
+/**
+ * Snapshot employee profiles for the week.
+ */
+async function snapshotEmployees(
+    orgId: string,
+    teamId: string,
+    weekStart: Date,
+    gathered: Awaited<ReturnType<typeof gatherTeamMeasurements>>
+): Promise<void> {
+    const weekStartStr = toWeekStartISO(getISOMondayUTC(weekStart));
+
+    for (const user of gathered.userMeasurements) {
+        // Heuristic Profile Scoring (Placeholder logic for now, utilizing real latent states)
+        // WRP: Withdrawal Risk Profile (High Withdrawal, Low Engagement)
+        // OUC: Over-Utilization (High Strain, High Engagement)
+        // TFP: Team Friction (High Trust Gap)
+
+        const m = user.parameterMeans;
+        const wrp = ((m['emotional_load'] || 0) + (1 - (m['meaning'] || 0))) / 2;
+        const ouc = ((m['cognitive_load'] || 0) + (m['meaning'] || 0)) / 2;
+        const tfp = 1 - ((m['trust_leadership'] || 0) + (m['psychological_safety'] || 0)) / 2;
+
+        const profileScores = {
+            WRP: Math.max(0, Math.min(1, wrp)),
+            OUC: Math.max(0, Math.min(1, ouc)),
+            TFP: Math.max(0, Math.min(1, tfp)),
+        };
+
+        await query(
+            `INSERT INTO employee_profiles
+             (user_id, org_id, team_id, week_start, parameter_means, parameter_uncertainty, profile_type_scores, confidence, updated_at)
+             VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, NOW())
+             ON CONFLICT (user_id, week_start)
+             DO UPDATE SET
+               parameter_means = $5,
+               parameter_uncertainty = $6,
+               profile_type_scores = $7,
+               confidence = $8,
+               updated_at = NOW()`,
+            [
+                user.userId,
+                orgId,
+                teamId,
+                weekStartStr,
+                JSON.stringify(user.parameterMeans),
+                JSON.stringify(user.parameterVariance),
+                JSON.stringify(profileScores),
+                0.8 // Confidence placeholder
+            ]
+        );
+    }
 }
 
 /**
@@ -206,8 +262,8 @@ function buildAggregationInputs(
 
     // Map parameters to indices
     const indexMapping: Record<string, string[]> = {
-        strain: ['emotional_load', 'cognitive_dissonance'],
-        withdrawal_risk: ['emotional_load', 'meaning'],
+        strain: ['emotional_load', 'cognitive_dissonance', 'role_conflict'],
+        withdrawal_risk: ['emotional_load', 'meaning', 'autonomy_friction'],
         trust_gap: ['trust_leadership', 'trust_peers', 'psychological_safety'],
         engagement: ['meaning', 'autonomy', 'control'],
     };
@@ -297,18 +353,45 @@ function buildDriverCandidates(
     const allowedDrivers = indexToDrivers[indexKey] || [];
     const candidates: any[] = [];
 
-    // Create simple driver candidates based on parameter data
-    for (const driver of allowedDrivers) {
-        candidates.push({
-            driverFamily: driver,
-            contributionScore: 0.3 + Math.random() * 0.3, // Placeholder
-            confidence: 0.7,
-            volatility: 0.1,
-            trendDelta: 0,
-        });
+    // REAL DRIVER CALCULATION
+    // Aggregate parameter means for allowed drivers (assuming driverFamily == parameter name)
+    // In many cases, the parameter name IS the driver family. 
+    // If not, we'd need a mapping. For now, we assume 1:1 or close enough for parameters produced by 'latent_states'.
+
+    const paramSums: Record<string, { sum: number; count: number }> = {};
+    for (const user of gathered.userMeasurements) {
+        for (const [param, value] of Object.entries(user.parameterMeans)) {
+            if (!paramSums[param]) paramSums[param] = { sum: 0, count: 0 };
+            paramSums[param].sum += value;
+            paramSums[param].count++;
+        }
     }
 
-    return candidates.slice(0, 2); // Limit to 2 drivers
+    for (const driver of allowedDrivers) {
+        // Driver parameter might be named similarly
+        // We check direct match, or 'driver' in paramSums
+        const stats = paramSums[driver];
+
+        if (stats && stats.count > 0) {
+            const meanScore = stats.sum / stats.count;
+
+            // Threshold: Only consider if score > 0.4 (e.g. moderate/high)
+            if (meanScore > 0.4) {
+                candidates.push({
+                    driverFamily: driver,
+                    contributionScore: meanScore, // Real Score
+                    confidence: 0.8, // Placeholder confidence (could derive from variance)
+                    volatility: 0.1,
+                    trendDelta: 0,
+                });
+            }
+        }
+    }
+
+    // Sort by contribution score descending
+    candidates.sort((a, b) => b.contributionScore - a.contributionScore);
+
+    return candidates.slice(0, 3); // Top 3
 }
 
 function buildSeriesSnapshot(
@@ -326,12 +409,17 @@ function buildSeriesSnapshot(
                 return s?.points[i]?.value ?? 0.5;
             };
 
+            const getValSafe = (indexKey: string): number => {
+                const v = getVal(indexKey);
+                return isNaN(v) ? 0.5 : v;
+            }
+
             points.push({
                 weekStart,
-                strain: getVal('strain'),
-                withdrawalRisk: getVal('withdrawal_risk'),
-                trustGap: getVal('trust_gap'),
-                engagement: getVal('engagement'),
+                strain: getValSafe('strain'),
+                withdrawalRisk: getValSafe('withdrawal_risk'),
+                trustGap: getValSafe('trust_gap'),
+                engagement: getValSafe('engagement'),
             });
         }
     }
@@ -395,3 +483,4 @@ async function upsertWeeklyProduct(data: {
         ]
     );
 }
+

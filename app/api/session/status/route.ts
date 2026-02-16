@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
             FROM sessions
             WHERE user_id = $1 
             AND completed_at IS NOT NULL
-            AND DATE_TRUNC('week', created_at) = DATE_TRUNC('week', $2::date)
+            AND DATE_TRUNC('week', started_at) = DATE_TRUNC('week', $2::date)
             ORDER BY completed_at DESC
             LIMIT 1
         `, [userId, weekStart]);
@@ -53,12 +53,12 @@ export async function GET(req: NextRequest) {
 
         // Check for active (incomplete) session this week
         const activeResult = await query(`
-            SELECT session_id, created_at
+            SELECT session_id, started_at
             FROM sessions
             WHERE user_id = $1 
             AND completed_at IS NULL
-            AND DATE_TRUNC('week', created_at) = DATE_TRUNC('week', $2::date)
-            ORDER BY created_at DESC
+            AND DATE_TRUNC('week', started_at) = DATE_TRUNC('week', $2::date)
+            ORDER BY started_at DESC
             LIMIT 1
         `, [userId, weekStart]);
 
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
 
             draft = {
                 sessionId: activeSessionId,
-                createdAt: activeResult.rows[0].created_at,
+                createdAt: activeResult.rows[0].started_at,
                 interactions: interactionsResult.rows.map(i => ({
                     interactionId: i.interaction_id,
                     type: i.type,

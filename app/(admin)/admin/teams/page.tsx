@@ -4,9 +4,12 @@
  * ADMIN: Teams Page
  * 
  * View, create, rename, and archive teams.
+ * Styled with dashboard-consistent design tokens.
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { Users, Plus, Pencil, Archive, ArchiveRestore, ExternalLink, X, Check, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Team {
     teamId: string;
@@ -122,32 +125,36 @@ export default function AdminTeamsPage() {
 
     if (loading) {
         return (
-            <div className="p-8" data-testid="admin-teams-page">
-                <div className="text-slate-500">Loading...</div>
+            <div className="p-8 flex items-center justify-center min-h-[50vh]" data-testid="admin-teams-page">
+                <Loader2 className="w-6 h-6 text-text-tertiary animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="p-8" data-testid="admin-teams-page">
+        <div className="p-8 max-w-[1200px] mx-auto animate-in fade-in duration-500" data-testid="admin-teams-page">
+            {/* Header */}
             <header className="mb-8">
-                <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">
-                    Teams
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-3 mb-2">
+                    <Users className="w-6 h-6 text-[#8B5CF6]" strokeWidth={1.5} />
+                    <h1 className="text-3xl font-display font-medium text-white tracking-tight">
+                        Teams
+                    </h1>
+                </div>
+                <p className="text-sm text-text-secondary">
                     Create and manage teams in your organization.
                 </p>
             </header>
 
             {error && (
-                <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+                <div className="mb-6 p-4 bg-[#E11D48]/10 border border-[#E11D48]/20 rounded-xl text-sm text-[#E11D48]">
                     {error}
                 </div>
             )}
 
-            {/* Create Team Form */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 mb-8">
-                <h2 className="text-lg font-medium text-slate-900 dark:text-white mb-4">Create Team</h2>
+            {/* Create Team Card */}
+            <div className="bg-[#050505] border border-white/10 rounded-xl p-6 mb-8">
+                <h2 className="text-base font-display font-medium text-white mb-4">Create Team</h2>
 
                 <form onSubmit={handleCreate} className="flex gap-4">
                     <input
@@ -159,112 +166,133 @@ export default function AdminTeamsPage() {
                         minLength={2}
                         maxLength={100}
                         data-testid="team-create-name"
-                        className="flex-1 max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                        className="flex-1 max-w-xs px-4 py-2.5 border border-white/10 rounded-lg bg-bg-base text-white placeholder:text-text-tertiary focus:outline-none focus:border-[#8B5CF6]/50 focus:ring-1 focus:ring-[#8B5CF6]/30 transition-all text-sm"
                     />
                     <button
                         type="submit"
                         disabled={creating || !newName.trim()}
                         data-testid="team-create-submit"
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#8B5CF6] hover:bg-[#7C3AED] disabled:bg-[#8B5CF6]/40 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors text-sm"
                     >
+                        <Plus className="w-4 h-4" />
                         {creating ? 'Creating...' : 'Create Team'}
                     </button>
                 </form>
 
                 {createError && (
-                    <div className="mt-2 text-sm text-red-600 dark:text-red-400">{createError}</div>
+                    <div className="mt-3 text-sm text-[#E11D48]">{createError}</div>
                 )}
             </div>
 
             {/* Teams Table */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+            <div className="bg-[#050505] border border-white/10 rounded-xl overflow-hidden">
                 {teams.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-                        No teams yet. Create your first team.
+                    <div className="p-12 text-center">
+                        <Users className="w-8 h-8 text-text-tertiary mx-auto mb-3" />
+                        <p className="text-sm text-text-tertiary">No teams yet. Create your first team.</p>
                     </div>
                 ) : (
                     <table className="w-full" data-testid="teams-table">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Name</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Members</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                        <thead>
+                            <tr className="border-b border-white/5">
+                                <th className="px-6 py-3 text-left text-[10px] font-mono text-text-tertiary uppercase tracking-widest">Name</th>
+                                <th className="px-6 py-3 text-left text-[10px] font-mono text-text-tertiary uppercase tracking-widest">Members</th>
+                                <th className="px-6 py-3 text-left text-[10px] font-mono text-text-tertiary uppercase tracking-widest">Status</th>
+                                <th className="px-6 py-3 text-right text-[10px] font-mono text-text-tertiary uppercase tracking-widest">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        <tbody className="divide-y divide-white/5">
                             {teams.map((team) => (
-                                <tr key={team.teamId} data-testid={`team-row-${team.teamId}`}>
-                                    <td className="px-4 py-3">
+                                <tr
+                                    key={team.teamId}
+                                    data-testid={`team-row-${team.teamId}`}
+                                    className="hover:bg-white/[0.02] transition-colors"
+                                >
+                                    <td className="px-6 py-4">
                                         {editingId === team.teamId ? (
                                             <input
                                                 type="text"
                                                 value={editName}
                                                 onChange={(e) => setEditName(e.target.value)}
                                                 data-testid={`team-rename-${team.teamId}`}
-                                                className="px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                                                className="px-3 py-1.5 border border-[#8B5CF6]/30 rounded-lg bg-bg-base text-white text-sm focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]/30"
+                                                autoFocus
                                             />
                                         ) : (
-                                            <span className={`text-sm font-medium ${team.isArchived ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>
+                                            <span className={cn(
+                                                "text-sm font-medium",
+                                                team.isArchived ? "text-text-tertiary line-through" : "text-white"
+                                            )}>
                                                 {team.name}
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
-                                        {team.memberCount}
+                                    <td className="px-6 py-4">
+                                        <span className="text-sm text-text-secondary font-mono">{team.memberCount}</span>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${team.isArchived
-                                            ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                            }`}>
+                                    <td className="px-6 py-4">
+                                        <span className={cn(
+                                            "inline-flex items-center px-2.5 py-1 text-[10px] font-mono uppercase tracking-widest rounded-full",
+                                            team.isArchived
+                                                ? "bg-white/5 text-text-tertiary"
+                                                : "bg-[#10B981]/10 text-[#10B981]"
+                                        )}>
                                             {team.isArchived ? 'Archived' : 'Active'}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        {editingId === team.teamId ? (
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => handleRename(team.teamId)}
-                                                    disabled={saving}
-                                                    className="text-sm px-2 py-1 bg-purple-600 text-white rounded"
-                                                >
-                                                    Save
-                                                </button>
-                                                <button
-                                                    onClick={() => setEditingId(null)}
-                                                    className="text-sm text-slate-500"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-3">
-                                                <a
-                                                    href={`/team/${team.teamId}`}
-                                                    className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors"
-                                                >
-                                                    View Dashboard
-                                                </a>
-                                                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingId(team.teamId);
-                                                        setEditName(team.name);
-                                                    }}
-                                                    className="text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
-                                                >
-                                                    Rename
-                                                </button>
-                                                <button
-                                                    onClick={() => handleArchiveToggle(team)}
-                                                    data-testid={`team-archive-${team.teamId}`}
-                                                    className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                                                >
-                                                    {team.isArchived ? 'Unarchive' : 'Archive'}
-                                                </button>
-                                            </div>
-                                        )}
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {editingId === team.teamId ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleRename(team.teamId)}
+                                                        disabled={saving}
+                                                        className="p-1.5 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white transition-colors"
+                                                        title="Save"
+                                                    >
+                                                        <Check className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingId(null)}
+                                                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-text-tertiary hover:text-white transition-colors"
+                                                        title="Cancel"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <a
+                                                        href={`/team/${team.teamId}`}
+                                                        className="p-1.5 rounded-lg hover:bg-white/5 text-text-tertiary hover:text-[#8B5CF6] transition-colors"
+                                                        title="View Dashboard"
+                                                    >
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                    </a>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingId(team.teamId);
+                                                            setEditName(team.name);
+                                                        }}
+                                                        className="p-1.5 rounded-lg hover:bg-white/5 text-text-tertiary hover:text-white transition-colors"
+                                                        title="Rename"
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleArchiveToggle(team)}
+                                                        data-testid={`team-archive-${team.teamId}`}
+                                                        className="p-1.5 rounded-lg hover:bg-white/5 text-text-tertiary hover:text-white transition-colors"
+                                                        title={team.isArchived ? 'Unarchive' : 'Archive'}
+                                                    >
+                                                        {team.isArchived
+                                                            ? <ArchiveRestore className="w-3.5 h-3.5" />
+                                                            : <Archive className="w-3.5 h-3.5" />
+                                                        }
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

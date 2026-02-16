@@ -118,22 +118,30 @@
     "verify:phase24.4:prod": "npx tsx scripts/verify_phase24_4_ops_coverage_prod.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.37.4",
+    "@clerk/themes": "^2.4.52",
     "@neondatabase/serverless": "^1.0.2",
+    "@react-email/components": "^1.0.7",
+    "@react-email/html": "^0.0.12",
+    "@react-email/tailwind": "^2.0.4",
     "@types/pg": "^8.16.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.300.0",
-    "next": "14.1.0",
+    "next": "^16.1.6",
     "next-themes": "^0.4.6",
     "openai": "^6.10.0",
     "pg": "^8.16.3",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.7.0",
+    "resend": "^6.9.2",
+    "svix": "^1.85.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "undici": "^7.19.0"
+    "undici": "^7.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

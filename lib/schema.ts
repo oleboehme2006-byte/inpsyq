@@ -138,4 +138,17 @@ CREATE TABLE IF NOT EXISTS audit_events (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_org_type ON audit_events(org_id, event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);
+
+CREATE TABLE IF NOT EXISTS org_stats_weekly (
+    org_id UUID REFERENCES orgs(org_id),
+    week_start DATE NOT NULL,
+    compute_version TEXT,
+    indices JSONB,
+    trends JSONB,
+    series JSONB,
+    systemic_drivers JSONB,
+    risk_distribution JSONB,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (org_id, week_start)
+);
 `;

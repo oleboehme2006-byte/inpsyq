@@ -5,25 +5,28 @@
  * Non-admin users are redirected to their role's home page.
  */
 
-import { redirect } from 'next/navigation';
-import { resolveAuthContext, getRedirectForRole } from '@/lib/auth/context';
 import AdminShell from '@/components/admin/AdminShell';
-import { query } from '@/db/client';
 
-async function getOrgName(orgId: string): Promise<string | undefined> {
-    try {
-        const result = await query('SELECT name FROM orgs WHERE org_id = $1', [orgId]);
-        return result.rows[0]?.name;
-    } catch {
-        return undefined;
-    }
-}
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export default async function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    if (DEMO_MODE) {
+        return (
+            <AdminShell orgName="Demo Organization">
+                {children}
+            </AdminShell>
+        );
+    }
+
+    // Production with auth
+    const { redirect } = await import('next/navigation');
+    const { resolveAuthContext, getRedirectForRole } = await import('@/lib/auth/context');
+    const { query } = await import('@/db/client');
+
     const authResult = await resolveAuthContext();
 
     // Not authenticated -> login
@@ -37,6 +40,7 @@ export default async function AdminLayout({
             redirect('/org/select');
         }
         redirect('/login');
+        return null; // TS flow analysis helper
     }
 
     // Not ADMIN -> redirect to role home
@@ -46,14 +50,18 @@ export default async function AdminLayout({
     }
 
     // Fetch org name for display
-    const orgName = await getOrgName(authResult.context.orgId);
+    let orgName: string | undefined;
+    try {
+        const result = await query('SELECT name FROM orgs WHERE org_id = $1', [authResult.context.orgId]);
+        orgName = result.rows[0]?.name;
+    } catch {
+        // silently fail
+    }
 
-    // ADMIN -> render admin shell with content
     return (
-        <div data-testid="admin-home">
-            <AdminShell orgName={orgName}>
-                {children}
-            </AdminShell>
-        </div>
+        <AdminShell orgName={orgName}>
+            {children}
+        </AdminShell>
     );
 }
+

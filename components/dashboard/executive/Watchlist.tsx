@@ -1,16 +1,23 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { executiveMockData } from '@/lib/mock/executiveData';
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
 
+export interface WatchlistItemUI {
+    id: string;
+    team: string;
+    severity: 'critical' | 'warning' | 'info';
+    message: string;
+}
+
 interface WatchlistProps {
+    items: WatchlistItemUI[];
     selectedId?: string;
     onSelect?: (id: string) => void;
     isCompact?: boolean;
 }
 
-export function Watchlist({ selectedId, onSelect, isCompact }: WatchlistProps) {
-    const list = executiveMockData.watchlist;
+export function Watchlist({ items, selectedId, onSelect, isCompact }: WatchlistProps) {
+    const list = items;
 
     return (
         <div className="w-full h-full bg-[#050505] rounded-xl border border-white/10 p-5 flex flex-col transition-all duration-500 overflow-hidden">
