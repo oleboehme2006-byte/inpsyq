@@ -43,16 +43,10 @@ export default async function DashboardLayout({
     }
 
     return (
-        <html lang="en" className="dark">
-            <head>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            </head>
-            <body className="bg-bg-base text-text-primary antialiased">
-                {!DEMO_MODE && <MockBanner />}
-                {children}
-            </body>
-        </html>
+        <div className="min-h-screen flex flex-col">
+            {!DEMO_MODE && <MockBanner />}
+            {children}
+        </div>
     );
 }
 

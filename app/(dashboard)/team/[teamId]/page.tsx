@@ -53,14 +53,16 @@ export default async function TeamPage({ params }: TeamPageProps) {
             // Generate deterministic mock series (12 weeks)
             series: Array.from({ length: 12 }, (_, i) => {
                 const noise = Math.sin(i) * 0.05;
+                const date = new Date();
+                date.setDate(date.getDate() - (11 - i) * 7);
                 return {
                     date: `W${i + 1}`,
-                    fullDate: new Date(Date.now() - (11 - i) * 604800000).toISOString(),
-                    strain: Math.min(1, Math.max(0, seedToValue(mockTeam.kpiSeeds.strainBase) + noise)),
-                    withdrawal: Math.min(1, Math.max(0, seedToValue(mockTeam.kpiSeeds.withdrawalBase) + noise)),
-                    trust: Math.min(1, Math.max(0, seedToValue(mockTeam.kpiSeeds.trustBase) + noise)),
-                    engagement: Math.min(1, Math.max(0, seedToValue(mockTeam.kpiSeeds.engagementBase) - noise)),
-                    confidence: 0.9 + (Math.random() * 0.1)
+                    fullDate: date.toISOString(),
+                    strain: Math.min(100, Math.max(0, mockTeam.kpiSeeds.strainBase + noise * 100)),
+                    withdrawal: Math.min(100, Math.max(0, mockTeam.kpiSeeds.withdrawalBase + noise * 100)),
+                    trust: Math.min(100, Math.max(0, mockTeam.kpiSeeds.trustBase + noise * 100)),
+                    engagement: Math.min(100, Math.max(0, mockTeam.kpiSeeds.engagementBase - noise * 100)),
+                    confidence: 5 + (Math.random() * 2)
                 };
             }),
             kpiSeeds: {
