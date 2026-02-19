@@ -13,11 +13,11 @@ export default async function SettingsLayout({
     if (!DEMO_MODE) {
         const authResult = await resolveAuthContext();
         if (!authResult.authenticated || !authResult.context) {
-            redirect('/login');
+            return redirect('/login');
         }
         const role = authResult.context.role;
         if (role !== 'EXECUTIVE' && role !== 'ADMIN') {
-            redirect('/measure');
+            return redirect('/measure');
         }
     }
 

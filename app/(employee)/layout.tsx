@@ -25,7 +25,7 @@ export default async function EmployeeLayout({
 
     // If not authenticated, redirect based on error
     if (!result.authenticated) {
-        redirect(result.redirectTo || '/login');
+        return redirect(result.redirectTo || '/login');
     }
 
     // If no context (e.g., no org selected), redirect
@@ -37,7 +37,7 @@ export default async function EmployeeLayout({
 
     // EMPLOYEE only - other roles go to their own pages
     if (role !== 'EMPLOYEE') {
-        redirect(getRedirectForRole(role, teamId));
+        return redirect(getRedirectForRole(role, teamId));
     }
 
     return <>{children}</>;
