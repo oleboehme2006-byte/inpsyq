@@ -30,7 +30,7 @@ export default async function EmployeeLayout({
 
     // If no context (e.g., no org selected), redirect
     if (!result.context) {
-        redirect(result.redirectTo || '/org/select');
+        return redirect(result.redirectTo || '/org/select');
     }
 
     const { role, teamId } = result.context;
