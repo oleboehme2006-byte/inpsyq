@@ -56,7 +56,7 @@ export default function TeamsSettingsPage() {
     return (
         <div>
             <h1 style={s.title}>Teams</h1>
-            <p style={s.subtitle}>Manage your organization's team structure.</p>
+            <p style={s.subtitle}>Manage your organization&apos;s team structure.</p>
 
             {/* Create Team */}
             <div style={s.card}>

@@ -23,25 +23,7 @@ export default function InviteAcceptPage() {
     const [status, setStatus] = useState<'loading' | 'signup' | 'accepting' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('');
 
-    useEffect(() => {
-        if (!isLoaded) return;
-
-        if (!token) {
-            setStatus('error');
-            setMessage('Invalid or missing invitation link.');
-            return;
-        }
-
-        if (!isSignedIn) {
-            setStatus('signup');
-            return;
-        }
-
-        // User is signed in — accept the invite
-        acceptInvite();
-    }, [isLoaded, isSignedIn, token]);
-
-    async function acceptInvite() {
+    const acceptInvite = async () => {
         setStatus('accepting');
         try {
             const res = await fetch('/api/invite/accept', {
@@ -66,7 +48,28 @@ export default function InviteAcceptPage() {
             setStatus('error');
             setMessage('Network error. Please try again.');
         }
-    }
+    };
+
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        if (!token) {
+            setStatus('error');
+            setMessage('Invalid or missing invitation link.');
+            return;
+        }
+
+        if (!isSignedIn) {
+            setStatus('signup');
+            return;
+        }
+
+        // User is signed in — accept the invite
+        acceptInvite();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isLoaded, isSignedIn, token]);
+
+
 
     if (!isLoaded || status === 'loading') {
         return (

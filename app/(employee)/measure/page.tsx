@@ -118,6 +118,7 @@ export default function MeasurePage() {
             return;
         }
         checkStatus();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const checkStatus = useCallback(async () => {
@@ -370,7 +371,7 @@ function ReadyState({ onStart }: { onStart: () => void }) {
             <div style={styles.readyIcon}>🧠</div>
             <h1 style={styles.readyTitle}>Weekly Pulse Check</h1>
             <p style={styles.readyDesc}>
-                Share how you're feeling this week. Your responses are confidential and
+                Share how you&apos;re feeling this week. Your responses are confidential and
                 help build a healthier workplace.
             </p>
             <ul style={styles.readyInfo}>
@@ -607,7 +608,7 @@ function CompleteState({ result }: { result: any }) {
             <h1 style={styles.completeTitle}>Session Complete</h1>
             <p style={styles.completeDesc}>
                 Thank you for sharing your perspective this week. Your responses have
-                been securely processed and will contribute to your team's wellbeing insights.
+                been securely processed and will contribute to your team&apos;s wellbeing insights.
             </p>
             {result && (
                 <div style={styles.completeMeta}>
@@ -626,7 +627,7 @@ function AlreadyDoneState() {
             <div style={styles.doneIcon}>📋</div>
             <h1 style={styles.readyTitle}>Already Completed</h1>
             <p style={styles.readyDesc}>
-                You've already submitted your pulse check for this week.
+                You&apos;ve already submitted your pulse check for this week.
                 Check back next week for a new set of questions.
             </p>
         </div>

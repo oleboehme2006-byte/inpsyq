@@ -66,7 +66,7 @@ export default function GeneralSettingsPage() {
     return (
         <div>
             <h1 style={s.title}>General Settings</h1>
-            <p style={s.subtitle}>Configure your organization's pulse schedule.</p>
+            <p style={s.subtitle}>Configure your organization&apos;s pulse schedule.</p>
 
             <div style={s.card}>
                 <div style={s.field}>
