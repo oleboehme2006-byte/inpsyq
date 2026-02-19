@@ -37,9 +37,9 @@ export default async function AdminLayout({
     // No org selected -> org select
     if (!authResult.context) {
         if (authResult.error === 'NO_ORG_SELECTED') {
-            redirect('/org/select');
+            return redirect('/org/select');
         }
-        redirect('/login');
+        return redirect('/login');
     }
 
     // Not ADMIN -> redirect to role home
