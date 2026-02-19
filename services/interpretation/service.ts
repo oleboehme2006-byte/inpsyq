@@ -26,8 +26,13 @@ import { GroundingMap, assertGroundingMap } from '@/lib/interpretation/grounding
 import { getLLMConfig } from '@/services/llm/config';
 import { OpenAIProvider } from '@/services/llm/openai';
 import { DisabledProvider } from '@/services/llm/disabled';
+import {
+    buildTeamSystemPrompt,
+    buildTeamUserPrompt,
+    buildOrgSystemPrompt,
+    buildOrgUserPrompt
+} from '@/lib/interpretation/promptTemplates';
 import { LLMProvider } from '@/services/llm/types';
-import { EXECUTIVE_BRIEFING_PROMPT } from '@/services/llm/prompts/executive-briefing';
 import { SECURITY_LIMITS } from '@/lib/security/limits';
 import { logAuditEvent } from '@/services/audit/events';
 import { logInterpretationUsage, checkTokenBudget } from '@/services/monitoring/usage';
@@ -109,15 +114,12 @@ export async function getOrCreateTeamInterpretation(
     const targetWeek = weekStart || dashboardData.meta.latestWeek;
 
     // Build interpretation input
-    const computeVersion = (dashboardData.meta as any).computeVersion || 'v1';
-    const inputHash = computeVersion + ':' + dashboardData.meta.latestWeek;
+    const inputHash = dashboardData.meta.computeVersion + ':' + dashboardData.meta.latestWeek;
     const input = buildInterpretationInput(dashboardData, inputHash);
     input.weekStart = targetWeek;
 
     return getOrCreateInterpretationCommon(orgId, teamId, targetWeek, input);
 }
-
-import { getOrgWeeklyStats } from '@/services/dashboard/executiveReader';
 
 /**
  * Get or create interpretation for an org (org-level, teamId = null).
@@ -128,98 +130,31 @@ export async function getOrCreateOrgInterpretation(
 ): Promise<InterpretationResult> {
     await ensureSchema();
 
-    // 1. Fetch Org Stats (Real Aggregation)
-    const orgStats = await getOrgWeeklyStats(orgId);
+    // For org-level, we need to aggregate across teams
+    // For now, use the first team's data as proxy (Phase 9 logic)
+    const teamsResult = await query(
+        `SELECT team_id FROM teams WHERE org_id = $1 LIMIT 1`,
+        [orgId]
+    );
 
-    if (!orgStats) {
-        throw new Error(`NO_ORG_STATS: No computed stats for org ${orgId}. Run pipeline first.`);
+    if (teamsResult.rows.length === 0) {
+        throw new Error(`NO_WEEKLY_PRODUCT: No teams found for org ${orgId}`);
     }
 
-    const targetWeek = weekStart || orgStats.weekStart;
+    const firstTeamId = teamsResult.rows[0].team_id;
+    const dashboardData = await getTeamDashboardData(orgId, firstTeamId, 9);
 
-    // 2. Build Interpretation Input manually from OrgStats
-    const inputHash = `org:${orgStats.weekStart}:${JSON.stringify(orgStats.indices)}`; // Simple hash
-
-    // Map Indices
-    const indices = [];
-    const indexKeys = ['strain', 'withdrawal_risk', 'trust_gap', 'engagement'];
-    const series = orgStats.series?.points || [];
-
-    for (const key of indexKeys) {
-        // orgStats.indices keys match indexKeys (mostly)
-        // Check key mapping based on orgRunner upsert
-        // strain, withdrawal_risk, trust_gap, engagement
-        const stat = orgStats.indices[key];
-        if (!stat) continue;
-
-        const currentVal = stat.value;
-
-        // Find prior week
-        let priorVal = null;
-        let delta = null;
-        if (series.length >= 2) {
-            // series points have camelCase or snake_case? 
-            // orgRunner.ts flattened them from indices object.
-            // If orgRunner used `...r.indices`, it preserved keys: 'strain', 'withdrawal_risk', etc.
-            const priorPoint = series[series.length - 2];
-            const pVal = priorPoint[key]; // assumption: keys match
-            if (typeof pVal === 'number') {
-                priorVal = pVal;
-                delta = currentVal - priorVal;
-            }
-        }
-
-        let trend: 'UP' | 'DOWN' | 'STABLE' = 'STABLE';
-        if (delta !== null) {
-            if (delta > 0.05) trend = 'UP';
-            else if (delta < -0.05) trend = 'DOWN';
-        }
-
-        indices.push({
-            indexId: key as any,
-            currentValue: currentVal,
-            qualitativeState: stat.qualitative,
-            priorWeekValue: priorVal,
-            delta,
-            trendDirection: trend
-        });
+    if (!dashboardData) {
+        throw new Error(`NO_WEEKLY_PRODUCT: No data for org ${orgId}`);
     }
 
-    // Map Attribution (Systemic Drivers)
-    const internalDrivers = (orgStats.systemicDrivers || []).map((d: any) => ({
-        driverFamily: d.driverFamily,
-        label: d.driverFamily.replace(/_/g, ' '),
-        contributionBand: d.aggregateImpact > 0.6 ? 'MAJOR' : 'MODERATE',
-        severityLevel: d.aggregateImpact > 0.6 ? 'C2' : 'C1',
-        trending: 'STABLE'
-    }));
+    const targetWeek = weekStart || dashboardData.meta.latestWeek;
 
-    const input: WeeklyInterpretationInput = {
-        orgId,
-        teamId: null,
-        weekStart: targetWeek,
-        inputHash,
-        indices,
-        trend: {
-            regime: 'STABLE',
-            consistency: 0.8,
-            weeksCovered: series.length
-        },
-        quality: {
-            coverageRatio: 1,
-            confidenceProxy: 0.9,
-            volatility: 0.1,
-            sampleSize: null,
-            missingWeeks: 0
-        },
-        attribution: {
-            primarySource: internalDrivers.length > 0 ? 'INTERNAL' : null,
-            internalDrivers,
-            externalDependencies: [],
-            propagationRisk: null
-        },
-        deterministicFocus: []
-    };
+    // Build interpretation input (org-level)
+    const inputHash = dashboardData.meta.computeVersion + ':' + targetWeek + ':org';
+    const input = buildInterpretationInput(dashboardData, inputHash);
+    input.teamId = null;
+    input.weekStart = targetWeek;
 
     return getOrCreateInterpretationCommon(orgId, null, targetWeek, input);
 }
@@ -345,18 +280,14 @@ async function generateOrchestrated(
             await concurrencyLimiter.acquire();
             const provider: LLMProvider = new OpenAIProvider();
 
-            // Build system prompt
-            const template = EXECUTIVE_BRIEFING_PROMPT;
-            const systemPrompt = template.system({
-                input,
-                numericCap: config.numericCap
-            });
-
-            // Create user prompt from input
-            const userPrompt = template.user({
-                input,
-                numericCap: config.numericCap
-            });
+            // Build prompts using Phase 9 prompt templates
+            const isOrgLevel = input.teamId === null;
+            const systemPrompt = isOrgLevel
+                ? buildOrgSystemPrompt()
+                : buildTeamSystemPrompt();
+            const userPrompt = isOrgLevel
+                ? buildOrgUserPrompt(input)
+                : buildTeamUserPrompt(input);
 
             const startTime = Date.now();
             const result = await provider.generateJSON<{

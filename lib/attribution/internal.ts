@@ -98,6 +98,7 @@ export function processInternalDrivers(
         const attribution: InternalDriverAttribution = {
             driverFamily: candidate.driverFamily,
             contributionBand,
+            score: candidate.contributionScore,
             severity: severityResult.severityLevel,
             confidence: candidate.confidence,
             rationaleCode: severityResult.rationaleCode,

@@ -29,8 +29,8 @@ export function UserTable({ users, teams }: { users: User[], teams: Team[] }) {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     const filteredUsers = users.filter(u =>
-        (u.email ? u.email.toLowerCase().includes(searchTerm.toLowerCase()) : false) ||
-        (u.name ? u.name.toLowerCase().includes(searchTerm.toLowerCase()) : false)
+        u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     async function handleInvite(formData: FormData) {

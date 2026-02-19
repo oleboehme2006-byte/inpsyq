@@ -106,63 +106,10 @@ export async function runWeeklyRollup(
         attribution: attributionResults,
     });
 
-    // 10. Snapshot Employee Profiles (Phase 8)
-    await snapshotEmployees(orgId, teamId, weekStart, gathered);
+    // 10. Snapshot Employee Profiles
+    await saveEmployeeSnapshots(orgId, teamId, weekStart, gathered.userMeasurements);
 
     return { upserted: true, inputHash, skipped: false };
-}
-
-/**
- * Snapshot employee profiles for the week.
- */
-async function snapshotEmployees(
-    orgId: string,
-    teamId: string,
-    weekStart: Date,
-    gathered: Awaited<ReturnType<typeof gatherTeamMeasurements>>
-): Promise<void> {
-    const weekStartStr = toWeekStartISO(getISOMondayUTC(weekStart));
-
-    for (const user of gathered.userMeasurements) {
-        // Heuristic Profile Scoring (Placeholder logic for now, utilizing real latent states)
-        // WRP: Withdrawal Risk Profile (High Withdrawal, Low Engagement)
-        // OUC: Over-Utilization (High Strain, High Engagement)
-        // TFP: Team Friction (High Trust Gap)
-
-        const m = user.parameterMeans;
-        const wrp = ((m['emotional_load'] || 0) + (1 - (m['meaning'] || 0))) / 2;
-        const ouc = ((m['cognitive_load'] || 0) + (m['meaning'] || 0)) / 2;
-        const tfp = 1 - ((m['trust_leadership'] || 0) + (m['psychological_safety'] || 0)) / 2;
-
-        const profileScores = {
-            WRP: Math.max(0, Math.min(1, wrp)),
-            OUC: Math.max(0, Math.min(1, ouc)),
-            TFP: Math.max(0, Math.min(1, tfp)),
-        };
-
-        await query(
-            `INSERT INTO employee_profiles
-             (user_id, org_id, team_id, week_start, parameter_means, parameter_uncertainty, profile_type_scores, confidence, updated_at)
-             VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, NOW())
-             ON CONFLICT (user_id, week_start)
-             DO UPDATE SET
-               parameter_means = $5,
-               parameter_uncertainty = $6,
-               profile_type_scores = $7,
-               confidence = $8,
-               updated_at = NOW()`,
-            [
-                user.userId,
-                orgId,
-                teamId,
-                weekStartStr,
-                JSON.stringify(user.parameterMeans),
-                JSON.stringify(user.parameterVariance),
-                JSON.stringify(profileScores),
-                0.8 // Confidence placeholder
-            ]
-        );
-    }
 }
 
 /**
@@ -246,24 +193,27 @@ function buildAggregationInputs(
     // Aggregate user measurements into weekly index aggregates
     const indexAggregates: Record<string, WeeklyIndexAggregate> = {};
 
-    // Compute mean across all users for each parameter
-    const paramSums: Record<string, { sum: number; count: number; varSum: number }> = {};
+    // Compute precision-weighted mean across all users for each parameter
+    // (Inverse Variance Weighting: users with less uncertainty count more)
+    const paramAcc: Record<string, { weightedSum: number; precisionSum: number; count: number }> = {};
 
     for (const user of gathered.userMeasurements) {
         for (const [param, value] of Object.entries(user.parameterMeans)) {
-            if (!paramSums[param]) {
-                paramSums[param] = { sum: 0, count: 0, varSum: 0 };
+            if (!paramAcc[param]) {
+                paramAcc[param] = { weightedSum: 0, precisionSum: 0, count: 0 };
             }
-            paramSums[param].sum += value;
-            paramSums[param].count++;
-            paramSums[param].varSum += user.parameterVariance[param] || 0;
+            const variance = user.parameterVariance[param] || 0.1; // floor to avoid div-by-zero
+            const precision = 1 / Math.max(variance, 0.01);
+            paramAcc[param].weightedSum += value * precision;
+            paramAcc[param].precisionSum += precision;
+            paramAcc[param].count++;
         }
     }
 
     // Map parameters to indices
     const indexMapping: Record<string, string[]> = {
-        strain: ['emotional_load', 'cognitive_dissonance', 'role_conflict'],
-        withdrawal_risk: ['emotional_load', 'meaning', 'autonomy_friction'],
+        strain: ['emotional_load', 'cognitive_dissonance'],
+        withdrawal_risk: ['emotional_load', 'meaning'],
         trust_gap: ['trust_leadership', 'trust_peers', 'psychological_safety'],
         engagement: ['meaning', 'autonomy', 'control'],
     };
@@ -274,12 +224,12 @@ function buildAggregationInputs(
         let sigmaSum = 0;
 
         for (const param of params) {
-            if (paramSums[param]) {
-                const mean = paramSums[param].sum / paramSums[param].count;
-                const variance = paramSums[param].varSum / paramSums[param].count;
+            if (paramAcc[param]) {
+                const mean = paramAcc[param].weightedSum / paramAcc[param].precisionSum;
+                const combinedVariance = 1 / paramAcc[param].precisionSum;
                 indexSum += mean;
                 indexCount++;
-                sigmaSum += Math.sqrt(variance);
+                sigmaSum += Math.sqrt(combinedVariance);
             }
         }
 
@@ -342,45 +292,57 @@ function buildDriverCandidates(
     indexKey: IndexId,
     gathered: Awaited<ReturnType<typeof gatherTeamMeasurements>>
 ): any[] {
-    // Map indices to allowed driver families
-    const indexToDrivers: Record<IndexId, string[]> = {
-        strain: ['cognitive_load', 'emotional_load', 'role_conflict'],
-        withdrawal_risk: ['emotional_load', 'autonomy_friction'],
-        trust_gap: ['social_safety', 'alignment_clarity'],
-        engagement: ['autonomy_friction', 'alignment_clarity', 'social_safety'],
+    // 1. Define Driver Mappings (Parameter -> Index) & Polarity
+    // High=Bad: 'high_bad' (e.g. Load). Low=Bad: 'low_bad' (e.g. Autonomy).
+    const driverDefs: Record<IndexId, Array<{ param: string; dir: 'high_bad' | 'low_bad'; label: string }>> = {
+        strain: [
+            { param: 'emotional_load', dir: 'high_bad', label: 'Emotional Load' },
+            { param: 'cognitive_dissonance', dir: 'high_bad', label: 'Cognitive Dissonance' }
+        ],
+        withdrawal_risk: [
+            { param: 'meaning', dir: 'low_bad', label: 'Lack of Meaning' },
+            { param: 'emotional_load', dir: 'high_bad', label: 'Burnout Risk' }
+        ],
+        trust_gap: [
+            { param: 'trust_leadership', dir: 'low_bad', label: 'Leadership Trust' },
+            { param: 'trust_peers', dir: 'low_bad', label: 'Peer Trust' },
+            { param: 'psychological_safety', dir: 'low_bad', label: 'Psychological Safety' }
+        ],
+        engagement: [
+            { param: 'autonomy', dir: 'low_bad', label: 'Autonomy Friction' },
+            { param: 'control', dir: 'low_bad', label: 'Perceived Control' },
+            { param: 'meaning', dir: 'low_bad', label: 'Meaning' }
+        ]
     };
 
-    const allowedDrivers = indexToDrivers[indexKey] || [];
+    const definitions = driverDefs[indexKey] || [];
     const candidates: any[] = [];
 
-    // REAL DRIVER CALCULATION
-    // Aggregate parameter means for allowed drivers (assuming driverFamily == parameter name)
-    // In many cases, the parameter name IS the driver family. 
-    // If not, we'd need a mapping. For now, we assume 1:1 or close enough for parameters produced by 'latent_states'.
+    // 2. Score each candidate based on User Data
+    for (const def of definitions) {
+        let totalImpact = 0;
+        let count = 0;
 
-    const paramSums: Record<string, { sum: number; count: number }> = {};
-    for (const user of gathered.userMeasurements) {
-        for (const [param, value] of Object.entries(user.parameterMeans)) {
-            if (!paramSums[param]) paramSums[param] = { sum: 0, count: 0 };
-            paramSums[param].sum += value;
-            paramSums[param].count++;
+        for (const user of gathered.userMeasurements) {
+            const val = user.parameterMeans[def.param];
+            if (val !== undefined) {
+                // Calculate "Badness" (0 to 1)
+                const impact = def.dir === 'high_bad' ? val : (1 - val);
+                totalImpact += impact;
+                count++;
+            }
         }
-    }
 
-    for (const driver of allowedDrivers) {
-        // Driver parameter might be named similarly
-        // We check direct match, or 'driver' in paramSums
-        const stats = paramSums[driver];
+        if (count > 0) {
+            const avgImpact = totalImpact / count;
 
-        if (stats && stats.count > 0) {
-            const meanScore = stats.sum / stats.count;
-
-            // Threshold: Only consider if score > 0.4 (e.g. moderate/high)
-            if (meanScore > 0.4) {
+            // Only consider significant drivers (> 0.4 impact)
+            if (avgImpact > 0.4) {
                 candidates.push({
-                    driverFamily: driver,
-                    contributionScore: meanScore, // Real Score
-                    confidence: 0.8, // Placeholder confidence (could derive from variance)
+                    driverFamily: def.param, // Use parameter key as ID
+                    label: def.label,        // Human readable
+                    contributionScore: avgImpact, // REAL Score
+                    confidence: 0.8,         // High confidence (measured)
                     volatility: 0.1,
                     trendDelta: 0,
                 });
@@ -388,10 +350,8 @@ function buildDriverCandidates(
         }
     }
 
-    // Sort by contribution score descending
-    candidates.sort((a, b) => b.contributionScore - a.contributionScore);
-
-    return candidates.slice(0, 3); // Top 3
+    // Sort by impact (descending)
+    return candidates.sort((a, b) => b.contributionScore - a.contributionScore).slice(0, 3);
 }
 
 function buildSeriesSnapshot(
@@ -409,17 +369,12 @@ function buildSeriesSnapshot(
                 return s?.points[i]?.value ?? 0.5;
             };
 
-            const getValSafe = (indexKey: string): number => {
-                const v = getVal(indexKey);
-                return isNaN(v) ? 0.5 : v;
-            }
-
             points.push({
                 weekStart,
-                strain: getValSafe('strain'),
-                withdrawalRisk: getValSafe('withdrawal_risk'),
-                trustGap: getValSafe('trust_gap'),
-                engagement: getValSafe('engagement'),
+                strain: getVal('strain'),
+                withdrawalRisk: getVal('withdrawal_risk'),
+                trustGap: getVal('trust_gap'),
+                engagement: getVal('engagement'),
             });
         }
     }
@@ -484,3 +439,152 @@ async function upsertWeeklyProduct(data: {
     );
 }
 
+async function saveEmployeeSnapshots(
+    orgId: string,
+    teamId: string,
+    weekStart: Date,
+    userMeasurements: any[]
+): Promise<void> {
+    const weekStartStr = toWeekStartISO(getISOMondayUTC(weekStart));
+
+    for (const user of userMeasurements) {
+        // Save to employee_profiles (existing behavior)
+        await query(
+            `INSERT INTO employee_profiles
+             (user_id, org_id, team_id, week_start, parameter_means, parameter_uncertainty, profile_type_scores, confidence, created_at, updated_at)
+             VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, NOW(), NOW())
+             ON CONFLICT (user_id, week_start)
+             DO UPDATE SET
+                parameter_means = $5,
+                parameter_uncertainty = $6,
+                profile_type_scores = $7,
+                confidence = $8,
+                updated_at = NOW()`,
+            [
+                user.userId,
+                orgId,
+                teamId,
+                weekStartStr,
+                JSON.stringify(user.parameterMeans),
+                JSON.stringify(user.parameterVariance),
+                JSON.stringify({}),
+                0.8
+            ]
+        );
+
+        // Item 2.6: Also snapshot to latent_states_history for historical analysis
+        for (const [param, mean] of Object.entries(user.parameterMeans as Record<string, number>)) {
+            const variance = (user.parameterVariance as Record<string, number>)[param] || 0.1;
+            await query(
+                `INSERT INTO latent_states_history (user_id, week_start, parameter, mean, variance)
+                 VALUES ($1, $2::date, $3, $4, $5)
+                 ON CONFLICT (user_id, week_start, parameter)
+                 DO UPDATE SET mean = $4, variance = $5, snapshot_at = NOW()`,
+                [user.userId, weekStartStr, param, mean, variance]
+            );
+        }
+    }
+}
+
+/**
+ * Aggregate all Teams for an Org into a single Org-Level Stats row.
+ */
+export async function runWeeklyOrgRollup(orgId: string, weekStart: Date): Promise<void> {
+    const weekStartStr = toWeekStartISO(getISOMondayUTC(weekStart));
+
+    // 1. Fetch ALL teams for this org (including those without data)
+    const teamsResult = await query(
+        `SELECT team_id FROM teams WHERE org_id = $1`,
+        [orgId]
+    );
+
+    // 2. Fetch team aggregates for this week
+    const result = await query(
+        `SELECT team_id, indices, quality, team_state
+         FROM org_aggregates_weekly
+         WHERE org_id = $1 AND week_start = $2::date`,
+        [orgId, weekStartStr]
+    );
+
+    // Build lookup of teams with data
+    const dataByTeam: Record<string, any> = {};
+    for (const row of result.rows) {
+        dataByTeam[row.team_id] = row;
+    }
+
+    if (teamsResult.rows.length === 0) return;
+
+    let totalRespondents = 0;
+    const sums: Record<string, number> = { strain: 0, withdrawal_risk: 0, trust_gap: 0, engagement: 0 };
+    const counts: Record<string, number> = { strain: 0, withdrawal_risk: 0, trust_gap: 0, engagement: 0 };
+
+    // Status Distribution (Item 2.10: includes teams with no data as 'unknown')
+    const statusDist: Record<string, number> = { critical: 0, at_risk: 0, healthy: 0, unknown: 0 };
+
+    for (const teamRow of teamsResult.rows) {
+        const row = dataByTeam[teamRow.team_id];
+
+        if (!row) {
+            // Ghost team: exists but has no pipeline data this week
+            statusDist['unknown']++;
+            continue;
+        }
+
+        const teamN = (row.quality as any)?.sampleSize || 0;
+        const indices = row.indices as any;
+        const status = (row.team_state as any)?.status || 'unknown';
+
+        // Update Status Dist
+        const normStatus = status.toLowerCase().replace(' ', '_');
+        if (statusDist[normStatus] !== undefined) statusDist[normStatus]++;
+        else statusDist['unknown']++;
+
+        totalRespondents += teamN;
+
+        // Weighted Sums for Indices
+        if (teamN > 0 && indices) {
+            for (const key of ['strain', 'withdrawal_risk', 'trust_gap', 'engagement']) {
+                if (typeof indices[key] === 'number') {
+                    sums[key] += indices[key] * teamN;
+                    counts[key] += teamN;
+                }
+            }
+        }
+    }
+
+    // Calculate Averages
+    const finalIndices: any = {};
+    for (const key of ['strain', 'withdrawal_risk', 'trust_gap', 'engagement']) {
+        finalIndices[key] = counts[key] > 0 ? sums[key] / counts[key] : 0;
+    }
+
+    // 2. Upsert Org Stats
+    await query(
+        `INSERT INTO org_stats_weekly
+         (org_id, week_start, strain_score, withdrawal_score, trust_score, engagement_score, team_status_distribution, total_teams, total_respondents, updated_at)
+         VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9, NOW())
+         ON CONFLICT (org_id, week_start)
+         DO UPDATE SET
+            strain_score = $3,
+            withdrawal_score = $4,
+            trust_score = $5,
+            engagement_score = $6,
+            team_status_distribution = $7,
+            total_teams = $8,
+            total_respondents = $9,
+            updated_at = NOW()`,
+        [
+            orgId,
+            weekStartStr,
+            finalIndices.strain,
+            finalIndices.withdrawal_risk,
+            finalIndices.trust_gap,
+            finalIndices.engagement,
+            JSON.stringify(statusDist),
+            teamsResult.rows.length,
+            totalRespondents
+        ]
+    );
+
+    console.log(`[OrgRollup] Completed for ${orgId} Week ${weekStartStr}. Teams: ${result.rows.length}`);
+}

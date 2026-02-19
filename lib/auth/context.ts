@@ -1,17 +1,20 @@
-/**
- * AUTH CONTEXT — Unified Authentication and Authorization Context
- * 
- * Provides a single authoritative resolver for auth state including:
- * - Session validation
- * - Org selection
- * - Role resolution
- * - TEAMLEAD team assignment
- */
-
 import { cookies } from 'next/headers';
 import { query } from '@/db/client';
 import { Role, isValidRole } from '@/lib/access/roles';
 import { Membership, getMembershipsForUser, getMembershipForOrg } from '@/lib/access/tenancy';
+
+let authImport: typeof import('@clerk/nextjs/server') | null = null;
+
+async function getClerkAuth() {
+    if (!authImport) {
+        try {
+            authImport = await import('@clerk/nextjs/server');
+        } catch {
+            return null;
+        }
+    }
+    return authImport;
+}
 
 // ============================================================================
 // Types
@@ -45,32 +48,57 @@ const DEV_MODE = process.env.NODE_ENV === 'development';
 // ============================================================================
 
 /**
- * Resolve the full auth context from cookies.
+ * Resolve the full auth context.
  * 
- * This is the single source of truth for authentication state.
+ * Priority:
+ * 1. Clerk auth() — production path (uses clerk_id)
+ * 2. Dev cookie — development override
+ * 3. Custom session cookie — legacy fallback
  */
 export async function resolveAuthContext(): Promise<AuthContextResult> {
     const cookieStore = await cookies();
 
-    // 1. Get session
-    const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-    const devUserId = DEV_MODE ? cookieStore.get('inpsyq_dev_user')?.value : null;
-
     let userId: string | null = null;
 
-    // Try session cookie first
-    if (sessionToken) {
-        userId = await validateSessionToken(sessionToken);
+    // 1. Try Clerk auth() first (production path)
+    const clerk = await getClerkAuth();
+    if (clerk) {
+        try {
+            const { userId: clerkId } = await clerk.auth();
+            if (clerkId) {
+                // Look up internal user by clerk_id
+                const clerkResult = await query(
+                    `SELECT user_id FROM users WHERE clerk_id = $1`,
+                    [clerkId]
+                );
+                if (clerkResult.rows.length > 0) {
+                    userId = clerkResult.rows[0].user_id;
+                }
+            }
+        } catch {
+            // Clerk not available in this context (e.g., script), continue
+        }
     }
 
-    // Dev mode: try dev cookie
-    if (!userId && devUserId) {
-        const userExists = await query(
-            `SELECT user_id FROM users WHERE user_id = $1`,
-            [devUserId]
-        );
-        if (userExists.rows.length > 0) {
-            userId = devUserId;
+    // 2. Dev mode: try dev cookie
+    if (!userId && DEV_MODE) {
+        const devUserId = cookieStore.get('inpsyq_dev_user')?.value;
+        if (devUserId) {
+            const userExists = await query(
+                `SELECT user_id FROM users WHERE user_id = $1`,
+                [devUserId]
+            );
+            if (userExists.rows.length > 0) {
+                userId = devUserId;
+            }
+        }
+    }
+
+    // 3. Legacy fallback: custom session cookie
+    if (!userId) {
+        const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+        if (sessionToken) {
+            userId = await validateSessionToken(sessionToken);
         }
     }
 

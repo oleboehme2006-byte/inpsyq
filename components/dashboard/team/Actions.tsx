@@ -33,7 +33,7 @@ export function Actions({ actions, selectedId, onSelect, isCompact }: ActionsPro
                         item.severity === 'warning' ? "text-withdrawal" : "text-engagement";
 
                     const criticalityLabel = item.severity === 'critical' ? 'HIGH' :
-                        item.severity === 'warning' ? 'AT RISK' : 'LOW';
+                        item.severity === 'warning' ? 'MID' : 'LOW';
 
                     const criticalityBg = item.severity === 'critical' ? 'bg-strain/10 text-strain' :
                         item.severity === 'warning' ? 'bg-withdrawal/10 text-withdrawal' : 'bg-engagement/10 text-engagement';

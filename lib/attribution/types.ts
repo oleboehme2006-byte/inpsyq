@@ -58,6 +58,7 @@ export interface SupportingSignals {
 
 export interface InternalDriverAttribution {
     readonly driverFamily: DriverFamilyId;
+    readonly score: number; // Raw contribution score [0..1]
     readonly contributionBand: ContributionBand;
     readonly severity: DriverSeverityLevel;
     readonly confidence: number;

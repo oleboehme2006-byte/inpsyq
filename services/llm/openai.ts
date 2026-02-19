@@ -11,6 +11,7 @@
 
 import { LLMProvider, LLMResult, LLMError, LLMFailure } from './types';
 import { getLLMConfig } from './config';
+import { getModelCapabilities } from './modelRegistry';
 
 export class OpenAIProvider implements LLMProvider {
     private readonly config = getLLMConfig();
@@ -62,6 +63,23 @@ export class OpenAIProvider implements LLMProvider {
         const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs);
 
         try {
+            // Item 3.15: Use model registry instead of hardcoded checks
+            const caps = getModelCapabilities(model);
+
+            const tokenParam = caps.usesCompletionTokens
+                ? { max_completion_tokens: this.config.maxTokensTeam }
+                : { max_tokens: this.config.maxTokensTeam };
+
+            // Build messages based on model capabilities
+            const messages = caps.supportsSystemMessages
+                ? [
+                    { role: 'system', content: systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown formatting.' },
+                    { role: 'user', content: userPrompt }
+                ]
+                : [
+                    { role: 'user', content: systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown formatting.\n\n' + userPrompt }
+                ];
+
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -70,13 +88,10 @@ export class OpenAIProvider implements LLMProvider {
                 },
                 body: JSON.stringify({
                     model: model,
-                    messages: [
-                        { role: 'system', content: systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown formatting.' },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    response_format: { type: 'json_object' },
-                    temperature: 0.2, // Low temp for consistency
-                    max_tokens: this.config.maxTokensTeam, // Defaulting to team limit, caller should handle exec override if needed
+                    messages,
+                    response_format: caps.supportsJsonMode ? { type: 'json_object' } : undefined,
+                    temperature: caps.defaultTemperature,
+                    ...tokenParam,
                 }),
                 signal: controller.signal
             });

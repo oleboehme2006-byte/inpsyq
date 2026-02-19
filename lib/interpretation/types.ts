@@ -40,6 +40,46 @@ export interface DependencyLine {
 }
 
 // ============================================================================
+// Rich Dashboard Content Types (Phase 9)
+// ============================================================================
+
+/** Rich detail card for driver display in team/executive dashboards */
+export interface DriverDetailCard {
+    /** DriverFamilyId reference */
+    driverFamily: string;
+    /** Human-readable label */
+    label: string;
+    /** How this driver operates (~30-40 words) */
+    mechanism: string;
+    /** Causal chain from driver to outcomes (~30-40 words) */
+    causality: string;
+    /** Observable effects on team dynamics (~30-40 words) */
+    effects: string;
+    /** Operationalizable intervention (~30-40 words) */
+    recommendation: string;
+}
+
+/** Rich detail card for action display in team dashboards */
+export interface ActionDetailCard {
+    /** Short action title */
+    title: string;
+    /** Severity classification */
+    severity: 'critical' | 'warning' | 'info';
+    /** One-line summary message */
+    message: string;
+    /** Situational context (~25-35 words) */
+    context: string;
+    /** Psychological or empirical rationale (~25-35 words) */
+    rationale: string;
+    /** Expected effects of the intervention (~25-35 words) */
+    effects: string;
+    /** Criticality classification */
+    criticality: 'HIGH' | 'AT RISK' | 'LOW';
+    /** Specific, operationalizable recommendation (~25-35 words) */
+    recommendation: string;
+}
+
+// ============================================================================
 // Interpretation Sections
 // ============================================================================
 
@@ -66,6 +106,17 @@ export interface WeeklyInterpretationSections {
 
     /** Confidence and limitations: 25-60 words */
     confidenceAndLimits: string;
+
+    // ---- Phase 9: Rich Dashboard Content (optional for backward compat) ----
+
+    /** Rich driver detail cards for dashboard display (max 3) */
+    driverCards?: DriverDetailCard[];
+
+    /** Rich action detail cards for dashboard display (max 3) */
+    actionCards?: ActionDetailCard[];
+
+    /** Full briefing paragraphs with inline HTML styling (2-4 paragraphs) */
+    briefingParagraphs?: string[];
 }
 
 // ============================================================================
@@ -89,9 +140,11 @@ export interface WeeklyInterpretationRecord {
 // Constants
 // ============================================================================
 
-export const PROMPT_VERSION = 'v1.0.0';
+export const PROMPT_VERSION = 'v2.0.0';
 
 export const MODEL_ID_FALLBACK = 'deterministic-fallback';
+export const MODEL_ID_GPT5_MINI = 'gpt-5-mini';
+/** @deprecated Use MODEL_ID_GPT5_MINI */
 export const MODEL_ID_GPT4 = 'gpt-4o-mini';
 
 export const SECTION_LIMITS = {
@@ -101,6 +154,9 @@ export const SECTION_LIMITS = {
     riskOutlook: { maxItems: 3 },
     recommendedFocus: { maxItems: 5 },
     confidenceAndLimits: { minWords: 25, maxWords: 60 },
+    driverCards: { maxItems: 3, maxWordsPerField: 50 },
+    actionCards: { maxItems: 3, maxWordsPerField: 45 },
+    briefingParagraphs: { minItems: 2, maxItems: 4, minWordsPerParagraph: 60, maxWordsPerParagraph: 120 },
 } as const;
 
 export const MAX_EXPLICIT_NUMBERS = 6;

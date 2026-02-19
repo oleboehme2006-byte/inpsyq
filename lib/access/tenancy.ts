@@ -32,7 +32,7 @@ export async function getMembershipsForUser(userId: string): Promise<Membership[
     const result = await query(
         `SELECT membership_id, user_id, org_id, team_id, role, created_at 
      FROM memberships 
-     WHERE user_id = $1`,
+     WHERE user_id = $1 AND is_active = true`,
         [userId]
     );
 

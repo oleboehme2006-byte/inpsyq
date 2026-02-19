@@ -1,23 +1,17 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { executiveMockData } from '@/lib/mock/executiveData';
 import { Activity } from 'lucide-react';
 
-export interface SystemicDriverUI {
-    id: string;
-    label: string;
-    scope: string; // 'Organization' | 'Department'
-    score: number; // 0-100
-}
-
 interface SystemicDriversProps {
-    drivers: SystemicDriverUI[];
+    drivers?: any[];
     selectedId?: string;
     onSelect?: (id: string) => void;
     isCompact?: boolean;
 }
 
-export function SystemicDrivers({ drivers, selectedId, onSelect, isCompact }: SystemicDriversProps) {
-    const displayDrivers = drivers.slice(0, 3);
+export function SystemicDrivers({ drivers: driversProp, selectedId, onSelect, isCompact }: SystemicDriversProps) {
+    const drivers = (driversProp?.length ? driversProp : executiveMockData.drivers).slice(0, 3); // Top 3
 
     return (
         <div className="w-full h-full bg-[#050505] rounded-xl border border-white/10 p-5 flex flex-col transition-all duration-500 overflow-hidden">

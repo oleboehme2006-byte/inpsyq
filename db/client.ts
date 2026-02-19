@@ -8,7 +8,18 @@ declare global {
 
 // Lazy pool creation to ensure env is loaded first
 function createPool(): Pool {
-  return global.__pgPool ?? new Pool(getDbConfig());
+  if (global.__pgPool) return global.__pgPool;
+
+  const config = getDbConfig();
+  const isServerless = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
+
+  return new Pool({
+    ...config,
+    // Item 3.13: Prevent connection exhaustion in serverless
+    max: isServerless ? 5 : 10,
+    idleTimeoutMillis: 20_000,
+    connectionTimeoutMillis: 10_000,
+  });
 }
 
 export const pool = createPool();

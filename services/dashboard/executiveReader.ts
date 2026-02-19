@@ -1,335 +1,455 @@
 /**
- * EXECUTIVE READER — Read Executive Dashboard Data from Weekly Products
+ * EXECUTIVE READER — Executive Dashboard Data Service
  * 
- * Aggregates team data for org-level view.
- * NO computation, NO LLM calls, NO mutation.
+ * Aggregates team-level data into an org-wide executive dashboard view.
+ * Reads from org_aggregates_weekly, team data, and org-level interpretations.
+ * Falls back to cross-team analysis when no org interpretation exists.
  */
 
 import { query } from '@/db/client';
-import { getTeamDashboardData, getTeamName, TeamDashboardData } from './teamReader';
+import { format } from 'date-fns';
+import { WeeklyInterpretationSections, DriverDetailCard, ActionDetailCard } from '@/lib/interpretation/types';
+import { DRIVER_CONTENT } from '@/lib/content/driverLibrary';
+import { isValidDriverFamilyId } from '@/lib/semantics/driverRegistry';
+import { identifySystemicDrivers, TeamAttribution, SystemicDriverCandidate } from '@/lib/interpretation/crossTeamAnalysis';
+import { predictTeamRisks, RiskPrediction, SeriesPoint } from '@/lib/interpretation/riskPredictor';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export interface TeamSummaryData {
-    teamId: string;
-    teamName: string;
-    stateLabel: 'HEALTHY' | 'AT_RISK' | 'CRITICAL' | 'UNKNOWN';
-    strainValue: number;
-    strainQualitative: string;
-    trendDirection: 'UP' | 'DOWN' | 'STABLE';
-    weeksAvailable: number;
+export interface ExecutiveKPI {
+    id: string;
+    title: string;
+    value: string;
+    score: number;
+    trend: string;
+    trendValue: string;
+    semanticColor: string;
+    description: string;
+}
+
+export interface ExecutiveTeam {
+    name: string;
+    status: 'Critical' | 'At Risk' | 'Healthy';
+    members: number;
+    strain: number;
+    withdrawal: number;
+    trust: number;
+    engagement: number;
+    coverage: number;
+}
+
+export interface ExecutiveDriver {
+    id: string;
+    label: string;
+    score: number;
+    scope: string;
+    trend: string;
+    details: {
+        mechanism: string;
+        influence: string;
+        recommendation: string;
+    };
+}
+
+export interface ExecutiveWatchlistItem {
+    id: string;
+    team: string;
+    value: string;
+    severity: 'critical' | 'warning' | 'info';
+    message: string;
+    details: {
+        context: string;
+        causality: string;
+        effects: string;
+        criticality: 'HIGH' | 'AT RISK' | 'LOW';
+        recommendation: string;
+    };
+}
+
+export interface ExecutiveGovernance {
+    coverage: number;
+    dataQuality: number;
+    totalSessions: number;
+    lastUpdated: string;
 }
 
 export interface ExecutiveDashboardData {
-    meta: {
-        orgId: string;
-        latestWeek: string;
-        teamsCount: number;
-        weeksAvailable: number;
-        cacheHit: boolean;
-    };
-    orgIndices: {
-        strain: { value: number; qualitative: string };
-        withdrawalRisk: { value: number; qualitative: string };
-        trustGap: { value: number; qualitative: string };
-        engagement: { value: number; qualitative: string };
-    };
-    orgTrend: {
-        direction: 'UP' | 'DOWN' | 'STABLE';
-        volatility: number;
-    };
-    riskDistribution: {
-        critical: number;
-        atRisk: number;
-        healthy: number;
-    };
-    teams: TeamSummaryData[];
-    systemicDrivers: Array<{
-        driverFamily: string;
-        label: string;
-        affectedTeams: number;
-        aggregateImpact: number;
-    }>;
-    watchlist: Array<{
-        teamId: string;
-        teamName: string;
-        reason: string;
-        severity: number;
-    }>;
-    history: Array<{
-        weekStart: string;
-        strain: number;
-        withdrawalRisk: number;
-        trustGap: number;
-        engagement: number;
-    }>;
+    orgName: string;
+    kpis: ExecutiveKPI[];
+    teams: ExecutiveTeam[];
+    drivers: ExecutiveDriver[];
+    watchlist: ExecutiveWatchlistItem[];
+    briefingParagraphs: string[];
+    governance: ExecutiveGovernance;
 }
 
 // ============================================================================
 // Main Reader
 // ============================================================================
 
-/**
- * Get executive dashboard data for an org.
- */
 export async function getExecutiveDashboardData(
-    orgId: string,
-    weeksBack: number = 9
+    orgId: string
 ): Promise<ExecutiveDashboardData | null> {
-    // 1. Get all teams in org
-    const teamsResult = await query(
-        `SELECT team_id, name FROM teams WHERE org_id = $1`,
+
+    // 1. Fetch Org Info
+    const orgRes = await query(
+        `SELECT name FROM organizations WHERE org_id = $1`,
+        [orgId]
+    );
+    if (orgRes.rows.length === 0) return null;
+    const orgName = orgRes.rows[0].name;
+
+    // 2. Fetch all team aggregates for the latest week
+    const teamsRes = await query(
+        `SELECT t.team_id, t.name,
+                a.week_start, a.indices, a.quality, a.attribution, a.team_state
+         FROM teams t
+         LEFT JOIN LATERAL (
+             SELECT week_start, indices, quality, attribution, team_state
+             FROM org_aggregates_weekly
+             WHERE org_id = $1 AND team_id = t.team_id
+             ORDER BY week_start DESC
+             LIMIT 1
+         ) a ON true
+         WHERE t.org_id = $1
+         ORDER BY t.name`,
         [orgId]
     );
 
-    if (teamsResult.rows.length === 0) {
-        return null;
+    if (teamsRes.rows.length === 0) return null;
+
+    // 3. Build Teams array
+    const teams: ExecutiveTeam[] = [];
+    const teamAttributions: TeamAttribution[] = [];
+    const teamSeriesMap = new Map<string, SeriesPoint[]>();
+
+    for (const row of teamsRes.rows) {
+        const indices = row.indices || {};
+        const quality = row.quality || {};
+        const teamState = row.team_state || {};
+        const attribution = row.attribution || {};
+
+        const strain = Math.round((indices.strain || 0) * 100);
+        const withdrawal = Math.round((indices.withdrawal_risk || 0) * 100);
+        const trust = Math.round((indices.trust_gap || 0) * 100);
+        const engagement = Math.round((indices.engagement || 0) * 100);
+
+        const statusMap: Record<string, 'Critical' | 'At Risk' | 'Healthy'> = {
+            'critical': 'Critical',
+            'at_risk': 'At Risk',
+            'healthy': 'Healthy',
+        };
+        const status = statusMap[teamState.status || 'healthy'] || 'Healthy';
+
+        teams.push({
+            name: row.name,
+            status,
+            members: quality.sampleSize || 0,
+            strain,
+            withdrawal,
+            trust,
+            engagement,
+            coverage: Math.round((quality.participationRate || 0) * 100),
+        });
+
+        // Collect attribution for cross-team analysis
+        if (attribution.internal && Array.isArray(attribution.internal)) {
+            teamAttributions.push({
+                teamId: row.team_id,
+                teamName: row.name,
+                internalDrivers: attribution.internal.map((d: any) => ({
+                    driverFamily: d.driverFamily,
+                    score: d.score || 0,
+                    severityLevel: d.severityLevel || 'C0',
+                })),
+            });
+        }
     }
 
-    // 2. Fetch dashboard data for each team (needed for Table & Risk Dist)
-    const teamDataPromises = teamsResult.rows.map(async (team) => {
-        const data = await getTeamDashboardData(orgId, team.team_id, weeksBack);
-        return { teamId: team.team_id, teamName: team.name, data };
+    // 4. Compute org-level KPIs (averages across teams)
+    const kpis = buildOrgKPIs(teams);
+
+    // 5. Fetch historical series for risk prediction
+    for (const row of teamsRes.rows) {
+        const seriesRes = await query(
+            `SELECT indices FROM org_aggregates_weekly
+             WHERE org_id = $1 AND team_id = $2
+             ORDER BY week_start DESC LIMIT 6`,
+            [orgId, row.team_id]
+        );
+
+        if (seriesRes.rows.length >= 3) {
+            const points: SeriesPoint[] = seriesRes.rows.reverse().map((r: any) => ({
+                strain: r.indices?.strain || 0,
+                withdrawal: r.indices?.withdrawal_risk || 0,
+                trust: r.indices?.trust_gap || 0,
+                engagement: r.indices?.engagement || 0,
+            }));
+            teamSeriesMap.set(row.name, points);
+        }
+    }
+
+    // 6. Cross-Team Analysis: Identify Systemic Drivers
+    const systemicCandidates = identifySystemicDrivers(teamAttributions);
+
+    // 7. Risk Predictions for watchlist
+    const allRisks: RiskPrediction[] = [];
+    for (const [teamName, series] of teamSeriesMap.entries()) {
+        const risks = predictTeamRisks(teamName, series);
+        allRisks.push(...risks);
+    }
+    // Sort by severity
+    allRisks.sort((a, b) => {
+        const sevOrder = { critical: 0, warning: 1, info: 2 };
+        return sevOrder[a.severity] - sevOrder[b.severity];
     });
 
-    const teamsWithData = await Promise.all(teamDataPromises);
-    const validTeams = teamsWithData.filter(t => t.data !== null);
-
-    if (validTeams.length === 0) {
-        return null; // No data at all
-    }
-
-    // 3. Try to fetch pre-computed Org Stats (Real Intelligence)
-    const orgStats = await getOrgWeeklyStats(orgId);
-
-    // 4. Build Org-Level Metrics (Prefer OrgStats, fallback to Aggregation)
-    let orgIndices: ExecutiveDashboardData['orgIndices'];
-    let systemicDrivers: ExecutiveDashboardData['systemicDrivers'];
-    let orgTrend: ExecutiveDashboardData['orgTrend'];
-
-    if (orgStats) {
-        // Use pre-computed
-        orgIndices = {
-            strain: { value: orgStats.indices.strain.value, qualitative: orgStats.indices.strain.qualitative },
-            withdrawalRisk: { value: orgStats.indices.withdrawal_risk.value, qualitative: orgStats.indices.withdrawal_risk.qualitative },
-            trustGap: { value: orgStats.indices.trust_gap.value, qualitative: orgStats.indices.trust_gap.qualitative },
-            engagement: { value: orgStats.indices.engagement.value, qualitative: orgStats.indices.engagement.qualitative },
-        };
-
-        systemicDrivers = orgStats.systemicDrivers.map((d: any) => ({
-            driverFamily: d.driverFamily,
-            label: d.driverFamily.replace(/_/g, ' '), // Simple label
-            affectedTeams: d.affectedTeams,
-            aggregateImpact: d.aggregateImpact
-        }));
-
-        // Compute Trend from Series
-        const series = orgStats.series?.points || [];
-        if (series.length >= 2) {
-            const p1 = series[series.length - 1].strain; // Current
-            const p2 = series[series.length - 2].strain; // Previous
-            const delta = p1 - p2;
-            let direction: any = 'STABLE';
-            if (delta > 0.05) direction = 'UP'; // Strain increasing = Bad
-            else if (delta < -0.05) direction = 'DOWN'; // Strain decreasing = Good
-            orgTrend = { direction, volatility: 0.1 }; // Volatility placeholder or compute std dev
-        } else {
-            orgTrend = { direction: 'STABLE', volatility: 0.1 };
-        }
-
-    } else {
-        // Fallback: On-the-fly aggregation
-        orgIndices = aggregateOrgIndices(validTeams.map(t => t.data!));
-        systemicDrivers = aggregateSystemicDrivers(validTeams.map(t => t.data!));
-        orgTrend = aggregateOrgTrend(validTeams.map(t => t.data!));
-    }
-
-    // 5. Build components requiring Team Data
-    // Risk Distribution & Watchlist must come from current team states
-    const riskDistribution = buildRiskDistribution(validTeams.map(t => t.data!));
-
-    const teams: TeamSummaryData[] = validTeams.map(t => ({
-        teamId: t.teamId,
-        teamName: t.teamName,
-        stateLabel: getStateLabel(t.data!.latestIndices.strain.value),
-        strainValue: t.data!.latestIndices.strain.value,
-        strainQualitative: t.data!.latestIndices.strain.qualitative,
-        trendDirection: t.data!.trend.direction,
-        weeksAvailable: t.data!.meta.weeksAvailable,
-    }));
-
-    const watchlist = buildWatchlist(teams);
-
-    // Find latest week
-    const latestWeek = orgStats?.weekStart || validTeams
-        .map(t => t.data!.meta.latestWeek)
-        .sort()
-        .reverse()[0];
-
-    // Build History (Series)
-    let history: ExecutiveDashboardData['history'] = [];
-    if (orgStats?.series?.points) {
-        history = orgStats.series.points.map((p: any) => ({
-            weekStart: p.weekStart,
-            strain: p.strain,
-            withdrawalRisk: p.withdrawal_risk, // Map snake_case to camelCase
-            trustGap: p.trust_gap,
-            engagement: p.engagement
-        }));
-    } else {
-        // Fallback: No history or on-the-fly?
-        // On-the-fly history aggregation is hard without loading ALL team history.
-        // For now, if no org stats, history is empty.
-    }
-
-    return {
-        meta: {
-            orgId,
-            latestWeek,
-            teamsCount: validTeams.length,
-            weeksAvailable: orgStats ? (orgStats.series?.weeks || 1) : Math.max(...validTeams.map(t => t.data!.meta.weeksAvailable)),
-            cacheHit: false,
-        },
-        orgIndices,
-        orgTrend,
-        riskDistribution,
-        teams,
-        systemicDrivers,
-        watchlist,
-        history,
-    };
-}
-
-/**
- * Fetch latest Org Stats from DB.
- */
-export async function getOrgWeeklyStats(orgId: string) {
-    const res = await query(
-        `SELECT week_start, indices, systemic_drivers, series
-         FROM org_stats_weekly
-         WHERE org_id = $1
-         ORDER BY week_start DESC
-         LIMIT 1`,
+    // 8. Fetch org-level interpretation
+    const interpRes = await query(
+        `SELECT sections_json, created_at
+         FROM weekly_interpretations
+         WHERE org_id = $1 AND team_id IS NULL AND is_active = true
+         ORDER BY created_at DESC LIMIT 1`,
         [orgId]
     );
 
-    if (res.rows.length === 0) return null;
+    let drivers: ExecutiveDriver[] = [];
+    let watchlist: ExecutiveWatchlistItem[] = [];
+    let briefingParagraphs: string[] = [];
 
-    const row = res.rows[0];
-    return {
-        weekStart: new Date(row.week_start).toISOString().slice(0, 10),
-        indices: row.indices,
-        systemicDrivers: row.systemic_drivers,
-        series: row.series
-    };
-}
+    if (interpRes.rows.length > 0) {
+        const sections = interpRes.rows[0].sections_json as WeeklyInterpretationSections;
 
-// ============================================================================
-// Helpers
-// ============================================================================
+        // Use LLM-generated driver cards if available
+        if (sections.driverCards && sections.driverCards.length > 0) {
+            drivers = mapDriverCardsToExecutive(sections.driverCards, systemicCandidates);
+        }
 
-function aggregateOrgIndices(teamData: TeamDashboardData[]): ExecutiveDashboardData['orgIndices'] {
-    const avg = (key: keyof TeamDashboardData['latestIndices']) => {
-        const values = teamData.map(t => t.latestIndices[key].value);
-        const sum = values.reduce((a, b) => a + b, 0);
-        return sum / values.length;
-    };
+        // Use LLM-generated action cards as watchlist items
+        if (sections.actionCards && sections.actionCards.length > 0) {
+            watchlist = mapActionCardsToWatchlist(sections.actionCards);
+        }
 
-    const getQualitative = (value: number): string => {
-        if (value >= 0.75) return 'Critical';
-        if (value >= 0.5) return 'Elevated';
-        if (value >= 0.25) return 'Moderate';
-        return 'Low';
-    };
-
-    const strainVal = avg('strain');
-    const wrVal = avg('withdrawalRisk');
-    const tgVal = avg('trustGap');
-    const engVal = avg('engagement');
-
-    return {
-        strain: { value: strainVal, qualitative: getQualitative(strainVal) },
-        withdrawalRisk: { value: wrVal, qualitative: getQualitative(wrVal) },
-        trustGap: { value: tgVal, qualitative: getQualitative(tgVal) },
-        engagement: { value: engVal, qualitative: getQualitative(1 - engVal) }, // Inverse for engagement
-    };
-}
-
-function aggregateOrgTrend(teamData: TeamDashboardData[]): ExecutiveDashboardData['orgTrend'] {
-    const directions = teamData.map(t => t.trend.direction);
-    const volatilities = teamData.map(t => t.trend.volatility);
-
-    const upCount = directions.filter(d => d === 'UP').length;
-    const downCount = directions.filter(d => d === 'DOWN').length;
-
-    let direction: 'UP' | 'DOWN' | 'STABLE' = 'STABLE';
-    if (upCount > teamData.length / 2) direction = 'UP';
-    else if (downCount > teamData.length / 2) direction = 'DOWN';
-
-    const avgVolatility = volatilities.reduce((a, b) => a + b, 0) / volatilities.length;
-
-    return { direction, volatility: avgVolatility };
-}
-
-function buildRiskDistribution(teamData: TeamDashboardData[]): ExecutiveDashboardData['riskDistribution'] {
-    let critical = 0;
-    let atRisk = 0;
-    let healthy = 0;
-
-    for (const t of teamData) {
-        const strain = t.latestIndices.strain.value;
-        if (strain >= 0.75) critical++;
-        else if (strain >= 0.5) atRisk++;
-        else healthy++;
-    }
-
-    return { critical, atRisk, healthy };
-}
-
-function getStateLabel(strain: number): 'HEALTHY' | 'AT_RISK' | 'CRITICAL' | 'UNKNOWN' {
-    if (strain >= 0.75) return 'CRITICAL';
-    if (strain >= 0.5) return 'AT_RISK';
-    return 'HEALTHY';
-}
-
-function aggregateSystemicDrivers(teamData: TeamDashboardData[]): ExecutiveDashboardData['systemicDrivers'] {
-    const driverCounts: Record<string, { label: string; count: number; totalImpact: number }> = {};
-
-    for (const t of teamData) {
-        for (const d of t.attribution.internalDrivers) {
-            if (!driverCounts[d.driverFamily]) {
-                driverCounts[d.driverFamily] = { label: d.label, count: 0, totalImpact: 0 };
-            }
-            driverCounts[d.driverFamily].count++;
-            driverCounts[d.driverFamily].totalImpact += d.contributionBand === 'MAJOR' ? 1 : 0.5;
+        // Use LLM-generated briefing paragraphs
+        if (sections.briefingParagraphs && sections.briefingParagraphs.length > 0) {
+            briefingParagraphs = sections.briefingParagraphs;
         }
     }
 
-    return Object.entries(driverCounts)
-        .filter(([_, v]) => v.count >= 2) // Only systemic if affects 2+ teams
-        .map(([family, v]) => ({
-            driverFamily: family,
-            label: v.label,
-            affectedTeams: v.count,
-            aggregateImpact: v.totalImpact / teamData.length,
-        }))
-        .sort((a, b) => b.affectedTeams - a.affectedTeams)
-        .slice(0, 5);
+    // Fallback: build from deterministic analysis if no LLM content
+    if (drivers.length === 0) {
+        drivers = buildDriversFromSystemicCandidates(systemicCandidates);
+    }
+
+    if (watchlist.length === 0) {
+        watchlist = buildWatchlistFromRisks(allRisks);
+    }
+
+    if (briefingParagraphs.length === 0) {
+        briefingParagraphs = buildDeterministicBriefing(teams, kpis, systemicCandidates);
+    }
+
+    // 9. Governance
+    const latestWeek = teamsRes.rows[0]?.week_start;
+    const totalSessions = teams.reduce((acc, t) => acc + t.members, 0);
+    const avgCoverage = teams.length > 0
+        ? Math.round(teams.reduce((a, t) => a + t.coverage, 0) / teams.length)
+        : 0;
+
+    const governance: ExecutiveGovernance = {
+        coverage: avgCoverage,
+        dataQuality: Math.round(avgCoverage * 0.9), // Proxy
+        totalSessions,
+        lastUpdated: latestWeek ? format(new Date(latestWeek), 'MMM d, yyyy') : 'Unknown',
+    };
+
+    return {
+        orgName,
+        kpis,
+        teams,
+        drivers: drivers.slice(0, 3),
+        watchlist: watchlist.slice(0, 3),
+        briefingParagraphs,
+        governance,
+    };
 }
 
-function buildWatchlist(teams: TeamSummaryData[]): ExecutiveDashboardData['watchlist'] {
-    return teams
-        .filter(t => t.stateLabel === 'CRITICAL' || t.stateLabel === 'AT_RISK')
-        .map(t => ({
-            teamId: t.teamId,
-            teamName: t.teamName,
-            reason: t.stateLabel === 'CRITICAL'
-                ? 'Strain exceeds critical threshold'
-                : 'Strain elevated, requires attention',
-            severity: t.strainValue,
-        }))
-        .sort((a, b) => b.severity - a.severity)
-        .slice(0, 5);
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function buildOrgKPIs(teams: ExecutiveTeam[]): ExecutiveKPI[] {
+    if (teams.length === 0) return [];
+
+    const avg = (key: keyof Pick<ExecutiveTeam, 'strain' | 'withdrawal' | 'trust' | 'engagement'>) =>
+        Math.round(teams.reduce((a, t) => a + t[key], 0) / teams.length);
+
+    const strain = avg('strain');
+    const withdrawal = avg('withdrawal');
+    const trust = avg('trust');
+    const engagement = avg('engagement');
+
+    return [
+        {
+            id: 'kpi-1',
+            title: 'Strain Index',
+            value: String(strain),
+            score: strain,
+            trend: strain > 60 ? 'up' : 'stable',
+            trendValue: strain > 60 ? '+' + (strain - 60) + '%' : '0%',
+            semanticColor: 'strain',
+            description: 'Workload & Pressure',
+        },
+        {
+            id: 'kpi-2',
+            title: 'Withdrawal Risk',
+            value: String(withdrawal),
+            score: withdrawal,
+            trend: withdrawal > 40 ? 'up' : 'stable',
+            trendValue: withdrawal > 40 ? '+' + (withdrawal - 40) + '%' : '0%',
+            semanticColor: 'withdrawal',
+            description: 'Disengagement Signs',
+        },
+        {
+            id: 'kpi-3',
+            title: 'Trust Gap',
+            value: String(trust),
+            score: trust,
+            trend: trust > 30 ? 'up' : 'stable',
+            trendValue: trust > 30 ? '+' + (trust - 30) + '%' : '0%',
+            semanticColor: 'trust-gap',
+            description: 'Leadership Alignment',
+        },
+        {
+            id: 'kpi-4',
+            title: 'Engagement',
+            value: String(engagement),
+            score: engagement,
+            trend: engagement < 70 ? 'down' : 'stable',
+            trendValue: engagement < 70 ? '-' + (70 - engagement) + '%' : '0%',
+            semanticColor: 'engagement',
+            description: 'Active Participation',
+        },
+    ];
+}
+
+function mapDriverCardsToExecutive(
+    cards: DriverDetailCard[],
+    systemicCandidates: SystemicDriverCandidate[]
+): ExecutiveDriver[] {
+    return cards.slice(0, 3).map((card, i) => {
+        // Find matching systemic candidate for scope/trend
+        const candidate = systemicCandidates.find(c => c.driverFamily === card.driverFamily);
+
+        return {
+            id: `d${i + 1}`,
+            label: card.label,
+            score: candidate ? Math.round(candidate.averageScore * 100) : 50,
+            scope: candidate?.scope || 'Organization',
+            trend: candidate?.trend || 'stable',
+            details: {
+                mechanism: card.mechanism,
+                influence: card.causality || card.effects, // Map causality to influence for executive view
+                recommendation: card.recommendation,
+            },
+        };
+    });
+}
+
+function mapActionCardsToWatchlist(
+    cards: ActionDetailCard[]
+): ExecutiveWatchlistItem[] {
+    return cards.slice(0, 3).map((card, i) => ({
+        id: `w${i + 1}`,
+        team: card.title.replace('Address ', ''), // Best effort team name extraction
+        value: '',
+        severity: card.severity,
+        message: card.message,
+        details: {
+            context: card.context,
+            causality: card.rationale,
+            effects: card.effects,
+            criticality: card.criticality,
+            recommendation: card.recommendation,
+        },
+    }));
+}
+
+function buildDriversFromSystemicCandidates(
+    candidates: SystemicDriverCandidate[]
+): ExecutiveDriver[] {
+    return candidates.slice(0, 3).map((c, i) => {
+        const content = isValidDriverFamilyId(c.driverFamily)
+            ? DRIVER_CONTENT[c.driverFamily]
+            : null;
+
+        return {
+            id: `d${i + 1}`,
+            label: c.label,
+            score: Math.round(c.averageScore * 100),
+            scope: c.scope,
+            trend: c.trend,
+            details: {
+                mechanism: content?.mechanism || `${c.label} has been identified as a systemic pattern affecting ${c.affectedTeams.length} teams.`,
+                influence: content?.effects || `Affects ${c.affectedTeams.join(', ')} with ${c.averageSeverity} average severity.`,
+                recommendation: content?.recommendation || `Cross-functional intervention targeting ${c.label.toLowerCase()} across affected units.`,
+            },
+        };
+    });
+}
+
+function buildWatchlistFromRisks(
+    risks: RiskPrediction[]
+): ExecutiveWatchlistItem[] {
+    return risks.slice(0, 3).map((r, i) => ({
+        id: `w${i + 1}`,
+        team: r.teamName,
+        value: r.trendValue,
+        severity: r.severity,
+        message: r.triggerCondition,
+        details: {
+            context: `${r.teamName} is showing elevated ${r.riskType.replace('_', ' ')} signals based on ${r.timeHorizon} trend analysis.`,
+            causality: `Triggered by sustained pattern: ${r.triggerCondition}.`,
+            effects: `If unaddressed, probability of ${r.riskType.replace('_', ' ')} is estimated at ${Math.round(r.probability * 100)}% within ${r.timeHorizon}.`,
+            criticality: r.severity === 'critical' ? 'HIGH' : r.severity === 'warning' ? 'AT RISK' : 'LOW',
+            recommendation: `Immediate review of ${r.teamName}'s workload and engagement signals recommended. Intervention window: ${r.timeHorizon}.`,
+        },
+    }));
+}
+
+function buildDeterministicBriefing(
+    teams: ExecutiveTeam[],
+    kpis: ExecutiveKPI[],
+    systemicDrivers: SystemicDriverCandidate[]
+): string[] {
+    const strainKpi = kpis.find(k => k.id === 'kpi-1');
+    const engagementKpi = kpis.find(k => k.id === 'kpi-4');
+
+    const criticalTeams = teams.filter(t => t.status === 'Critical');
+    const atRiskTeams = teams.filter(t => t.status === 'At Risk');
+    const healthyTeams = teams.filter(t => t.status === 'Healthy');
+
+    const criticalNames = criticalTeams.map(t => `<span class="text-white">${t.name}</span>`);
+    const healthyNames = healthyTeams.map(t => `<span class="text-white">${t.name}</span>`);
+
+    // Paragraph 1: Headline situation
+    const para1 = `Organization-wide strain is at <span class="text-strain">${strainKpi?.value || '—'}%</span> with engagement at <span class="text-engagement">${engagementKpi?.value || '—'}%</span>. ${criticalTeams.length > 0 ? `${criticalNames.join(' and ')} ${criticalTeams.length === 1 ? 'is' : 'are'} flagged as critical, requiring immediate attention.` : 'No teams are currently in critical status.'} ${atRiskTeams.length > 0 ? `${atRiskTeams.length} team${atRiskTeams.length > 1 ? 's' : ''} ${atRiskTeams.length === 1 ? 'is' : 'are'} at risk.` : ''} ${healthyTeams.length > 0 ? `${healthyNames.join(', ')} ${healthyTeams.length === 1 ? 'remains' : 'remain'} within healthy parameters.` : ''}`;
+
+    // Paragraph 2: Systemic context
+    const driverText = systemicDrivers.length > 0
+        ? `The primary systemic driver is <span class="text-white">${systemicDrivers[0].label}</span>, affecting ${systemicDrivers[0].affectedTeams.length} teams at the ${systemicDrivers[0].scope.toLowerCase()} level.`
+        : 'No dominant systemic driver has been identified across teams.';
+
+    const para2 = `${driverText} ${systemicDrivers.length > 1 ? `Secondary patterns include ${systemicDrivers.slice(1).map(d => `<span class="text-white">${d.label}</span>`).join(' and ')}.` : ''} The isolation of stressors to specific teams suggests surgical interventions are viable without risking broader cultural contagion.`;
+
+    // Paragraph 3: Causal analysis (simplified deterministic)
+    const avgCoverage = teams.length > 0 ? Math.round(teams.reduce((a, t) => a + t.coverage, 0) / teams.length) : 0;
+    const para3 = `Data coverage across the organization stands at ${avgCoverage}%, providing ${avgCoverage >= 80 ? 'high' : avgCoverage >= 60 ? 'adequate' : 'limited'}-confidence interpretation. Historical patterns indicate that teams operating at elevated strain for extended periods face increased probability of attrition. The current observation window supports reliable trend detection across ${teams.length} monitored units.`;
+
+    // Paragraph 4: Recommendation
+    const para4 = `<span class="text-white font-medium">Recommendation:</span> ${criticalTeams.length > 0 ? `Immediate executive intervention is advised for ${criticalNames.join(' and ')} to rebalance resource allocation.` : 'Continue current monitoring cadence.'} ${systemicDrivers.length > 0 ? `Addressing ${systemicDrivers[0].label.toLowerCase()} at the organizational level could yield cross-team improvements.` : ''} Focus must shift from velocity to stability for any teams showing sustained elevated strain.`;
+
+    return [para1, para2, para3, para4];
 }

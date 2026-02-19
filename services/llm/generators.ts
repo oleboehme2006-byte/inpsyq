@@ -3,7 +3,6 @@ import { historyService } from './history';
 import { GeneratedInteraction } from './types';
 import { CONSTRUCTS } from '@/services/measurement/constructs';
 import { itemBank, AssessmentType } from '@/services/measurement/item_bank';
-import { SESSION_GENERATION_PROMPT } from './prompts/session-generation';
 
 export class InteractionGenerator {
 
@@ -16,10 +15,25 @@ export class InteractionGenerator {
             const constructsList = CONSTRUCTS.join(', ');
 
             // Updated System Prompt for Evidence-Based Layer with Coverage Planning
-            // Registry Import
-            const template = SESSION_GENERATION_PROMPT;
-            const systemPrompt = template.system({ count, constructs: constructsList, history });
-            const userPrompt = template.user({ count, history, constructs: constructsList });
+            const systemPrompt = `
+            You are an expert organizational psychologist.
+            Goal: Generate ${count} valid measurement items (interactions) for an employee check-in.
+            
+            Canonical Constructs: ${constructsList}.
+            
+            Plan Requirements:
+            1. **Coverage**: Ensure at least 5 distict constructs are measured in this session.
+            2. **Form Factor**: Mix 'rating' (Likert), 'choice' (Situational), and 'text' (Open-ended).
+            3. **Anti-Repetition**: Do NOT reuse themes from: ${history.slice(0, 5).join('; ')}.
+            4. **Construct Validity**: You MUST use one of the exact Canonical Constructs listed above.
+            
+            CRITICAL - OPTION CODING:
+            - For 'choice' type, you MUST provide 'option_codes' in the response_spec.
+            - Each choice label MUST have a corresponding coding: List of Evidence signals it implies.
+            - Evidence schema: { construct, direction (1 or -1), strength (0.1-1.0), confidence (0.1-1.0), explanation }.
+            
+            Output strictly valid JSON obeying the schema.
+            `;
 
             // Strict Schema Definition
             const schema = {
@@ -29,9 +43,6 @@ export class InteractionGenerator {
                     schema: {
                         type: "object",
                         properties: {
-                            // ... schema stays same ...
-                            // Wait, I should probably improve readability by keeping schema separate or importing it but preserving it here is fine for now
-                            // to minimize diff risk.
                             interactions: {
                                 type: "array",
                                 items: {
@@ -40,7 +51,7 @@ export class InteractionGenerator {
                                         type: { type: "string", enum: ["rating", "choice", "text"] },
                                         prompt_text: { type: "string" },
                                         construct: { type: "string", enum: ["psychological_safety", "trust", "autonomy", "meaning", "fairness", "workload", "role_clarity", "social_support", "learning_climate", "leadership_quality", "adaptive_capacity", "engagement"] },
-                                        targets: { type: "array", items: { type: "string" } },
+                                        targets: { type: "array", items: { type: "string" } }, // Keep for legacy compat
                                         response_spec: {
                                             type: "object",
                                             properties: {
@@ -96,7 +107,7 @@ export class InteractionGenerator {
                 model: LLM_CONFIG.model,
                 messages: [
                     { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt }
+                    { role: 'user', content: `Generate ${count} interactions. Avoid:\n${history.map(h => `- ${h}`).join('\n')}` }
                 ],
                 // @ts-ignore
                 response_format: schema,

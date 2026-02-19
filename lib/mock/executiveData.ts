@@ -166,7 +166,7 @@ export const executiveMockData = {
                 context: "Downstream pressure from Product delays is compressing development timelines, forcing prolonged high-intensity output.",
                 causality: "Compounded by unaddressed 'Process Friction' driver, specifically within the deployment pipeline.",
                 effects: "Emerging signs of 'Withdrawal' behavior (decreased PR reviews, camera-off meetings) indicating early disengagement.",
-                criticality: "AT RISK",
+                criticality: "MID",
                 recommendation: "Focus on technical enablement to remove friction; shield team from non-essential feature requests for 2 sprints."
             }
         },

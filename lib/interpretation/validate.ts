@@ -13,7 +13,13 @@ import {
 import { WeeklyInterpretationInput } from './input';
 import { PolicyResult } from './policy';
 import { INDEX_REGISTRY, IndexId } from '@/lib/semantics/indexRegistry';
-import { DRIVER_REGISTRY, DriverFamilyId } from '@/lib/semantics/driverRegistry';
+import { DRIVER_REGISTRY, DriverFamilyId, isValidDriverFamilyId } from '@/lib/semantics/driverRegistry';
+
+// Forbidden phrases that must never appear in LLM-generated content
+const FORBIDDEN_PHRASES = [
+    'burnout', 'toxic', 'crisis', 'mental health disorder',
+    'psychological disorder', 'mentally ill', 'suicidal',
+];
 
 // ============================================================================
 // Validation Errors
@@ -82,6 +88,62 @@ export function validateSectionsShape(sections: any): WeeklyInterpretationSectio
         const bulletWords = wordCount(sections.whatChanged[i]);
         if (bulletWords > SECTION_LIMITS.whatChanged.maxWordsPerItem) {
             errors.push(`whatChanged[${i}]: ${bulletWords} words (max ${SECTION_LIMITS.whatChanged.maxWordsPerItem})`);
+        }
+    }
+
+    // Validate Phase 9 optional fields if present
+    if (sections.driverCards !== undefined) {
+        if (!Array.isArray(sections.driverCards)) {
+            errors.push('driverCards must be an array');
+        } else {
+            if (sections.driverCards.length > SECTION_LIMITS.driverCards.maxItems) {
+                errors.push(`driverCards: ${sections.driverCards.length} items (max ${SECTION_LIMITS.driverCards.maxItems})`);
+            }
+            sections.driverCards.forEach((card: any, i: number) => {
+                if (!card.driverFamily || typeof card.driverFamily !== 'string') {
+                    errors.push(`driverCards[${i}]: missing driverFamily`);
+                }
+                if (!card.label || typeof card.label !== 'string') {
+                    errors.push(`driverCards[${i}]: missing label`);
+                }
+                if (!card.mechanism || typeof card.mechanism !== 'string') {
+                    errors.push(`driverCards[${i}]: missing mechanism`);
+                }
+                if (!card.recommendation || typeof card.recommendation !== 'string') {
+                    errors.push(`driverCards[${i}]: missing recommendation`);
+                }
+            });
+        }
+    }
+
+    if (sections.actionCards !== undefined) {
+        if (!Array.isArray(sections.actionCards)) {
+            errors.push('actionCards must be an array');
+        } else {
+            if (sections.actionCards.length > SECTION_LIMITS.actionCards.maxItems) {
+                errors.push(`actionCards: ${sections.actionCards.length} items (max ${SECTION_LIMITS.actionCards.maxItems})`);
+            }
+            sections.actionCards.forEach((card: any, i: number) => {
+                if (!card.title || typeof card.title !== 'string') {
+                    errors.push(`actionCards[${i}]: missing title`);
+                }
+                if (!['critical', 'warning', 'info'].includes(card.severity)) {
+                    errors.push(`actionCards[${i}]: invalid severity "${card.severity}"`);
+                }
+                if (!['HIGH', 'AT RISK', 'LOW'].includes(card.criticality)) {
+                    errors.push(`actionCards[${i}]: invalid criticality "${card.criticality}"`);
+                }
+            });
+        }
+    }
+
+    if (sections.briefingParagraphs !== undefined) {
+        if (!Array.isArray(sections.briefingParagraphs)) {
+            errors.push('briefingParagraphs must be an array');
+        } else {
+            if (sections.briefingParagraphs.length > SECTION_LIMITS.briefingParagraphs.maxItems) {
+                errors.push(`briefingParagraphs: ${sections.briefingParagraphs.length} items (max ${SECTION_LIMITS.briefingParagraphs.maxItems})`);
+            }
         }
     }
 
@@ -173,13 +235,16 @@ export function validateNoInvention(
 // ============================================================================
 
 export function validateNumericSpam(sections: WeeklyInterpretationSections): void {
-    // Count explicit numbers in all text
+    // Count explicit numbers in all text (including Phase 9 fields)
     const allText = [
         sections.executiveSummary,
         ...sections.whatChanged,
         ...sections.riskOutlook,
         ...sections.recommendedFocus,
         sections.confidenceAndLimits,
+        ...(sections.driverCards || []).flatMap(c => [c.mechanism, c.causality, c.effects, c.recommendation]),
+        ...(sections.actionCards || []).flatMap(c => [c.message, c.context, c.rationale, c.effects, c.recommendation]),
+        ...(sections.briefingParagraphs || []),
     ].join(' ');
 
     // Match numbers (including percentages)
@@ -190,6 +255,17 @@ export function validateNumericSpam(sections: WeeklyInterpretationSections): voi
             `Too many explicit numbers: ${numbers.length} (max ${MAX_EXPLICIT_NUMBERS})`,
             'NUMERIC_SPAM',
             { count: numbers.length, max: MAX_EXPLICIT_NUMBERS, found: numbers }
+        );
+    }
+
+    // Validate forbidden phrases across all text
+    const lowerText = allText.toLowerCase();
+    const foundForbidden = FORBIDDEN_PHRASES.filter(phrase => lowerText.includes(phrase));
+    if (foundForbidden.length > 0) {
+        throw new InterpretationValidationError(
+            `Forbidden phrases detected: ${foundForbidden.join(', ')}`,
+            'FORBIDDEN_PHRASE',
+            { found: foundForbidden }
         );
     }
 }

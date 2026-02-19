@@ -9,14 +9,16 @@ import {
     WeeklyInterpretationSections,
     DriverLine,
     DependencyLine,
+    DriverDetailCard,
+    ActionDetailCard,
     PROMPT_VERSION,
     MODEL_ID_FALLBACK,
-    MODEL_ID_GPT4,
-    Controllability
 } from './types';
 import { WeeklyInterpretationInput } from './input';
 import { evaluatePolicy, PolicyResult, enforcePolicy } from './policy';
 import { INDEX_REGISTRY } from '@/lib/semantics/indexRegistry';
+import { DRIVER_CONTENT } from '@/lib/content/driverLibrary';
+import { isValidDriverFamilyId } from '@/lib/semantics/driverRegistry';
 
 // ============================================================================
 // Generator Options
@@ -85,6 +87,11 @@ function generateDeterministicSections(
     // Confidence And Limits
     const confidenceAndLimits = buildConfidenceAndLimits(input);
 
+    // Phase 9: Rich Dashboard Content
+    const driverCards = buildDriverCards(input, policy);
+    const actionCards = buildActionCards(input, policy);
+    const briefingParagraphs = buildBriefingParagraphs(input, policy);
+
     return {
         executiveSummary,
         whatChanged,
@@ -92,6 +99,9 @@ function generateDeterministicSections(
         riskOutlook,
         recommendedFocus,
         confidenceAndLimits,
+        driverCards,
+        actionCards,
+        briefingParagraphs,
     };
 }
 
@@ -161,21 +171,11 @@ function buildPrimaryDrivers(input: WeeklyInterpretationInput): { internal: Driv
     const external: DependencyLine[] = input.attribution.externalDependencies.slice(0, 3).map(d => ({
         label: d.dependency,
         impactLevel: d.impactLevel,
-        controllability: mapControllability(d.controllability),
+        controllability: d.controllability,
         evidenceTag: `Via ${d.pathway}`,
     }));
 
     return { internal, external };
-}
-
-function mapControllability(c: import('./input').Controllability): Controllability {
-    switch (c) {
-        case 'HIGH': return 'FULL';
-        case 'PARTIAL': return 'PARTIAL';
-        case 'LOW': return 'MINIMAL';
-        case 'NONE': return 'NONE';
-        default: return 'MINIMAL';
-    }
 }
 
 function buildRiskOutlook(input: WeeklyInterpretationInput, policy: PolicyResult): string[] {
@@ -260,4 +260,143 @@ function buildConfidenceAndLimits(input: WeeklyInterpretationInput): string {
         : 'Pattern stability supports interpretation reliability.';
 
     return `Interpretation based on ${input.trend?.weeksCovered || 1} weeks of data with adequate construct coverage. ${limitations}${stability}`;
+}
+
+// ============================================================================
+// Phase 9: Rich Dashboard Content Builders (Deterministic Fallback)
+// ============================================================================
+
+/**
+ * Build driver detail cards from input attribution and DRIVER_CONTENT library.
+ * Produces cards matching the TeamDriver.details and executive driver details contracts.
+ */
+function buildDriverCards(
+    input: WeeklyInterpretationInput,
+    _policy: PolicyResult
+): DriverDetailCard[] {
+    const cards: DriverDetailCard[] = [];
+
+    for (const driver of input.attribution.internalDrivers.slice(0, 3)) {
+        const familyId = driver.driverFamily;
+        if (!isValidDriverFamilyId(familyId)) continue;
+
+        const content = DRIVER_CONTENT[familyId];
+        if (!content) continue;
+
+        cards.push({
+            driverFamily: familyId,
+            label: content.label,
+            mechanism: content.mechanism,
+            causality: content.causality,
+            effects: content.effects,
+            recommendation: content.recommendation,
+        });
+    }
+
+    return cards;
+}
+
+/**
+ * Build action detail cards from drivers and risk signals.
+ * Maps high-severity drivers to actionable interventions.
+ */
+function buildActionCards(
+    input: WeeklyInterpretationInput,
+    policy: PolicyResult
+): ActionDetailCard[] {
+    if (policy.monitorOnly) return [];
+
+    const actions: ActionDetailCard[] = [];
+    const strainIdx = input.indices.find(i => i.indexId === 'strain');
+    const engagementIdx = input.indices.find(i => i.indexId === 'engagement');
+
+    // Generate actions for high-severity internal drivers
+    const criticalDrivers = input.attribution.internalDrivers
+        .filter(d => d.severityLevel === 'C3' || d.severityLevel === 'C2')
+        .slice(0, 2);
+
+    for (const driver of criticalDrivers) {
+        const familyId = driver.driverFamily;
+        const content = isValidDriverFamilyId(familyId) ? DRIVER_CONTENT[familyId] : null;
+        const label = content?.label || driver.label;
+
+        const severity: ActionDetailCard['severity'] = driver.severityLevel === 'C3' ? 'critical' : 'warning';
+        const criticality: ActionDetailCard['criticality'] = driver.severityLevel === 'C3' ? 'HIGH' : 'AT RISK';
+
+        actions.push({
+            title: `Address ${label}`,
+            severity,
+            message: `${label} requires ${severity === 'critical' ? 'immediate' : 'timely'} intervention based on current severity.`,
+            context: content?.mechanism || `${label} has been identified as a significant contributor to the current team state through the attribution analysis.`,
+            rationale: content?.causality || `Addressing this driver is expected to reduce strain and improve team dynamics based on established psychometric models.`,
+            effects: content?.effects || `Without intervention, this driver is likely to amplify strain and withdrawal signals in the coming observation windows.`,
+            criticality,
+            recommendation: content?.recommendation || `Review team workload and process structures to identify specific intervention points for ${label.toLowerCase()}.`,
+        });
+    }
+
+    // Generate a data-quality action if coverage is low
+    if (input.quality.coverageRatio < 0.7 && actions.length < 3) {
+        actions.push({
+            title: 'Improve Data Coverage',
+            severity: 'info',
+            message: 'Limited data coverage is reducing interpretation confidence.',
+            context: `Current measurement coverage is at a reduced level, which constrains the ability to identify nuanced patterns and emerging trends.`,
+            rationale: `Robust psychometric assessment requires adequate representation across all team members and constructs to ensure valid conclusions.`,
+            effects: `Higher coverage enables earlier detection of shifts and more precise attribution, allowing for proactive rather than reactive interventions.`,
+            criticality: 'LOW',
+            recommendation: `Encourage broader participation in the measurement process to strengthen the foundation for team insights and recommendations.`,
+        });
+    }
+
+    return actions.slice(0, 3);
+}
+
+/**
+ * Build briefing paragraphs for the dashboard briefing section.
+ * Produces 2 paragraphs with inline HTML spans for emphasis.
+ */
+function buildBriefingParagraphs(
+    input: WeeklyInterpretationInput,
+    policy: PolicyResult
+): string[] {
+    const teamOrOrg = input.teamId ? 'This team' : 'The organization';
+    const strainIdx = input.indices.find(i => i.indexId === 'strain');
+    const engagementIdx = input.indices.find(i => i.indexId === 'engagement');
+    const withdrawalIdx = input.indices.find(i => i.indexId === 'withdrawal_risk');
+
+    const strainValue = strainIdx ? Math.round(strainIdx.currentValue * 100) : null;
+    const engagementValue = engagementIdx ? Math.round(engagementIdx.currentValue * 100) : null;
+    const strainTrend = strainIdx?.trendDirection === 'UP' ? 'an upward trajectory'
+        : strainIdx?.trendDirection === 'DOWN' ? 'a downward trajectory'
+            : 'a stable trajectory';
+
+    // Primary drivers text
+    const topDrivers = input.attribution.internalDrivers.slice(0, 2);
+    const driverNames = topDrivers.map(d => {
+        const content = isValidDriverFamilyId(d.driverFamily) ? DRIVER_CONTENT[d.driverFamily] : null;
+        return content?.label || d.label;
+    });
+    const driverText = driverNames.length > 0
+        ? `primarily driven by <span class="text-white">${driverNames.join('</span> and <span class="text-white">')}</span>`
+        : 'without a single dominant driver identified';
+
+    // Paragraph 1: Situation Assessment
+    const strainDisplay = strainValue !== null
+        ? `<span class="text-strain">${strainValue}%</span>`
+        : 'elevated levels';
+    const engagementDisplay = engagementValue !== null
+        ? `<span class="text-engagement">${engagementValue}%</span>`
+        : 'current levels';
+
+    const para1 = `${teamOrOrg} is currently operating at a strain level of ${strainDisplay} with ${strainTrend}, ${driverText}. Engagement stands at ${engagementDisplay}, and the overall trend regime indicates a ${input.trend?.regime?.toLowerCase() || 'stable'} pattern. ${policy.highestPriority === 'IMMEDIATE' || policy.highestPriority === 'HIGH' ? 'The current trajectory warrants proactive intervention to prevent further deterioration.' : 'Continued monitoring is recommended to track the evolution of these dynamics.'}`;
+
+    // Paragraph 2: Recommendation
+    const topRecommendation = topDrivers.length > 0 && isValidDriverFamilyId(topDrivers[0].driverFamily)
+        ? DRIVER_CONTENT[topDrivers[0].driverFamily]?.recommendation
+        : null;
+
+    const para2 = `<span class="text-white font-medium">Recommendation:</span> ${topRecommendation || 'Continue the current observation cadence and review attribution signals for emerging patterns.'} Data coverage currently supports ${input.quality.coverageRatio >= 0.8 ? 'confident' : 'moderate-confidence'} interpretation. ${input.quality.missingWeeks > 0 ? `Gaps in ${input.quality.missingWeeks} prior observation period${input.quality.missingWeeks > 1 ? 's' : ''} may limit trend analysis precision.` : 'Historical data continuity supports reliable trend detection.'}`;
+
+    return [para1, para2];
 }

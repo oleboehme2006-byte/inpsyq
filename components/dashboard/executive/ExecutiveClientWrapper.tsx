@@ -11,14 +11,11 @@ import { ExecutiveDashboardData } from '@/services/dashboard/executiveReader';
 import { Globe } from 'lucide-react';
 import { format, subWeeks } from 'date-fns';
 
-import { WeeklyInterpretationRecord } from '@/lib/interpretation/types';
-
 interface ExecutiveClientWrapperProps {
     initialData: ExecutiveDashboardData;
-    interpretation?: WeeklyInterpretationRecord | null;
 }
 
-export function ExecutiveClientWrapper({ initialData, interpretation }: ExecutiveClientWrapperProps) {
+export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperProps) {
     const [selectedKpi, setSelectedKpi] = useState('engagement');
     const [mounted, setMounted] = useState(false);
 
@@ -26,51 +23,40 @@ export function ExecutiveClientWrapper({ initialData, interpretation }: Executiv
         setMounted(true);
     }, []);
 
-    // Transform History for Graph
+    // Centralized Data Generation for Synchronization
+    // Using simple math to be deterministic without complex seeds
     const graphData = useMemo(() => {
-        if (!initialData.history || initialData.history.length === 0) {
-            return [];
-        }
+        const now = new Date();
+        return Array.from({ length: 12 }).map((_, i) => {
+            const date = subWeeks(now, 11 - i);
+            const baseConfidence = 3 + (Math.sin(i * 0.5) * 2);
 
-        // Sort history by weekStart
-        const sorted = [...initialData.history].sort((a, b) =>
-            new Date(a.weekStart).getTime() - new Date(b.weekStart).getTime()
-        );
-
-        return sorted.map(d => {
-            const date = new Date(d.weekStart);
-            const baseConfidence = 5; // Fixed confidence or derived?
-            // ExecutiveDashboardData doesn't have confidence per week in history yet.
-            // Using placeholder confidence for visual continuity.
+            const strain = 20 + (i * 1.5) + (Math.sin(i) * 5);
+            const withdrawal = 15 + (i * 2.5) + (Math.cos(i) * 3);
+            const trust = 20 + (i * 3) + (Math.sin(i * 0.5) * 2);
+            const engagement = 70 - (i * 1) + (Math.sin(i * 2) * 4);
 
             return {
                 date: format(date, 'MMM d'),
-                fullDate: d.weekStart,
-                strain: d.strain * 100, // Indices are 0-1, graph expects 0-100?
-                withdrawal: d.withdrawalRisk * 100,
-                trust: d.trustGap * 100,
-                engagement: d.engagement * 100,
-                confidence: baseConfidence,
-                strainRange: [d.strain * 100 - baseConfidence, d.strain * 100 + baseConfidence],
-                withdrawalRange: [d.withdrawalRisk * 100 - baseConfidence, d.withdrawalRisk * 100 + baseConfidence],
-                trustRange: [d.trustGap * 100 - baseConfidence, d.trustGap * 100 + baseConfidence],
-                engagementRange: [d.engagement * 100 - baseConfidence, d.engagement * 100 + baseConfidence],
+                fullDate: date.toISOString(),
+                strain: Math.max(0, Math.min(100, strain)),
+                withdrawal: Math.max(0, Math.min(100, withdrawal)),
+                trust: Math.max(0, Math.min(100, trust)), // mapped to 'trust-gap'
+                engagement: Math.max(0, Math.min(100, engagement)),
+                confidence: Math.abs(baseConfidence)
             };
-        });
-    }, [initialData.history]);
+        }).map(d => ({
+            ...d,
+            strainRange: [d.strain - d.confidence, d.strain + d.confidence],
+            withdrawalRange: [d.withdrawal - d.confidence, d.withdrawal + d.confidence],
+            trustRange: [d.trust - d.confidence, d.trust + d.confidence],
+            engagementRange: [d.engagement - d.confidence, d.engagement + d.confidence],
+        }));
+    }, []);
 
     // Extract Latest Values for KPIs
-    // Use graphData if available, otherwise fallback (shouldn't happen with real data)
-    let latest: any, previous: any;
-
-    if (graphData.length > 0) {
-        latest = graphData[graphData.length - 1];
-        previous = graphData.length > 1 ? graphData[graphData.length - 2] : latest;
-    } else {
-        // Fallback or Empty State
-        latest = { strain: 0, withdrawal: 0, trust: 0, engagement: 0 };
-        previous = { strain: 0, withdrawal: 0, trust: 0, engagement: 0 };
-    }
+    const latest = graphData[graphData.length - 1];
+    const previous = graphData[graphData.length - 2];
 
     const getTrend = (curr: number, prev: number) => {
         const diff = curr - prev;
@@ -81,30 +67,30 @@ export function ExecutiveClientWrapper({ initialData, interpretation }: Executiv
         {
             id: 'strain',
             title: 'Strain',
-            value: (initialData.orgIndices.strain.value * 100).toFixed(0), // Use direct data
+            value: latest.strain.toFixed(0),
             color: 'strain',
-            trendValue: getTrend(initialData.orgIndices.strain.value * 100, (previous.strain || 0))
+            trendValue: getTrend(latest.strain, previous.strain)
         },
         {
             id: 'withdrawal',
             title: 'Withdrawal Risk',
-            value: (initialData.orgIndices.withdrawalRisk.value * 100).toFixed(0),
+            value: latest.withdrawal.toFixed(0),
             color: 'withdrawal',
-            trendValue: getTrend(initialData.orgIndices.withdrawalRisk.value * 100, (previous.withdrawal || 0))
+            trendValue: getTrend(latest.withdrawal, previous.withdrawal)
         },
         {
             id: 'trust',
             title: 'Trust Gap',
-            value: (initialData.orgIndices.trustGap.value * 100).toFixed(0),
+            value: latest.trust.toFixed(0),
             color: 'trust-gap',
-            trendValue: getTrend(initialData.orgIndices.trustGap.value * 100, (previous.trust || 0))
+            trendValue: getTrend(latest.trust, previous.trust)
         },
         {
             id: 'engagement',
             title: 'Engagement',
-            value: (initialData.orgIndices.engagement.value * 100).toFixed(0),
+            value: latest.engagement.toFixed(0),
             color: 'engagement',
-            trendValue: getTrend(initialData.orgIndices.engagement.value * 100, (previous.engagement || 0))
+            trendValue: getTrend(latest.engagement, previous.engagement)
         },
     ];
 
@@ -117,7 +103,7 @@ export function ExecutiveClientWrapper({ initialData, interpretation }: Executiv
                 {/* Left: Icon + Title */}
                 <div className="flex items-center gap-4">
                     <Globe className="w-8 h-8 text-[#8B5CF6]" strokeWidth={1.5} />
-                    <h1 className="text-4xl font-display font-medium text-white tracking-tight">Acme Corporation</h1>
+                    <h1 className="text-4xl font-display font-medium text-white tracking-tight">{initialData.orgName || 'Acme Corporation'}</h1>
                 </div>
 
                 {/* Right: Brand Logo */}
@@ -158,21 +144,15 @@ export function ExecutiveClientWrapper({ initialData, interpretation }: Executiv
                 <TeamPortfolioTable />
             </div>
 
-            {/* Briefing Card (Full Width) */}
-            <div className="col-span-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-                <Briefing interpretation={interpretation} />
-            </div>
+            {/* Split Section: Drivers & Watchlist with Interaction */}
+            <DriversWatchlistSection
+                drivers={initialData.drivers}
+                watchlist={initialData.watchlist}
+            />
 
-            {/* Systemic Drivers & Watchlist (Full Width -> Split inside) */}
-            <div className="col-span-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-                <DriversWatchlistSection
-                    systemicDrivers={initialData.systemicDrivers}
-                    watchlist={initialData.watchlist}
-                />
-            </div>
-
-            {/* Data Governance */}
+            {/* Briefing & Governance */}
             <div className="space-y-8 pb-12">
+                <Briefing paragraphs={initialData.briefingParagraphs} />
                 <DataGovernance />
             </div>
         </div>

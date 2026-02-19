@@ -85,9 +85,8 @@ export async function GET(req: NextRequest) {
         }
 
         // Fetch fresh data
-        // Fetch fresh data
         const data = await measure('dashboard.executive.read', () =>
-            getExecutiveDashboardData(orgId, weeks)
+            getExecutiveDashboardData(orgId)
         );
 
         if (!data) {
@@ -100,12 +99,12 @@ export async function GET(req: NextRequest) {
         }
 
         // Cache result
-        setCache(cacheKey, data, data.meta.latestWeek);
+        setCache(cacheKey, data, 'latest');
 
         return NextResponse.json({
-            ...data,
+            ok: true,
+            data,
             meta: {
-                ...data.meta,
                 request_id: requestId,
                 duration_ms: Date.now() - startTime,
             },

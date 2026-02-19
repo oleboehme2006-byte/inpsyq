@@ -40,7 +40,6 @@ export default async function AdminLayout({
             redirect('/org/select');
         }
         redirect('/login');
-        return null; // TS flow analysis helper
     }
 
     // Not ADMIN -> redirect to role home

@@ -109,7 +109,7 @@ export function TeamDetailCard({ type, data, onClose }: TeamDetailCardProps) {
                                     <span className="text-xs text-text-tertiary uppercase">Criticality</span>
                                     <span className={cn("text-sm font-mono font-bold uppercase",
                                         data.details.criticality === 'HIGH' ? "text-strain" :
-                                            data.details.criticality === 'AT RISK' ? "text-withdrawal" :
+                                            data.details.criticality === 'MID' ? "text-withdrawal" :
                                                 "text-engagement"
                                     )}>
                                         {data.details.criticality}

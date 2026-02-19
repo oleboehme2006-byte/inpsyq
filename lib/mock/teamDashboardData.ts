@@ -29,7 +29,7 @@ export interface TeamAction {
         context: string;
         rationale: string;
         effects: string;
-        criticality: 'HIGH' | 'AT RISK' | 'LOW';
+        criticality: 'HIGH' | 'MID' | 'LOW';
         recommendation: string;
     };
 }
@@ -41,6 +41,20 @@ export interface TeamGovernance {
     signalConfidence: number;
     totalSessions: number;
     lastUpdated: string;
+}
+
+export interface TeamSeriesPoint {
+    date: string;
+    fullDate: string;
+    strain: number;
+    withdrawal: number;
+    trust: number;
+    engagement: number;
+    confidence: number;
+    strainRange: [number, number];
+    withdrawalRange: [number, number];
+    trustRange: [number, number];
+    engagementRange: [number, number];
 }
 
 export interface TeamDashboardEntry {
@@ -58,10 +72,19 @@ export interface TeamDashboardEntry {
         engagementBase: number;
         engagementGrowth: number;
     };
+    series?: TeamSeriesPoint[]; // Optional real data series
     drivers: TeamDriver[];
     actions: TeamAction[];
     briefing: string[];
     governance: TeamGovernance;
+    meta: {
+        latestWeek: string;
+        computeVersion: string;
+    };
+    latestIndices: any;
+    quality: any;
+    trend: any;
+    attribution: any;
 }
 
 export const teamDashboardData: Record<string, TeamDashboardEntry> = {
@@ -70,8 +93,20 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         name: 'Product',
         members: 24,
         status: 'Critical',
+        meta: {
+            latestWeek: '2025-12-28',
+            computeVersion: 'v1'
+        },
+        latestIndices: {},
+        quality: {},
+        trend: {},
+        attribution: {},
         kpiSeeds: {
             strainBase: 45, strainGrowth: 3.2,
+            // ... (rest of file implied, but replace_file_content needs contiguous block)
+            // I can't replace the whole file easily. I will do it in chunks.
+            // First the interface.
+
             withdrawalBase: 20, withdrawalGrowth: 2.5,
             trustBase: 15, trustGrowth: 1.5,
             engagementBase: 72, engagementGrowth: -2.8,
@@ -140,7 +175,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "Micro-management signals have increased by 22% as leadership anxiety about Q4 targets rises, paradoxically reducing the team's ability to deliver.",
                     rationale: "Self-Determination Theory predicts that autonomy erosion leads to amotivation. Current patterns match early-stage autonomy withdrawal syndrome.",
                     effects: "Restoring bounded autonomy typically improves engagement by 8-12% and reduces withdrawal risk within 3 weeks.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Define clear 'decision zones' where the team has full authority. Leadership check-ins should shift from directive to coaching-oriented formats."
                 }
             },
@@ -177,6 +212,11 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         name: 'Engineering',
         members: 42,
         status: 'At Risk',
+        meta: { latestWeek: '2025-12-28', computeVersion: 'v1' },
+        latestIndices: {},
+        quality: {},
+        trend: {},
+        attribution: {},
         kpiSeeds: {
             strainBase: 30, strainGrowth: 2.8,
             withdrawalBase: 25, withdrawalGrowth: 2.2,
@@ -247,7 +287,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "60% of engineers report that they are 'just maintaining' rather than growing, a key predictor of voluntary attrition in technical roles.",
                     rationale: "Deci & Ryan's Self-Determination Theory identifies competence as a core intrinsic motivator. When growth stalls, engagement follows within 4-6 weeks.",
                     effects: "Introducing structured learning time and tech talks can reverse the 'stagnation narrative' and improve engagement scores by 5-8%.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Allocate 10% time for self-directed learning. Launch a monthly 'Tech Talk' series. Create a visible skills matrix to track and celebrate growth."
                 }
             },
@@ -284,6 +324,11 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         name: 'Sales',
         members: 35,
         status: 'At Risk',
+        meta: { latestWeek: '2025-12-28', computeVersion: 'v1' },
+        latestIndices: {},
+        quality: {},
+        trend: {},
+        attribution: {},
         kpiSeeds: {
             strainBase: 22, strainGrowth: 2.0,
             withdrawalBase: 22, withdrawalGrowth: 2.2,
@@ -341,7 +386,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "Only 35% of the team hit their monthly target last month, down from 60% three months ago. The 'I can't win' narrative is taking hold.",
                     rationale: "Bandura's self-efficacy theory predicts that repeated failure experiences create a downward spiral of effort reduction. The current target structure is eroding self-belief.",
                     effects: "Interim milestones can reverse the efficacy decline within one sales cycle by providing frequent 'wins' that rebuild confidence.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Introduce weekly micro-targets alongside monthly quotas. Celebrate pipeline progression, not just closed deals. Consider temporary quota relief for the lowest-performing segment."
                 }
             },
@@ -354,7 +399,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "3 senior reps have privately flagged discomfort with current positioning, and 2 have reduced outbound activity — a classic avoidance response to ethical tension.",
                     rationale: "Festinger's cognitive dissonance theory predicts that unresolved ethical conflicts lead to either attitude change (cynicism) or behavior change (quiet quitting).",
                     effects: "Transparent alignment typically restores engagement within 2 weeks and actually improves client trust through authentic communication.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Organize a cross-functional session with Product leadership to align on honest messaging. Provide an updated 'what we can and can't promise' guide."
                 }
             },
@@ -391,6 +436,11 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         name: 'Operations',
         members: 18,
         status: 'Healthy',
+        meta: { latestWeek: '2025-12-28', computeVersion: 'v1' },
+        latestIndices: {},
+        quality: {},
+        trend: {},
+        attribution: {},
         kpiSeeds: {
             strainBase: 18, strainGrowth: 1.2,
             withdrawalBase: 5, withdrawalGrowth: 0.5,
@@ -448,7 +498,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "Ad-hoc support requests from Product and Engineering have increased 40% in 6 weeks, but the team has absorbed them without complaint — a 'silent overextension' pattern.",
                     rationale: "Teams with high conscientiousness often mask overload until a tipping point. The absence of complaints is not evidence of sustainability.",
                     effects: "Formalizing boundaries now will preserve the team's healthy status and prevent a sudden transition to 'At Risk' that is harder to reverse.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Define clear SLAs for support requests. Implement a ticketing system for cross-team asks. Track and make visible the actual ops capacity utilization."
                 }
             },
@@ -498,6 +548,11 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         name: 'Support',
         members: 28,
         status: 'Healthy',
+        meta: { latestWeek: '2025-12-28', computeVersion: 'v1' },
+        latestIndices: {},
+        quality: {},
+        trend: {},
+        attribution: {},
         kpiSeeds: {
             strainBase: 12, strainGrowth: 1.0,
             withdrawalBase: 8, withdrawalGrowth: 0.6,
@@ -555,7 +610,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "Agents handling 40+ emotionally charged interactions per week are showing early signs of empathy withdrawal — shorter responses, reduced probing.",
                     rationale: "Maslach's burnout model identifies emotional exhaustion as the first stage. Without intervention, depersonalization follows within 4-6 weeks.",
                     effects: "Structured debriefs and rotation protocols can maintain empathy levels while preventing the cascade to clinical burnout indicators.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Implement 15-min debrief sessions after difficult interactions. Create a 'buddy system' for emotional support. Limit difficult ticket streaks to 3 consecutive."
                 }
             },
@@ -605,6 +660,11 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         name: 'HR',
         members: 8,
         status: 'Healthy',
+        meta: { latestWeek: '2025-12-28', computeVersion: 'v1' },
+        latestIndices: {},
+        quality: {},
+        trend: {},
+        attribution: {},
         kpiSeeds: {
             strainBase: 15, strainGrowth: 1.0,
             withdrawalBase: 4, withdrawalGrowth: 0.4,
@@ -662,7 +722,7 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
                     context: "The 2 HRBPs supporting Product and Engineering are absorbing disproportionate emotional load from those high-strain teams. One has reported sleep disruption.",
                     rationale: "Figley's compassion fatigue model applies directly to HR professionals who absorb team distress. Without structured support, helper burnout follows within 6-8 weeks.",
                     effects: "External supervision or coaching can reduce vicarious stress by 30-40% while actually improving the quality of support these HRBPs provide.",
-                    criticality: 'AT RISK',
+                    criticality: 'MID',
                     recommendation: "Arrange external coaching sessions for the 2 HRBPs. Implement a bi-weekly 'peer debrief' within the HR team. Set clear off-hours boundaries."
                 }
             },

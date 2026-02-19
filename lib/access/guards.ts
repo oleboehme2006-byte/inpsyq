@@ -426,7 +426,11 @@ export async function requireRolesStrict(
 
     // 4. Find membership for selected org
     const membership = memberships.find(m => m.orgId === selectedOrgId);
-    if (!membership) {
+
+    // ADMIN bypass: if user is ADMIN in *any* org, allow cross-org access
+    const isGlobalAdmin = memberships.some(m => m.role === 'ADMIN');
+
+    if (!membership && !isGlobalAdmin) {
         return {
             ok: false,
             response: NextResponse.json(
@@ -436,8 +440,12 @@ export async function requireRolesStrict(
         };
     }
 
+    // Use matched membership, or synthesize an ADMIN context for cross-org access
+    const effectiveRole = membership?.role ?? 'ADMIN';
+    const effectiveTeamId = membership?.teamId ?? null;
+
     // 5. Check role
-    if (!allowedRoles.includes(membership.role)) {
+    if (!allowedRoles.includes(effectiveRole)) {
         return {
             ok: false,
             response: NextResponse.json(
@@ -451,9 +459,9 @@ export async function requireRolesStrict(
         ok: true,
         value: {
             userId,
-            orgId: membership.orgId,
-            role: membership.role,
-            teamId: membership.teamId,
+            orgId: selectedOrgId!,
+            role: effectiveRole,
+            teamId: effectiveTeamId,
         },
     };
 }
@@ -521,6 +529,16 @@ export async function requireAdminStrict(
     req: Request
 ): Promise<RBACGuardResult<RBACContext>> {
     return requireRolesStrict(req, ['ADMIN']);
+}
+
+/**
+ * Require EXECUTIVE or ADMIN role (org management).
+ * Used by client-facing /api/org/* routes.
+ */
+export async function requireOrgManagement(
+    req: Request
+): Promise<RBACGuardResult<RBACContext>> {
+    return requireRolesStrict(req, ['EXECUTIVE', 'ADMIN']);
 }
 
 // ============================================================================

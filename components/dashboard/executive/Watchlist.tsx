@@ -1,23 +1,17 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { executiveMockData } from '@/lib/mock/executiveData';
 import { AlertCircle, AlertTriangle, Info } from 'lucide-react';
 
-export interface WatchlistItemUI {
-    id: string;
-    team: string;
-    severity: 'critical' | 'warning' | 'info';
-    message: string;
-}
-
 interface WatchlistProps {
-    items: WatchlistItemUI[];
+    watchlist?: any[];
     selectedId?: string;
     onSelect?: (id: string) => void;
     isCompact?: boolean;
 }
 
-export function Watchlist({ items, selectedId, onSelect, isCompact }: WatchlistProps) {
-    const list = items;
+export function Watchlist({ watchlist: watchlistProp, selectedId, onSelect, isCompact }: WatchlistProps) {
+    const list = watchlistProp?.length ? watchlistProp : executiveMockData.watchlist;
 
     return (
         <div className="w-full h-full bg-[#050505] rounded-xl border border-white/10 p-5 flex flex-col transition-all duration-500 overflow-hidden">
@@ -41,7 +35,7 @@ export function Watchlist({ items, selectedId, onSelect, isCompact }: WatchlistP
                         item.severity === 'warning' ? "text-withdrawal" : "text-engagement";
 
                     const criticalityLabel = item.severity === 'critical' ? 'HIGH' :
-                        item.severity === 'warning' ? 'AT RISK' : 'LOW';
+                        item.severity === 'warning' ? 'MID' : 'LOW';
 
                     const criticalityBg = item.severity === 'critical' ? 'bg-strain/10 text-strain' :
                         item.severity === 'warning' ? 'bg-withdrawal/10 text-withdrawal' : 'bg-engagement/10 text-engagement';

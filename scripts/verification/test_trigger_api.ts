@@ -3,7 +3,6 @@ import { NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-// @ts-ignore
 process.env.NODE_ENV = 'development'; // Force dev mode for guards
 
 // Load envs

@@ -7,9 +7,11 @@
 
 import { query } from '@/db/client';
 import { getCanonicalWeek, getPreviousWeeks } from '@/lib/week';
-import { runWeeklyRollup } from '@/services/pipeline/runner';
-import { runWeeklyOrgRollup } from '@/services/pipeline/orgRunner';
+import { runWeeklyRollup, runWeeklyOrgRollup } from '@/services/pipeline/runner';
 import { getOrCreateTeamInterpretation, getOrCreateOrgInterpretation } from '@/services/interpretation/service';
+import { sendWeeklyDigest } from '@/services/email/sender';
+import { DRIVER_CONTENT } from '@/lib/content/driverLibrary';
+import { isValidDriverFamilyId } from '@/lib/semantics/driverRegistry';
 import { startRun, finishRun } from './audit';
 import { buildLockKey, acquireLock, releaseLock } from './lock';
 import { sendRunFailureAlert, shouldAlert } from '@/services/alerts/webhook';
@@ -309,7 +311,7 @@ async function runWeeklyForOrg(
 
         const batchResults = await Promise.allSettled(
             batch.map(team =>
-                runWeeklyForTeam(orgId, team.teamId, team.teamName, weekStart, options)
+                runWeeklyForTeam(orgId, team.teamId, team.teamName, weekStart, weekLabel, options)
             )
         );
 
@@ -347,22 +349,23 @@ async function runWeeklyForOrg(
     }
 
     const durationMs = Date.now() - startTime;
-    const status: RunStatus = counts.pipelineFailed > 0 ? 'partial' : 'completed';
+    let status: RunStatus = counts.pipelineFailed > 0 ? 'partial' : 'completed';
 
-    // Phase 8: Org Level Rollup & Interpretation
-    // Only run if we had success with teams (at least one)
-    if (counts.pipelineSuccess > 0) {
+    // 3. Run Org-Level Rollup
+    if (!options.dryRun) {
         try {
-            console.log(`[WeeklyRunner] Running Org Rollup for ${orgId}`);
             await runWeeklyOrgRollup(orgId, weekStart);
+        } catch (e: any) {
+            console.error(`[Weekly] Org Rollup Failed for ${orgId}:`, e.message);
+            status = 'partial';
+        }
 
-            // Org Interpretation
-            console.log(`[WeeklyRunner] Generating Org Interpretation for ${orgId}`);
+        // 4. Run Org-Level Interpretation
+        try {
             await getOrCreateOrgInterpretation(orgId, weekStartStr);
         } catch (e: any) {
-            console.error(`[WeeklyRunner] Org Rollup/Interp Failed: ${e.message}`);
-            // Don't fail the whole run, but maybe mark partial?
-            // For now, just log.
+            console.error(`[Weekly] Org Interpretation Failed for ${orgId}:`, e.message);
+            status = 'partial';
         }
     }
 
@@ -388,6 +391,7 @@ async function runWeeklyForTeam(
     teamId: string,
     teamName: string | undefined,
     weekStart: Date,
+    weekLabel: string,
     options: { teamTimeoutMs: number; dryRun: boolean }
 ): Promise<TeamRunResult> {
     const startTime = Date.now();
@@ -465,6 +469,53 @@ async function runWeeklyForTeam(
                 cacheHit: false,
                 error: e.message,
             };
+        }
+
+        // Send Weekly Digest (Fire & Forget, but await to capture errors in log)
+        try {
+            const aggRes = await query(
+                `SELECT indices, attribution FROM org_aggregates_weekly
+                 WHERE team_id = $1 AND week_start = $2::date`,
+                [teamId, weekStart.toISOString().slice(0, 10)]
+            );
+
+            if (aggRes.rows.length > 0) {
+                const row = aggRes.rows[0];
+                const indices = row.indices || {};
+                const attribution = row.attribution || {};
+
+                let topDriver = undefined;
+                if (attribution.internal && attribution.internal.length > 0) {
+                    const d = attribution.internal[0];
+                    const fid = d.driverFamily;
+                    if (typeof fid === 'string' && isValidDriverFamilyId(fid)) {
+                        topDriver = {
+                            label: DRIVER_CONTENT[fid].label,
+                            trend: d.supportingSignals?.trend || 'stable'
+                        };
+                    }
+                }
+
+                // Use generic action or derived
+                const topAction = {
+                    title: 'Review Full Report',
+                    message: 'Log in to view detailed drivers and recommended actions.'
+                };
+
+                // Send to debug recipient/manager
+                await sendWeeklyDigest(`manager-${teamId}@inpsyq.com`, {
+                    teamName: teamName || 'Team',
+                    weekLabel,
+                    strain: Math.round(indices.strain || 0),
+                    engagement: Math.round(indices.engagement || 0),
+                    topDriver: topDriver as any, // Cast to match strict type if needed
+                    topAction,
+                    dashboardUrl: `https://inpsyq.com/team/${teamId}`
+                });
+            }
+        } catch (e: any) {
+            console.error(`[Weekly] Email failed for ${teamId}:`, e.message);
+            // Do not fail the run for email
         }
     }
 
