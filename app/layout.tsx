@@ -1,6 +1,7 @@
 import '@/app/globals.css';
 import { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
+import { PageTransitionLoader } from '@/components/shared/PageTransitionLoader';
 
 export const metadata: Metadata = {
     title: 'inPsyq - Psychological Analytics Platform',
@@ -30,6 +31,7 @@ export default function RootLayout({
                     )}
                 </head>
                 <body className="bg-bg-base text-text-primary antialiased">
+                    <PageTransitionLoader />
                     {children}
                 </body>
             </html>
