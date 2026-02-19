@@ -3,6 +3,7 @@ import { SystemicDrivers } from './SystemicDrivers';
 import { Watchlist } from './Watchlist';
 import { DetailCard } from './DetailCard';
 import { cn } from '@/lib/utils';
+import { executiveMockData } from '@/lib/mock/executiveData';
 
 interface DriversWatchlistSectionProps {
     drivers?: any[];
@@ -12,6 +13,11 @@ interface DriversWatchlistSectionProps {
 export function DriversWatchlistSection({ drivers, watchlist }: DriversWatchlistSectionProps) {
     const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
     const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(null);
+
+    // Fallback support for Demo Mode / Empty States
+    // We hoist this here so DetailCard lookup works on the same dataset as the lists
+    const safeDrivers = drivers?.length ? drivers : executiveMockData.drivers;
+    const safeWatchlist = watchlist?.length ? watchlist : executiveMockData.watchlist;
 
     const handleDriverSelect = (id: string) => {
         if (selectedDriverId === id) {
@@ -49,14 +55,14 @@ export function DriversWatchlistSection({ drivers, watchlist }: DriversWatchlist
                     <div className="w-full h-full animate-in fade-in zoom-in-95 duration-500">
                         <DetailCard
                             type="watchlist"
-                            data={watchlist?.find(w => w.id === selectedWatchlistId)}
+                            data={safeWatchlist?.find(w => w.id === selectedWatchlistId)}
                             onClose={() => setSelectedWatchlistId(null)}
                         />
                     </div>
                 ) : (
                     <div className="w-full h-full">
                         <SystemicDrivers
-                            drivers={drivers}
+                            drivers={safeDrivers}
                             selectedId={selectedDriverId || undefined}
                             onSelect={handleDriverSelect}
                             isCompact={!!selectedDriverId} // Compact if itself is selected
@@ -75,14 +81,14 @@ export function DriversWatchlistSection({ drivers, watchlist }: DriversWatchlist
                     <div className="w-full h-full animate-in fade-in zoom-in-95 duration-500">
                         <DetailCard
                             type="driver"
-                            data={drivers?.find(d => d.id === selectedDriverId)}
+                            data={safeDrivers?.find(d => d.id === selectedDriverId)}
                             onClose={() => setSelectedDriverId(null)}
                         />
                     </div>
                 ) : (
                     <div className="w-full h-full">
                         <Watchlist
-                            watchlist={watchlist}
+                            watchlist={safeWatchlist}
                             selectedId={selectedWatchlistId || undefined}
                             onSelect={handleWatchlistSelect}
                             isCompact={!!selectedWatchlistId} // Compact if itself is selected
