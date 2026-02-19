@@ -63,7 +63,7 @@ export interface ExecutiveWatchlistItem {
         context: string;
         causality: string;
         effects: string;
-        criticality: 'HIGH' | 'AT RISK' | 'LOW';
+        criticality: 'HIGH' | 'MID' | 'LOW';
         recommendation: string;
     };
 }
@@ -413,7 +413,7 @@ function buildWatchlistFromRisks(
             context: `${r.teamName} is showing elevated ${r.riskType.replace('_', ' ')} signals based on ${r.timeHorizon} trend analysis.`,
             causality: `Triggered by sustained pattern: ${r.triggerCondition}.`,
             effects: `If unaddressed, probability of ${r.riskType.replace('_', ' ')} is estimated at ${Math.round(r.probability * 100)}% within ${r.timeHorizon}.`,
-            criticality: r.severity === 'critical' ? 'HIGH' : r.severity === 'warning' ? 'AT RISK' : 'LOW',
+            criticality: r.severity === 'critical' ? 'HIGH' : r.severity === 'warning' ? 'MID' : 'LOW',
             recommendation: `Immediate review of ${r.teamName}'s workload and engagement signals recommended. Intervention window: ${r.timeHorizon}.`,
         },
     }));

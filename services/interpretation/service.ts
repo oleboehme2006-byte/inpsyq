@@ -115,7 +115,7 @@ export async function getOrCreateTeamInterpretation(
 
     // Build interpretation input
     const inputHash = dashboardData.meta.computeVersion + ':' + dashboardData.meta.latestWeek;
-    const input = buildInterpretationInput(dashboardData, orgId, inputHash);
+    const input = buildInterpretationInput(dashboardData, inputHash);
     input.weekStart = targetWeek;
 
     return getOrCreateInterpretationCommon(orgId, teamId, targetWeek, input);
@@ -152,7 +152,7 @@ export async function getOrCreateOrgInterpretation(
 
     // Build interpretation input (org-level)
     const inputHash = dashboardData.meta.computeVersion + ':' + targetWeek + ':org';
-    const input = buildInterpretationInput(dashboardData, orgId, inputHash);
+    const input = buildInterpretationInput(dashboardData, inputHash);
     input.teamId = null;
     input.weekStart = targetWeek;
 

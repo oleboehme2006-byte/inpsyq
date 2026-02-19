@@ -3,7 +3,8 @@ import { NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-process.env.NODE_ENV = 'development'; // Force dev mode for guards
+// Force dev mode for guards
+Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', writable: true });
 
 // Load envs
 const envPath = path.resolve(process.cwd(), '.env.local');

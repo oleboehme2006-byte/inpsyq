@@ -89,7 +89,7 @@ export interface WeeklyInterpretationInput {
 // Input Builder
 // ============================================================================
 
-import { TeamDashboardEntry as TeamDashboardData } from '@/lib/mock/teamDashboardData';
+import { TeamDashboardData } from '@/services/dashboard/teamReader';
 import { getQualitativeStateForIndex, IndexId as RegIndexId } from '@/lib/semantics/indexRegistry';
 
 /**
@@ -97,20 +97,12 @@ import { getQualitativeStateForIndex, IndexId as RegIndexId } from '@/lib/semant
  */
 export function buildInterpretationInput(
     data: TeamDashboardData,
-    orgId: string,
     inputHash: string
 ): WeeklyInterpretationInput {
     // Build index snapshots
     const indices: IndexSnapshot[] = [];
 
     // Extract from latest indices
-    // Type assertion to avoid implicit any errors if types don't match perfectly
-    const latestIndices = data.latestIndices as any;
-
-    // Series handling
-    const series = data.series || [];
-    const weeksAvailable = series.length;
-
     const indexKeys: Array<{ key: string; indexId: IndexId }> = [
         { key: 'strain', indexId: 'strain' },
         { key: 'withdrawalRisk', indexId: 'withdrawal_risk' },
@@ -118,14 +110,20 @@ export function buildInterpretationInput(
         { key: 'engagement', indexId: 'engagement' },
     ];
 
+    const series = data.series || [];
+    const indexKeyMap: Record<string, 'strain' | 'withdrawal' | 'trust' | 'engagement'> = {
+        strain: 'strain',
+        withdrawalRisk: 'withdrawal',
+        trustGap: 'trust',
+        engagement: 'engagement'
+    };
+
     for (const { key, indexId } of indexKeys) {
-        const latest = latestIndices[key];
+        const latest = data.latestIndices[key];
+        const seriesKey = indexKeyMap[key];
 
-        // Safety check for latest
-        if (!latest) continue;
-
-        const priorWeek = weeksAvailable > 1
-            ? (series[weeksAvailable - 2] as any)?.[key === 'withdrawalRisk' ? 'withdrawalRisk' : key === 'trustGap' ? 'trustGap' : key]
+        const priorWeek = series.length > 1 && seriesKey
+            ? series[series.length - 2]?.[seriesKey]
             : null;
 
         const delta = priorWeek !== null && priorWeek !== undefined
@@ -149,59 +147,49 @@ export function buildInterpretationInput(
     }
 
     // Build attribution
-    // Cast attribution to any to bypass strict type checks against interface if needed
-    const attr = data.attribution as any;
-
     const attribution: AttributionInput = {
-        primarySource: attr.primarySource || null,
-        internalDrivers: (attr.internalDrivers || []).map((d: any) => ({
+        primarySource: data.attribution.primarySource as 'INTERNAL' | 'EXTERNAL' | 'MIXED' | null,
+        internalDrivers: data.attribution.internalDrivers.map(d => ({
             driverFamily: d.driverFamily as DriverFamilyId,
-            label: d.label,
+            label: d.driverFamily, // InternalDriverAttribution doesn't have label, use ID
             contributionBand: (d.contributionBand as 'MAJOR' | 'MODERATE' | 'MINOR') || 'MODERATE',
-            severityLevel: mapToSeverity(d.severityLevel),
+            severityLevel: mapToSeverity(d.severity),
             trending: 'STABLE',
         })),
-        externalDependencies: (attr.externalDependencies || []).map((d: any) => ({
+        externalDependencies: data.attribution.externalDependencies.map(d => ({
             dependency: d.dependency,
-            impactLevel: mapToImpact(d.impactLevel),
+            impactLevel: mapToImpact(d.impact),
             pathway: d.pathway,
             controllability: 'PARTIAL',
         })),
-        propagationRisk: attr.propagationRisk
+        propagationRisk: data.attribution.propagationRisk
             ? {
-                level: attr.propagationRisk.level as 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE',
-                drivers: attr.propagationRisk.drivers || []
+                level: data.attribution.propagationRisk.level as 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE',
+                drivers: [...data.attribution.propagationRisk.drivers]
             }
             : null,
     };
 
     // Build quality
-    // Cast quality to match expected input
-    const qual = data.quality as any;
     const quality: DataQualityInput = {
-        coverageRatio: qual.coverage || 0,
-        confidenceProxy: qual.confidence || 0,
+        coverageRatio: data.quality.coverage,
+        confidenceProxy: data.quality.confidence,
         volatility: 0.3,  // TODO: derive from series if available
         sampleSize: null,
-        missingWeeks: qual.missingWeeks || 0,
+        missingWeeks: data.quality.missingWeeks,
     };
 
     // Build trend regime
-    const tr = data.trend as any || {};
     const trend: TrendRegimeInput = {
-        regime: (tr.regime as 'STABLE' | 'SHIFT' | 'NOISE') || 'NOISE',
-        consistency: 1 - (tr.volatility || 0),
-        weeksCovered: weeksAvailable,
+        regime: data.trend.regime as 'STABLE' | 'SHIFT' | 'NOISE',
+        consistency: 1 - data.trend.volatility,
+        weeksCovered: data.meta.weeksAvailable || series.length || 0,
     };
 
-    // Meta handling - TeamDashboardEntry uses 'id' for teamId, and doesn't have orgId
-    const teamId = data.id;
-    const weekStart = (data.meta as any).latestWeek || '';
-
     return {
-        orgId,
-        teamId,
-        weekStart,
+        orgId: data.meta.orgId || 'unknown-org',
+        teamId: data.meta.teamId || data.id,
+        weekStart: data.meta.latestWeek,
         inputHash,
         indices,
         trend,

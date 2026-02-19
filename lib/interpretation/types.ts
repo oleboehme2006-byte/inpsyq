@@ -74,7 +74,7 @@ export interface ActionDetailCard {
     /** Expected effects of the intervention (~25-35 words) */
     effects: string;
     /** Criticality classification */
-    criticality: 'HIGH' | 'AT RISK' | 'LOW';
+    criticality: 'HIGH' | 'MID' | 'LOW';
     /** Specific, operationalizable recommendation (~25-35 words) */
     recommendation: string;
 }

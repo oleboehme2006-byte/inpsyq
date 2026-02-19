@@ -57,6 +57,8 @@ export interface TeamSeriesPoint {
     engagementRange: [number, number];
 }
 
+import { InternalDriverAttribution, ExternalDependencyAttribution, PropagationRisk, PrimarySource } from '@/lib/attribution/types';
+
 export interface TeamDashboardEntry {
     id: string;
     name: string;
@@ -80,12 +82,22 @@ export interface TeamDashboardEntry {
     meta: {
         latestWeek: string;
         computeVersion: string;
+        lastInterpretationAt?: string;
+        orgId?: string;
+        teamId?: string;
+        weeksAvailable?: number;
     };
     latestIndices: any;
     quality: any;
     trend: any;
-    attribution: any;
+    attribution: {
+        primarySource: PrimarySource | string;
+        internalDrivers: InternalDriverAttribution[];
+        externalDependencies: ExternalDependencyAttribution[];
+        propagationRisk: PropagationRisk | null;
+    };
 }
+
 
 export const teamDashboardData: Record<string, TeamDashboardEntry> = {
     product: {
@@ -100,7 +112,12 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         latestIndices: {},
         quality: {},
         trend: {},
-        attribution: {},
+        attribution: {
+            primarySource: 'INTERNAL',
+            internalDrivers: [],
+            externalDependencies: [],
+            propagationRisk: null
+        },
         kpiSeeds: {
             strainBase: 45, strainGrowth: 3.2,
             // ... (rest of file implied, but replace_file_content needs contiguous block)
@@ -216,7 +233,12 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         latestIndices: {},
         quality: {},
         trend: {},
-        attribution: {},
+        attribution: {
+            primarySource: 'INTERNAL',
+            internalDrivers: [],
+            externalDependencies: [],
+            propagationRisk: null
+        },
         kpiSeeds: {
             strainBase: 30, strainGrowth: 2.8,
             withdrawalBase: 25, withdrawalGrowth: 2.2,
@@ -328,7 +350,12 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         latestIndices: {},
         quality: {},
         trend: {},
-        attribution: {},
+        attribution: {
+            primarySource: 'INTERNAL',
+            internalDrivers: [],
+            externalDependencies: [],
+            propagationRisk: null
+        },
         kpiSeeds: {
             strainBase: 22, strainGrowth: 2.0,
             withdrawalBase: 22, withdrawalGrowth: 2.2,
@@ -440,7 +467,12 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         latestIndices: {},
         quality: {},
         trend: {},
-        attribution: {},
+        attribution: {
+            primarySource: 'INTERNAL',
+            internalDrivers: [],
+            externalDependencies: [],
+            propagationRisk: null
+        },
         kpiSeeds: {
             strainBase: 18, strainGrowth: 1.2,
             withdrawalBase: 5, withdrawalGrowth: 0.5,
@@ -552,7 +584,12 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         latestIndices: {},
         quality: {},
         trend: {},
-        attribution: {},
+        attribution: {
+            primarySource: 'INTERNAL',
+            internalDrivers: [],
+            externalDependencies: [],
+            propagationRisk: null
+        },
         kpiSeeds: {
             strainBase: 12, strainGrowth: 1.0,
             withdrawalBase: 8, withdrawalGrowth: 0.6,
@@ -664,7 +701,12 @@ export const teamDashboardData: Record<string, TeamDashboardEntry> = {
         latestIndices: {},
         quality: {},
         trend: {},
-        attribution: {},
+        attribution: {
+            primarySource: 'INTERNAL',
+            internalDrivers: [],
+            externalDependencies: [],
+            propagationRisk: null
+        },
         kpiSeeds: {
             strainBase: 15, strainGrowth: 1.0,
             withdrawalBase: 4, withdrawalGrowth: 0.4,

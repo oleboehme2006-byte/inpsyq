@@ -321,7 +321,7 @@ function buildActionCards(
         const label = content?.label || driver.label;
 
         const severity: ActionDetailCard['severity'] = driver.severityLevel === 'C3' ? 'critical' : 'warning';
-        const criticality: ActionDetailCard['criticality'] = driver.severityLevel === 'C3' ? 'HIGH' : 'AT RISK';
+        const criticality: ActionDetailCard['criticality'] = driver.severityLevel === 'C3' ? 'HIGH' : 'MID';
 
         actions.push({
             title: `Address ${label}`,

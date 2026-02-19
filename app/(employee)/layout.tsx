@@ -25,19 +25,20 @@ export default async function EmployeeLayout({
 
     // If not authenticated, redirect based on error
     if (!result.authenticated) {
-        return redirect(result.redirectTo || '/login');
+        redirect(result.redirectTo || '/login');
     }
 
     // If no context (e.g., no org selected), redirect
     if (!result.context) {
-        return redirect(result.redirectTo || '/org/select');
+        redirect(result.redirectTo || '/org/select');
     }
+    if (!result.context) return null;
 
     const { role, teamId } = result.context;
 
     // EMPLOYEE only - other roles go to their own pages
     if (role !== 'EMPLOYEE') {
-        return redirect(getRedirectForRole(role, teamId));
+        redirect(getRedirectForRole(role, teamId));
     }
 
     return <>{children}</>;

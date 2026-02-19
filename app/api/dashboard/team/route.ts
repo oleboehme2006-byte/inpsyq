@@ -89,6 +89,10 @@ export async function GET(req: NextRequest) {
         const interpretationExists = interpRows.length > 0;
         const status = interpretationExists ? 'OK' : 'DEGRADED';
 
+        if (interpretationExists) {
+            data.meta.lastInterpretationAt = new Date(interpRows[0].created_at).toISOString();
+        }
+
         const responseData = {
             ...data,
             status, // Top-level status
@@ -96,9 +100,6 @@ export async function GET(req: NextRequest) {
                 ...data.meta,
                 request_id: requestId,
                 duration_ms: Date.now() - startTime,
-                ...(interpretationExists ? {
-                    lastInterpretationAt: new Date(interpRows[0].created_at).toISOString()
-                } : {})
             }
         };
 

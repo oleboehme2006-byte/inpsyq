@@ -9,11 +9,11 @@
  * 3. On success → redirect to the appropriate dashboard
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth, SignUp } from '@clerk/nextjs';
 
-export default function InviteAcceptPage() {
+function InviteAcceptContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { isSignedIn, isLoaded } = useAuth();
@@ -137,6 +137,14 @@ export default function InviteAcceptPage() {
                 </button>
             </div>
         </div>
+    );
+}
+
+export default function InviteAcceptPage() {
+    return (
+        <Suspense fallback={<div style={styles.container}><div style={styles.spinner} /></div>}>
+            <InviteAcceptContent />
+        </Suspense>
     );
 }
 

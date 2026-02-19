@@ -11,6 +11,8 @@ import { AttributionResult } from '@/lib/attribution/types';
 /**
  * Fetch real dashboard data for a team.
  */
+export type TeamDashboardData = TeamDashboardEntry;
+
 export async function getTeamDashboardData(
     orgId: string,
     teamId: string,
