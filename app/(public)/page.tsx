@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Activity, ShieldCheck, Zap, BarChart3, Brain, Users, ChevronRight } from 'lucide-react';
 import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { InPsyqLogo } from '@/components/shared/InPsyqLogo';
-import { LoadingOverlay } from '@/components/public/LoadingOverlay';
+import { LoadingSplash } from '@/components/shared/LoadingSplash';
 
 export const metadata = {
     title: 'inPsyq — Organizational Health, Quantified',
@@ -12,8 +12,7 @@ export const metadata = {
 export default function LandingPage() {
     return (
         <div className="min-h-screen bg-bg-base flex flex-col font-body selection:bg-accent-primary/30 overflow-hidden">
-            <LoadingOverlay />
-
+            <LoadingSplash />
 
             {/* ================================================================
                 NAVIGATION
