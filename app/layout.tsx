@@ -1,7 +1,6 @@
 import '@/app/globals.css';
 import { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { Suspense } from 'react';
 
 export const metadata: Metadata = {
     title: 'inPsyq - Psychological Analytics Platform',
@@ -31,9 +30,7 @@ export default function RootLayout({
                     )}
                 </head>
                 <body className="bg-bg-base text-text-primary antialiased">
-                    <Suspense fallback={<div className="min-h-screen bg-bg-base" />}>
-                        {children}
-                    </Suspense>
+                    {children}
                 </body>
             </html>
         </ClerkProvider>
