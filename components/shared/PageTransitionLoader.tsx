@@ -19,7 +19,7 @@ export function PageTransitionLoader() {
         }, 500);
     };
 
-    // Whenever the route changes, restart the animation
+    // Whenever the route completes changing, or on initial load
     useEffect(() => {
         setIsAnimating(true);
         setIsFadingOut(false);
@@ -29,12 +29,10 @@ export function PageTransitionLoader() {
         if (videoRef.current) {
             videoRef.current.currentTime = 0;
             videoRef.current.play().then(() => {
-                // Keep a slightly longer fallback (3 seconds max) just to be absolutely safe (since video is 2s)
                 fallbackTimeout = setTimeout(() => {
                     triggerFadeOut();
                 }, 3000);
             }).catch(() => {
-                // Autoplay blocked or something went wrong
                 triggerFadeOut();
             });
         } else {
@@ -44,6 +42,32 @@ export function PageTransitionLoader() {
         }
 
         return () => clearTimeout(fallbackTimeout);
+    }, [pathname]);
+
+    // Intercept clicks on Next.js Links to trigger loading instantly 
+    // before the network request for the new page even begins
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // Find the closest anchor tag
+            const anchor = target.closest('a');
+
+            if (!anchor) return;
+
+            const href = anchor.getAttribute('href');
+            // If it's a valid internal link and not the current page
+            if (href && href.startsWith('/') && href !== pathname) {
+                setIsAnimating(true);
+                setIsFadingOut(false);
+                if (videoRef.current) {
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(() => { });
+                }
+            }
+        };
+
+        document.addEventListener('click', handleClick);
+        return () => document.removeEventListener('click', handleClick);
     }, [pathname]);
 
     const isHidden = !isAnimating && !isFadingOut;
