@@ -15,40 +15,30 @@ export function LoadingScreen({ durationMs = 8000 }: LoadingScreenProps) {
     // Final unmount sequence
     const triggerFadeOut = () => {
         setIsVisible(false);
-        console.log("LoadingScreen: Fading out...");
         setTimeout(() => {
             setShouldRender(false);
-            console.log("LoadingScreen: Unmounting.");
         }, 1100);
     };
 
     useEffect(() => {
-        console.log("LoadingScreen: Mounted and visible.");
-
         // Block scrolling
         document.body.style.overflow = 'hidden';
 
-        // Check if video is already broken/ended after 1s
-        const checkTimer = setTimeout(() => {
-            if (videoRef.current) {
-                if (videoRef.current.ended) {
-                    console.log("LoadingScreen: Video already ended, triggering fade.");
-                    triggerFadeOut();
-                } else if (videoRef.current.error) {
-                    console.error("LoadingScreen: Video error detected:", videoRef.current.error);
-                    triggerFadeOut();
-                }
+        // SAFETY: Only allow fading out after at least 2 seconds
+        // to ensure the user actually SEES the animation start.
+        const minVisibleTimer = setTimeout(() => {
+            if (videoRef.current?.ended) {
+                triggerFadeOut();
             }
-        }, 1500);
+        }, 2000);
 
         // Fail-safe
         const failSafeTimer = setTimeout(() => {
-            console.log("LoadingScreen: Fail-safe triggered.");
             triggerFadeOut();
         }, durationMs);
 
         return () => {
-            clearTimeout(checkTimer);
+            clearTimeout(minVisibleTimer);
             clearTimeout(failSafeTimer);
             document.body.style.overflow = '';
         };
@@ -56,9 +46,9 @@ export function LoadingScreen({ durationMs = 8000 }: LoadingScreenProps) {
 
     useEffect(() => {
         if (videoRef.current) {
-            console.log("LoadingScreen: Attempting video play...");
-            videoRef.current.play().catch(err => {
-                console.warn("LoadingScreen: Autoplay blocked/failed. Waiting for fallback.", err);
+            // Force play
+            videoRef.current.play().catch(() => {
+                console.warn("Autoplay blocked/failed. Waiting for fallback.");
             });
         }
     }, []);
@@ -68,25 +58,46 @@ export function LoadingScreen({ durationMs = 8000 }: LoadingScreenProps) {
     return (
         <div
             id="loading-screen-overlay"
-            className={cn(
-                "fixed inset-0 z-[9999] bg-[#000000] flex items-center justify-center transition-opacity duration-1000",
-                isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 99999,
+                backgroundColor: '#000000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: isVisible ? 1 : 0,
+                transition: 'opacity 1000ms ease-in-out',
+                pointerEvents: isVisible ? 'all' : 'none',
+            }}
         >
             <video
                 ref={videoRef}
-                className="w-48 h-48 object-contain"
+                style={{ width: '12rem', height: '12rem', objectFit: 'contain' }}
                 muted
                 playsInline
                 onEnded={triggerFadeOut}
-                onError={(e) => {
-                    console.error("LoadingScreen: Video on error event fired.");
-                    triggerFadeOut();
-                }}
             >
                 <source src="/loading.mp4" type="video/mp4" />
-                <div className="w-12 h-12 rounded-full border-4 border-[#8B5CF6] border-t-transparent animate-spin" />
+                <div
+                    style={{
+                        width: '3rem',
+                        height: '3rem',
+                        borderRadius: '50%',
+                        border: '4px solid #8B5CF6',
+                        borderTopColor: 'transparent',
+                        animation: 'spin 1s linear infinite'
+                    }}
+                />
             </video>
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @keyframes spin { to { transform: rotate(360deg); } }
+                body { overflow: hidden !important; }
+            `}} />
         </div>
     );
 }
