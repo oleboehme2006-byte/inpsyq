@@ -5,12 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export function BootScreen() {
     const [isVisible, setIsVisible] = useState(true);
-    const [isMounted, setIsMounted] = useState(false);
 
     // Prevent hydration mismatch by only rendering after mount
     useEffect(() => {
-        setIsMounted(true);
-
         // Safety fallback: if video fails to load or play, auto-hide after 5 seconds
         const safetyTimeout = setTimeout(() => {
             setIsVisible(false);
@@ -18,8 +15,6 @@ export function BootScreen() {
 
         return () => clearTimeout(safetyTimeout);
     }, []);
-
-    if (!isMounted) return null;
 
     return (
         <AnimatePresence>
