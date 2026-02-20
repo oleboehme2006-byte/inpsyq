@@ -1,6 +1,7 @@
 import '@/app/globals.css';
 import { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
+import { BootScreen } from '@/components/global/BootScreen';
 
 export const metadata: Metadata = {
     title: 'inPsyq - Psychological Analytics Platform',
@@ -30,6 +31,7 @@ export default function RootLayout({
                     )}
                 </head>
                 <body className="bg-bg-base text-text-primary antialiased">
+                    <BootScreen />
                     {children}
                 </body>
             </html>

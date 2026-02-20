@@ -36,6 +36,7 @@ export function LoadingScreen() {
     return (
         <div
             className={`fixed inset-0 z-[100] bg-black flex items-center justify-center transition-opacity duration-500 ease-in-out pointer-events-none ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}
+        // Add a high z-index to ensure it covers navigation and all landing page content
         >
             <video
                 src="/loading.mp4"
@@ -43,7 +44,11 @@ export function LoadingScreen() {
                 muted
                 playsInline
                 disablePictureInPicture
-                className="w-[150px] object-contain"
+                className="w-full h-full object-cover max-w-full max-h-full"
+            // Using object-cover ensures it fills the screen (useful if the video aspect ratio differs from the device)
+            // If the video is strictly square or should NOT be cropped, change to `object-contain`.
+            // Given typical loading screens, `object-cover` often works best for a seamless full-screen black background.
+            // Assuming the video has a solid black background that matches `bg-black`.
             />
         </div>
     );
