@@ -1,7 +1,6 @@
 import '@/app/globals.css';
 import { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import { BootScreen } from '@/components/global/BootScreen';
 
 export const metadata: Metadata = {
     title: 'inPsyq - Psychological Analytics Platform',
@@ -10,6 +9,8 @@ export const metadata: Metadata = {
 
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 const IS_PROD = process.env.NODE_ENV === 'production';
+
+import { LoadingScreen } from '@/components/shared/LoadingScreen';
 
 export default function RootLayout({
     children,
@@ -31,7 +32,7 @@ export default function RootLayout({
                     )}
                 </head>
                 <body className="bg-bg-base text-text-primary antialiased">
-                    <BootScreen />
+                    <LoadingScreen />
                     {children}
                 </body>
             </html>
