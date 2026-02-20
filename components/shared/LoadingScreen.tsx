@@ -25,32 +25,44 @@ export function LoadingScreen({ durationMs = 8000 }: LoadingScreenProps) {
         };
     }, [isVisible]);
 
+    const [hasFaded, setHasFaded] = useState(false);
+
     const handleFadeOut = React.useCallback(() => {
-        setIsVisible((prev) => {
-            if (!prev) return prev;
-            setTimeout(() => {
-                setIsMounted(false);
-            }, 1000); // Wait for transition
-            return false;
-        });
-    }, []);
+        if (hasFaded) return;
+        setHasFaded(true);
+        setIsVisible(false);
+        setTimeout(() => {
+            setIsMounted(false);
+        }, 1100); // Slightly more than transition
+    }, [hasFaded]);
 
     useEffect(() => {
+        // Minimum time we ALWAYS show the loader to avoid flashes on fast connections
+        const minTimer = setTimeout(() => {
+            // After min time, we check if video already ended or failed
+            if (videoRef.current?.ended || videoRef.current?.error) {
+                handleFadeOut();
+            }
+        }, 1000);
+
         const fallbackTimer = setTimeout(() => {
             handleFadeOut();
         }, durationMs);
 
-        return () => clearTimeout(fallbackTimer);
+        return () => {
+            clearTimeout(minTimer);
+            clearTimeout(fallbackTimer);
+        };
     }, [durationMs, handleFadeOut]);
 
     useEffect(() => {
+        // Attempt play, but don't force hide on failure (wait for safety timeout)
         if (videoRef.current) {
             videoRef.current.play().catch(() => {
-                // If autoplay is blocked by the browser, just fade out immediately
-                handleFadeOut();
+                console.warn("Autoplay was blocked - waiting for safety timeout or interaction.");
             });
         }
-    }, [handleFadeOut]);
+    }, []);
 
     if (!isMounted) return null;
 

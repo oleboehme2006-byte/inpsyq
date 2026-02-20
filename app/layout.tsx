@@ -7,10 +7,10 @@ export const metadata: Metadata = {
     description: 'Instrument-grade psychological analytics for organizational health',
 };
 
+import { LoadingScreen } from '@/components/shared/LoadingScreen';
+
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
 const IS_PROD = process.env.NODE_ENV === 'production';
-
-import { LoadingScreen } from '@/components/shared/LoadingScreen';
 
 export default function RootLayout({
     children,
