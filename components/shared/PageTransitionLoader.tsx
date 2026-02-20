@@ -55,7 +55,7 @@ export function PageTransitionLoader() {
         >
             <video
                 ref={videoRef}
-                src="/loading2.mov"
+                src="/loading.MP4"
                 autoPlay
                 muted
                 playsInline
