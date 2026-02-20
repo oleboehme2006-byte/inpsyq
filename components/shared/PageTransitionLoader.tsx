@@ -55,13 +55,13 @@ export function PageTransitionLoader() {
         >
             <video
                 ref={videoRef}
-                src="/loading.mov"
+                src="/loading2.mov"
                 autoPlay
                 muted
                 playsInline
                 onEnded={triggerFadeOut}
                 onError={triggerFadeOut}
-                className="w-48 h-48 object-contain"
+                className="w-32 h-32 object-contain"
             />
         </div>
     );
