@@ -59,6 +59,7 @@ export function PageTransitionLoader() {
                 autoPlay
                 muted
                 playsInline
+                preload="auto"
                 onEnded={triggerFadeOut}
                 onError={triggerFadeOut}
                 className="w-32 h-32 object-contain"
