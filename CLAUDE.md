@@ -33,19 +33,27 @@ To ensure we don't break the system, we will proceed methodically using a **Bran
 ### Phase 1: Context Gathering & Auditing
 
 Instead of changing code immediately, your first task for any step is to map the current state.
+
 - **User Command:** `Audit the existing architecture for Phase [X] and map out the data flow and current logic bottlenecks. Do not modify files yet. Output a markdown plan.`
 - **Your Action:** Index the relevant backend/frontend files, analyze the math/logic, and write a summary.
 
 ### Phase 2: Implementation (Module by Module)
 
 We will implement logic one specific domain at a time.
+
 - **User Command:** `Implement the data pipeline logic for [Specific Component] according to the audit.`
 - **Your Action:** Write the robust logic, wire the APIs, manage the state, and ensure optimal performance.
 
 ### Phase 3: Handoff to Antigravity (If Visuals Needed)
 
-* **User Command:** `Leave a summary in ui-handoff.md detailing the data hooks and state variables you exposed for this feature.`
+- **User Command:** `Leave a summary in ui-handoff.md detailing the data hooks and state variables you exposed for this feature.`
+
 - **Your Action:** Document the React hooks/state APIs you built so Antigravity can style them later.
+
+## Verification Protocol
+
+- **Your Testing Autonomy:** You decide exactly **what** and **how** to test your logic after every coding session. Use tests, APIs, or scripts as you see fit to ensure the system doesn't break.
+- **Visuals:** Antigravity and the USER will manually verify visual changes.
 
 ## Core Directives
 
