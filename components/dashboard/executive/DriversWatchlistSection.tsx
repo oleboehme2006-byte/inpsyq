@@ -46,7 +46,7 @@ export function DriversWatchlistSection({ drivers, watchlist }: DriversWatchlist
         <div className="w-full relative h-[400px] flex gap-6">
 
             {/* Left Column: Drivers OR Risk Detail */}
-            <div className={cn("h-full relative transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+            <div className={cn("h-full relative transition-all duration-700 ease-out",
                 selectedWatchlistId ? "w-[75%]" : // Show Risk Detail (Wide)
                     selectedDriverId ? "w-[25%]" :    // Show Driver List (Narrow)
                         "w-[50%]"                         // Default
@@ -72,7 +72,7 @@ export function DriversWatchlistSection({ drivers, watchlist }: DriversWatchlist
             </div>
 
             {/* Right Column: Watchlist OR Driver Detail */}
-            <div className={cn("h-full relative transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+            <div className={cn("h-full relative transition-all duration-700 ease-out",
                 selectedDriverId ? "w-[75%]" :    // Show Driver Detail (Wide)
                     selectedWatchlistId ? "w-[25%]" : // Show Watchlist (Narrow)
                         "w-[50%]"                         // Default

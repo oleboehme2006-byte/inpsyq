@@ -36,7 +36,7 @@ export default function TutorialHubPage() {
                         <h2 className="text-xl font-display font-bold text-white mb-2 group-hover:text-[#E11D48] transition-colors">Team Operations</h2>
                         <p className="text-sm text-text-tertiary font-mono mb-4 uppercase tracking-wider">Micro-level causal drivers</p>
                         <p className="text-text-secondary text-sm leading-relaxed">
-                            Drill down into specific operational units. Understand how to isolate the root cause of friction—whether it's internal role clarity or external dependency bottlenecks—and apply targeted interventions.
+                            Drill down into specific operational units. Understand how to isolate the root cause of friction—whether it&apos;s internal role clarity or external dependency bottlenecks—and apply targeted interventions.
                         </p>
                     </div>
                 </Link>

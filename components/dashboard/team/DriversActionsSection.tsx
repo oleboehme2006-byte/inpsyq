@@ -36,7 +36,7 @@ export function DriversActionsSection({ drivers, actions }: DriversActionsSectio
         <div className="w-full relative h-[400px] flex gap-6">
 
             {/* Left Column: Drivers OR Action Detail */}
-            <div className={cn("h-full relative transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+            <div className={cn("h-full relative transition-all duration-700 ease-out",
                 selectedActionId ? "w-[75%]" :
                     selectedDriverId ? "w-[25%]" :
                         "w-[50%]"
@@ -62,7 +62,7 @@ export function DriversActionsSection({ drivers, actions }: DriversActionsSectio
             </div>
 
             {/* Right Column: Actions OR Driver Detail */}
-            <div className={cn("h-full relative transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+            <div className={cn("h-full relative transition-all duration-700 ease-out",
                 selectedDriverId ? "w-[75%]" :
                     selectedActionId ? "w-[25%]" :
                         "w-[50%]"
