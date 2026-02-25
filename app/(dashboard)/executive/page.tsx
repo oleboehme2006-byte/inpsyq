@@ -9,11 +9,12 @@ export default async function ExecutiveDashboard() {
         // Demo mode: skip auth + DB — components use their internal mock data as fallback
         const demoData: ExecutiveDashboardData = {
             orgName: 'Acme Corporation',
-            kpis: [],      // ExecutiveClientWrapper generates its own KPIs from graphData
-            teams: [],     // TeamPortfolioTable has internal mock data
-            drivers: [],   // SystemicDrivers falls back to executiveMockData
-            watchlist: [], // Watchlist falls back to executiveMockData
-            briefingParagraphs: [], // Briefing falls back to hardcoded paragraphs
+            kpis: [],              // ExecutiveClientWrapper falls back to graph-derived KPIs
+            teams: [],             // TeamPortfolioTable falls back to executiveMockData
+            drivers: [],           // DriversWatchlistSection falls back to executiveMockData
+            watchlist: [],         // DriversWatchlistSection falls back to executiveMockData
+            briefingParagraphs: [], // Briefing uses its own hardcoded paragraphs
+            series: [],            // ExecutiveClientWrapper generates synthetic series
             governance: {
                 coverage: 85,
                 dataQuality: 78,

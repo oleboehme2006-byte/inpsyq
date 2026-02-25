@@ -1,11 +1,19 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { executiveMockData } from '@/lib/mock/executiveData';
+import { ExecutiveTeam } from '@/services/dashboard/executiveReader';
 import { AlertTriangle, AlertCircle, CheckCircle, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
-export function TeamPortfolioTable() {
-    const teams = executiveMockData.teams;
+interface TeamPortfolioTableProps {
+    teams: ExecutiveTeam[];
+}
+
+export function TeamPortfolioTable({ teams }: TeamPortfolioTableProps) {
+    // Fall back to mock data when no real teams are available (demo mode)
+    const resolvedTeams: ExecutiveTeam[] = (teams && teams.length > 0)
+        ? teams
+        : (executiveMockData.teams as unknown as ExecutiveTeam[]);
 
     // Strict priority map
     const getPriority = (status: string) => {
@@ -17,25 +25,25 @@ export function TeamPortfolioTable() {
     };
 
     // Sort teams by status priority: Critical > At Risk > Healthy
-    const sortedTeams = [...teams].sort((a, b) => {
+    const sortedTeams = [...resolvedTeams].sort((a, b) => {
         return getPriority(a.status) - getPriority(b.status);
     });
 
     // Calculate Counts for the Bar
-    const criticalCount = teams.filter(t => t.status === 'Critical').length;
-    const riskCount = teams.filter(t => t.status === 'At Risk').length;
-    const healthyCount = teams.filter(t => t.status === 'Healthy').length;
-    const total = teams.length;
+    const criticalCount = resolvedTeams.filter(t => t.status === 'Critical').length;
+    const riskCount     = resolvedTeams.filter(t => t.status === 'At Risk').length;
+    const healthyCount  = resolvedTeams.filter(t => t.status === 'Healthy').length;
+    const total         = resolvedTeams.length;
 
     const criticalWidth = (criticalCount / total) * 100;
-    const riskWidth = (riskCount / total) * 100;
-    const healthyWidth = (healthyCount / total) * 100;
+    const riskWidth     = (riskCount     / total) * 100;
+    const healthyWidth  = (healthyCount  / total) * 100;
 
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'Critical': return <AlertTriangle className="w-3.5 h-3.5 text-strain" />;
-            case 'At Risk': return <AlertCircle className="w-3.5 h-3.5 text-withdrawal" />;
-            case 'Healthy': return <CheckCircle className="w-3.5 h-3.5 text-engagement" />;
+            case 'At Risk':  return <AlertCircle   className="w-3.5 h-3.5 text-withdrawal" />;
+            case 'Healthy':  return <CheckCircle   className="w-3.5 h-3.5 text-engagement" />;
             default: return null;
         }
     };
@@ -52,8 +60,8 @@ export function TeamPortfolioTable() {
                 {/* The Bar */}
                 <div className="flex w-full h-3 rounded-full overflow-hidden mb-3">
                     {criticalWidth > 0 && <div style={{ width: `${criticalWidth}%` }} className="h-full bg-strain" />}
-                    {riskWidth > 0 && <div style={{ width: `${riskWidth}%` }} className="h-full bg-withdrawal" />}
-                    {healthyWidth > 0 && <div style={{ width: `${healthyWidth}%` }} className="h-full bg-engagement" />}
+                    {riskWidth     > 0 && <div style={{ width: `${riskWidth}%`     }} className="h-full bg-withdrawal" />}
+                    {healthyWidth  > 0 && <div style={{ width: `${healthyWidth}%`  }} className="h-full bg-engagement" />}
                 </div>
 
                 {/* Labels Layout */}
@@ -97,48 +105,53 @@ export function TeamPortfolioTable() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5 text-sm">
-                        {sortedTeams.map((team) => (
-                            <tr key={team.name} className="group hover:bg-white/[0.02] transition-colors cursor-pointer">
-                                <td className="px-4 py-2 group-hover:text-accent-primary transition-colors">
-                                    <Link href={`/team/${team.name.toLowerCase()}`} className="flex items-center gap-2 font-medium text-base text-text-primary group-hover:text-accent-primary transition-colors">
-                                        {team.name}
-                                        <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-4px] group-hover:translate-x-0" />
-                                    </Link>
-                                    <div className="text-xs text-text-tertiary font-mono mt-0.5">
-                                        {team.members || 20} Members
-                                    </div>
-                                </td>
-                                <td className="px-4 py-2 pl-2">
-                                    <div className={cn("inline-flex items-center gap-2 px-0 py-0.5 rounded text-sm font-bold",
-                                        team.status === 'Critical' ? "text-strain" :
-                                            team.status === 'At Risk' ? "text-withdrawal" :
-                                                "text-engagement"
-                                    )}>
-                                        {getStatusIcon(team.status)}
-                                        <span className="uppercase tracking-wider text-xs pt-px">{team.status}</span>
-                                    </div>
-                                </td>
-                                <td className={cn("px-4 py-2 text-right font-mono", team.strain > 60 ? "text-strain font-bold" : "text-text-secondary")}>
-                                    {team.strain}%
-                                </td>
-                                <td className={cn("px-4 py-2 text-right font-mono", team.withdrawal > 50 ? "text-withdrawal font-bold" : "text-text-secondary")}>
-                                    {team.withdrawal}%
-                                </td>
-                                <td className={cn("px-4 py-2 text-right font-mono", team.trust > 40 ? "text-text-secondary" : "text-engagement")}>
-                                    {team.trust}%
-                                </td>
-                                <td className={cn("px-4 py-2 text-right font-mono", team.engagement < 50 ? "text-strain" : "text-engagement")}>
-                                    {team.engagement}%
-                                </td>
-                                <td className="px-4 py-2 text-right font-mono text-text-tertiary">
-                                    {team.coverage}%
-                                </td>
-                            </tr>
-                        ))}
+                        {sortedTeams.map((team) => {
+                            // Real teams have a teamId UUID; mock teams use name as slug
+                            const teamHref = (team as any).teamId
+                                ? `/team/${(team as any).teamId}`
+                                : `/team/${team.name.toLowerCase()}`;
+                            return (
+                                <tr key={team.name} className="group hover:bg-white/[0.02] transition-colors cursor-pointer">
+                                    <td className="px-4 py-2 group-hover:text-accent-primary transition-colors">
+                                        <Link href={teamHref} className="flex items-center gap-2 font-medium text-base text-text-primary group-hover:text-accent-primary transition-colors">
+                                            {team.name}
+                                            <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-[-4px] group-hover:translate-x-0" />
+                                        </Link>
+                                        <div className="text-xs text-text-tertiary font-mono mt-0.5">
+                                            {team.members || 20} Members
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-2 pl-2">
+                                        <div className={cn("inline-flex items-center gap-2 px-0 py-0.5 rounded text-sm font-bold",
+                                            team.status === 'Critical' ? "text-strain" :
+                                                team.status === 'At Risk' ? "text-withdrawal" :
+                                                    "text-engagement"
+                                        )}>
+                                            {getStatusIcon(team.status)}
+                                            <span className="uppercase tracking-wider text-xs pt-px">{team.status}</span>
+                                        </div>
+                                    </td>
+                                    <td className={cn("px-4 py-2 text-right font-mono", team.strain > 60 ? "text-strain font-bold" : "text-text-secondary")}>
+                                        {team.strain}%
+                                    </td>
+                                    <td className={cn("px-4 py-2 text-right font-mono", team.withdrawal > 50 ? "text-withdrawal font-bold" : "text-text-secondary")}>
+                                        {team.withdrawal}%
+                                    </td>
+                                    <td className={cn("px-4 py-2 text-right font-mono", team.trust > 40 ? "text-text-secondary" : "text-engagement")}>
+                                        {team.trust}%
+                                    </td>
+                                    <td className={cn("px-4 py-2 text-right font-mono", team.engagement < 50 ? "text-strain" : "text-engagement")}>
+                                        {team.engagement}%
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono text-text-tertiary">
+                                        {team.coverage}%
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
         </div>
     );
 }
-

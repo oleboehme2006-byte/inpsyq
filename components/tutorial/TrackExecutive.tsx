@@ -12,6 +12,7 @@ const demoData: ExecutiveDashboardData = {
     drivers: [],
     watchlist: [],
     briefingParagraphs: [],
+    series: [],
     governance: {
         coverage: 85,
         dataQuality: 78,

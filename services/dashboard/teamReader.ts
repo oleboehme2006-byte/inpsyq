@@ -43,25 +43,31 @@ export async function getTeamDashboardData(
     const rows = aggregatesRes.rows.reverse();
     const latestRow = rows[rows.length - 1];
 
-    // 3. Build Series
+    // 3. Build Series — values scaled to 0-100 to match chart Y-axis
     const series: TeamSeriesPoint[] = rows.map(row => {
         const date = new Date(row.week_start);
         const indices = row.indices || {};
         const quality = row.quality || {};
-        const confidence = (quality.sampleSize || 0) > 3 ? 5 : 15; // Simple confidence logic
+        // Confidence band width in percentage points (tighter when sample size is adequate)
+        const confidence = (quality.sampleSize || 0) > 3 ? 5 : 15;
+
+        const strain     = Math.round((indices.strain         || 0) * 100);
+        const withdrawal = Math.round((indices.withdrawal_risk || 0) * 100);
+        const trust      = Math.round((indices.trust_gap       || 0) * 100);
+        const engagement = Math.round((indices.engagement      || 0) * 100);
 
         const point: TeamSeriesPoint = {
             date: format(date, 'MMM d'),
             fullDate: date.toISOString(),
-            strain: indices.strain || 0,
-            withdrawal: indices.withdrawal_risk || 0,
-            trust: indices.trust_gap || 0,
-            engagement: indices.engagement || 0,
-            confidence: confidence, // Base confidence
-            strainRange: [indices.strain - confidence, indices.strain + confidence],
-            withdrawalRange: [indices.withdrawal_risk - confidence, indices.withdrawal_risk + confidence],
-            trustRange: [indices.trust_gap - confidence, indices.trust_gap + confidence],
-            engagementRange: [indices.engagement - confidence, indices.engagement + confidence],
+            strain,
+            withdrawal,
+            trust,
+            engagement,
+            confidence,
+            strainRange:     [strain     - confidence, strain     + confidence],
+            withdrawalRange: [withdrawal - confidence, withdrawal + confidence],
+            trustRange:      [trust      - confidence, trust      + confidence],
+            engagementRange: [engagement - confidence, engagement + confidence],
         };
         return point;
     });

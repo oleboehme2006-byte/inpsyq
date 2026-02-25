@@ -13,6 +13,7 @@ import { DRIVER_CONTENT } from '@/lib/content/driverLibrary';
 import { isValidDriverFamilyId } from '@/lib/semantics/driverRegistry';
 import { identifySystemicDrivers, TeamAttribution, SystemicDriverCandidate } from '@/lib/interpretation/crossTeamAnalysis';
 import { predictTeamRisks, RiskPrediction, SeriesPoint } from '@/lib/interpretation/riskPredictor';
+import { TeamSeriesPoint } from '@/lib/mock/teamDashboardData';
 
 // ============================================================================
 // Types
@@ -30,6 +31,7 @@ export interface ExecutiveKPI {
 }
 
 export interface ExecutiveTeam {
+    teamId: string;
     name: string;
     status: 'Critical' | 'At Risk' | 'Healthy';
     members: number;
@@ -83,6 +85,7 @@ export interface ExecutiveDashboardData {
     watchlist: ExecutiveWatchlistItem[];
     briefingParagraphs: string[];
     governance: ExecutiveGovernance;
+    series: TeamSeriesPoint[];  // 12-week org-level aggregate series for chart rendering
 }
 
 // ============================================================================
@@ -144,6 +147,7 @@ export async function getExecutiveDashboardData(
         const status = statusMap[teamState.status || 'healthy'] || 'Healthy';
 
         teams.push({
+            teamId: row.team_id,
             name: row.name,
             status,
             members: quality.sampleSize || 0,
@@ -168,8 +172,8 @@ export async function getExecutiveDashboardData(
         }
     }
 
-    // 4. Compute org-level KPIs (averages across teams)
-    const kpis = buildOrgKPIs(teams);
+    // 4. Compute org-level KPIs (averages across teams, trends from series)
+    // series is built later; pass an empty array here and will re-compute after series is ready
 
     // 5. Fetch historical series for risk prediction
     for (const row of teamsRes.rows) {
@@ -191,13 +195,57 @@ export async function getExecutiveDashboardData(
         }
     }
 
+    // 5b. Fetch org-level 12-week aggregated series for the main chart
+    const orgSeriesRes = await query(
+        `SELECT
+            week_start,
+            AVG((indices->>'strain')::float)            AS strain,
+            AVG((indices->>'withdrawal_risk')::float)   AS withdrawal,
+            AVG((indices->>'trust_gap')::float)         AS trust,
+            AVG((indices->>'engagement')::float)        AS engagement,
+            AVG((quality->>'participationRate')::float) AS participation_rate,
+            SUM((quality->>'sampleSize')::int)          AS sample_size
+         FROM org_aggregates_weekly
+         WHERE org_id = $1
+         GROUP BY week_start
+         ORDER BY week_start DESC
+         LIMIT 12`,
+        [orgId]
+    );
+
+    // Build series ascending (oldest → newest) and scale to 0-100 for chart
+    const orgSeriesRows = [...orgSeriesRes.rows].reverse();
+    const series: TeamSeriesPoint[] = orgSeriesRows.map(r => {
+        const confidence = (r.sample_size || 0) > 3 ? 5 : 15;
+        const strain     = Math.round((r.strain      || 0) * 100);
+        const withdrawal = Math.round((r.withdrawal  || 0) * 100);
+        const trust      = Math.round((r.trust       || 0) * 100);
+        const engagement = Math.round((r.engagement  || 0) * 100);
+        return {
+            date:             format(new Date(r.week_start), 'MMM d'),
+            fullDate:         new Date(r.week_start).toISOString(),
+            strain,
+            withdrawal,
+            trust,
+            engagement,
+            confidence,
+            strainRange:     [strain     - confidence, strain     + confidence] as [number, number],
+            withdrawalRange: [withdrawal - confidence, withdrawal + confidence] as [number, number],
+            trustRange:      [trust      - confidence, trust      + confidence] as [number, number],
+            engagementRange: [engagement - confidence, engagement + confidence] as [number, number],
+        };
+    });
+
+    // 4 (deferred). Compute KPIs now that series is available for real trend deltas
+    const kpis = buildOrgKPIs(teams, series);
+
     // 6. Cross-Team Analysis: Identify Systemic Drivers
     const systemicCandidates = identifySystemicDrivers(teamAttributions);
 
     // 7. Risk Predictions for watchlist
     const allRisks: RiskPrediction[] = [];
-    for (const [teamName, series] of teamSeriesMap.entries()) {
-        const risks = predictTeamRisks(teamName, series);
+    for (const [teamName, riskSeries] of teamSeriesMap.entries()) {
+        const risks = predictTeamRisks(teamName, riskSeries);
         allRisks.push(...risks);
     }
     // Sort by severity
@@ -273,6 +321,7 @@ export async function getExecutiveDashboardData(
         watchlist: watchlist.slice(0, 3),
         briefingParagraphs,
         governance,
+        series,
     };
 }
 
@@ -280,16 +329,30 @@ export async function getExecutiveDashboardData(
 // Helper Functions
 // ============================================================================
 
-function buildOrgKPIs(teams: ExecutiveTeam[]): ExecutiveKPI[] {
+function buildOrgKPIs(teams: ExecutiveTeam[], series: TeamSeriesPoint[]): ExecutiveKPI[] {
     if (teams.length === 0) return [];
 
     const avg = (key: keyof Pick<ExecutiveTeam, 'strain' | 'withdrawal' | 'trust' | 'engagement'>) =>
         Math.round(teams.reduce((a, t) => a + t[key], 0) / teams.length);
 
-    const strain = avg('strain');
+    const strain     = avg('strain');
     const withdrawal = avg('withdrawal');
-    const trust = avg('trust');
+    const trust      = avg('trust');
     const engagement = avg('engagement');
+
+    // Compute week-over-week deltas from real series (last two points)
+    const formatDelta = (delta: number) => delta >= 0 ? `+${delta.toFixed(0)}%` : `${delta.toFixed(0)}%`;
+    const trendDir    = (delta: number) => delta > 1 ? 'up' : delta < -1 ? 'down' : 'stable';
+
+    let strainDelta = 0, withdrawalDelta = 0, trustDelta = 0, engagementDelta = 0;
+    if (series.length >= 2) {
+        const prev = series[series.length - 2];
+        const last = series[series.length - 1];
+        strainDelta     = last.strain     - prev.strain;
+        withdrawalDelta = last.withdrawal - prev.withdrawal;
+        trustDelta      = last.trust      - prev.trust;
+        engagementDelta = last.engagement - prev.engagement;
+    }
 
     return [
         {
@@ -297,8 +360,8 @@ function buildOrgKPIs(teams: ExecutiveTeam[]): ExecutiveKPI[] {
             title: 'Strain Index',
             value: String(strain),
             score: strain,
-            trend: strain > 60 ? 'up' : 'stable',
-            trendValue: strain > 60 ? '+' + (strain - 60) + '%' : '0%',
+            trend: trendDir(strainDelta),
+            trendValue: formatDelta(strainDelta),
             semanticColor: 'strain',
             description: 'Workload & Pressure',
         },
@@ -307,8 +370,8 @@ function buildOrgKPIs(teams: ExecutiveTeam[]): ExecutiveKPI[] {
             title: 'Withdrawal Risk',
             value: String(withdrawal),
             score: withdrawal,
-            trend: withdrawal > 40 ? 'up' : 'stable',
-            trendValue: withdrawal > 40 ? '+' + (withdrawal - 40) + '%' : '0%',
+            trend: trendDir(withdrawalDelta),
+            trendValue: formatDelta(withdrawalDelta),
             semanticColor: 'withdrawal',
             description: 'Disengagement Signs',
         },
@@ -317,8 +380,8 @@ function buildOrgKPIs(teams: ExecutiveTeam[]): ExecutiveKPI[] {
             title: 'Trust Gap',
             value: String(trust),
             score: trust,
-            trend: trust > 30 ? 'up' : 'stable',
-            trendValue: trust > 30 ? '+' + (trust - 30) + '%' : '0%',
+            trend: trendDir(trustDelta),
+            trendValue: formatDelta(trustDelta),
             semanticColor: 'trust-gap',
             description: 'Leadership Alignment',
         },
@@ -327,8 +390,8 @@ function buildOrgKPIs(teams: ExecutiveTeam[]): ExecutiveKPI[] {
             title: 'Engagement',
             value: String(engagement),
             score: engagement,
-            trend: engagement < 70 ? 'down' : 'stable',
-            trendValue: engagement < 70 ? '-' + (70 - engagement) + '%' : '0%',
+            trend: trendDir(engagementDelta),
+            trendValue: formatDelta(engagementDelta),
             semanticColor: 'engagement',
             description: 'Active Participation',
         },
