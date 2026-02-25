@@ -10,6 +10,7 @@ import { getTeamData } from '@/lib/mock/teamDashboardData';
 import { Globe, ArrowLeft, Users } from 'lucide-react';
 import { format, subWeeks } from 'date-fns';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 import { TeamDashboardEntry } from '@/lib/mock/teamDashboardData';
 
@@ -128,24 +129,40 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
         <div className="min-h-screen p-8 max-w-[1600px] mx-auto space-y-12 animate-in fade-in duration-500">
             {/* Header: Acme Corporation · Team Name · inPsyq */}
             <div className="flex items-center justify-between">
-                {/* Left: Org + Team */}
-                <div className="flex items-center gap-4">
-                    <Link
-                        href="/executive"
-                        className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors group"
-                    >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    </Link>
-                    <Globe className="w-8 h-8 text-[#8B5CF6]" strokeWidth={1.5} />
-                    <h1 className="text-4xl font-display font-medium text-white tracking-tight">
-                        Acme Corporation
-                    </h1>
-                    <div className="h-8 w-px bg-white/15 mx-2" />
-                    <div className="flex items-center gap-3">
-                        <Users className="w-5 h-5 text-[#8B5CF6]" strokeWidth={1.5} />
-                        <span className="text-2xl font-display font-medium text-[#8B5CF6] tracking-tight">
-                            {teamData.name}
-                        </span>
+                {/* Left: Org + Team + Badge */}
+                <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-4">
+                        <Link
+                            href="/executive"
+                            className="flex items-center gap-2 text-text-tertiary hover:text-white transition-colors group"
+                        >
+                            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        </Link>
+                        <Globe className="w-8 h-8 text-[#8B5CF6]" strokeWidth={1.5} />
+                        <h1 className="text-4xl font-display font-medium text-white tracking-tight">
+                            Acme Corporation
+                        </h1>
+                        <div className="h-8 w-px bg-white/15 mx-2" />
+                        <div className="flex items-center gap-3">
+                            <Users className="w-5 h-5 text-[#8B5CF6]" strokeWidth={1.5} />
+                            <span className="text-2xl font-display font-medium text-[#8B5CF6] tracking-tight">
+                                {teamData.name}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Data Status Badge */}
+                    <div className={cn(
+                        "px-3 py-1 rounded-full text-xs font-mono font-medium flex items-center gap-2 border",
+                        teamData.series && teamData.series.length > 0
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                    )}>
+                        <div className={cn(
+                            "w-1.5 h-1.5 rounded-full animate-pulse",
+                            teamData.series && teamData.series.length > 0 ? "bg-emerald-400" : "bg-amber-400"
+                        )} />
+                        {teamData.series && teamData.series.length > 0 ? "LIVE DATA" : "DEMO MODE"}
                     </div>
                 </div>
 
