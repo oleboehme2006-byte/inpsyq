@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import { TrackEmployee } from '@/components/tutorial/TrackEmployee';
+import { TutorialEmployee } from '@/components/tutorial/TutorialEmployee';
 
 export default function EmployeeTutorialPage() {
-    return <TrackEmployee />;
+    return <TutorialEmployee />;
 }

@@ -13,13 +13,8 @@ const LanguageContext = createContext<LanguageContextValue>({
     setLang: () => {},
 });
 
-function detectDefaultLang(): Lang {
-    if (typeof navigator === 'undefined') return 'EN';
-    return navigator.language.startsWith('de') ? 'DE' : 'EN';
-}
-
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-    const [lang, setLang] = useState<Lang>(detectDefaultLang);
+    const [lang, setLang] = useState<Lang>('EN');
     return (
         <LanguageContext.Provider value={{ lang, setLang }}>
             {children}

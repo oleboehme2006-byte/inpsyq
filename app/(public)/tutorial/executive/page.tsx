@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import { TrackExecutive } from '@/components/tutorial/TrackExecutive';
+import { TutorialExecutive } from '@/components/tutorial/TutorialExecutive';
 
 export default function ExecutiveTutorialPage() {
-    return <TrackExecutive />;
+    return <TutorialExecutive />;
 }

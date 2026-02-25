@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import { TrackAdmin } from '@/components/tutorial/TrackAdmin';
+import { TutorialAdmin } from '@/components/tutorial/TutorialAdmin';
 
 export default function AdminTutorialPage() {
-    return <TrackAdmin />;
+    return <TutorialAdmin />;
 }

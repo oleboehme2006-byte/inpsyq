@@ -176,7 +176,7 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
             </div>
 
             {/* KPI Cards Row */}
-            <div data-tutorial="team-indices" className="grid grid-cols-4 gap-6">
+            <div data-tutorial="team-kpis" className="grid grid-cols-4 gap-6">
                 {kpis.map((kpi: any) => (
                     <KPICard
                         key={kpi.id}
@@ -192,7 +192,7 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
             </div>
 
             {/* Main Chart Section */}
-            <div className="w-full">
+            <div data-tutorial="team-chart" className="w-full">
                 <EngagementIndexGraph
                     metric={selectedKpi as any}
                     data={graphData}
@@ -200,12 +200,10 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
             </div>
 
             {/* Split Section: Internal Drivers & Actions */}
-            <div data-tutorial="team-drivers">
             <DriversActionsSection
                 drivers={teamData.drivers}
                 actions={teamData.actions}
             />
-            </div>
 
             {/* Team Briefing & Governance */}
             <div data-tutorial="team-briefing" className="space-y-8 pb-12">

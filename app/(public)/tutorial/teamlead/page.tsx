@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import { TrackTeamlead } from '@/components/tutorial/TrackTeamlead';
+import { TutorialTeamlead } from '@/components/tutorial/TutorialTeamlead';
 
 export default function TeamleadTutorialPage() {
-    return <TrackTeamlead />;
+    return <TutorialTeamlead />;
 }

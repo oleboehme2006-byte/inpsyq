@@ -149,7 +149,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
             </div>
 
             {/* Team Portfolio — receives real teams from server */}
-            <div className="w-full">
+            <div data-tutorial="executive-portfolio" className="w-full">
                 <TeamPortfolioTable teams={initialData.teams} />
             </div>
 

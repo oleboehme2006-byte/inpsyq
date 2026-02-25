@@ -52,11 +52,16 @@ export default async function DashboardLayout({
         // Protected pages must enforce their own auth checks.
     }
 
+    // In demo mode with no authenticated role, show the tutorial button for EXECUTIVE view
+    const tutorialRole: Role | null = role || (DEMO_MODE ? 'EXECUTIVE' : null);
+
     return (
         <>
             {!DEMO_MODE && <MockBanner />}
             {children}
-            {role && <TutorialEntryPoint role={role} />}
+            {tutorialRole && (
+                <TutorialEntryPoint role={tutorialRole} isDemo={DEMO_MODE || !role} />
+            )}
         </>
     );
 }
