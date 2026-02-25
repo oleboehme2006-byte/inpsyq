@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Activity, LayoutDashboard, Lock } from 'lucide-react';
+import { Activity, LayoutDashboard, UserCheck, Settings2 } from 'lucide-react';
 
 export default function TutorialHubPage() {
     return (
@@ -36,28 +36,36 @@ export default function TutorialHubPage() {
                         <h2 className="text-xl font-display font-bold text-white mb-2 group-hover:text-[#E11D48] transition-colors">Team Operations</h2>
                         <p className="text-sm text-text-tertiary font-mono mb-4 uppercase tracking-wider">Micro-level causal drivers</p>
                         <p className="text-text-secondary text-sm leading-relaxed">
-                            Drill down into specific operational units. Understand how to isolate the root cause of friction—whether it&apos;s internal role clarity or external dependency bottlenecks—and apply targeted interventions.
+                            Drill down into specific operational units. Understand how to isolate the root cause of friction — whether it&apos;s internal role clarity or external dependency bottlenecks — and apply targeted interventions.
                         </p>
                     </div>
                 </Link>
 
-                {/* Coming Soon Tracks */}
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 opacity-50 grayscale">
-                    <div className="rounded-xl bg-[#020202] border border-white/5 p-6 flex flex-col gap-2 cursor-not-allowed">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-white font-medium">Employee Pulse Session</h3>
-                            <Lock className="w-4 h-4 text-white/20" />
-                        </div>
-                        <p className="text-xs text-text-tertiary">The 10-question psychometric instrument</p>
+                {/* Employee Track */}
+                <Link href="/tutorial/employee" className="group block h-full">
+                    <div className="relative h-full rounded-2xl bg-[#050505] border border-white/10 p-8 transition-all duration-300 hover:border-[#10B981]/50 hover:bg-[#10B981]/5 overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#10B981]/10 blur-[50px] rounded-full group-hover:bg-[#10B981]/20 transition-colors" />
+                        <UserCheck className="w-10 h-10 text-[#10B981] mb-6" />
+                        <h2 className="text-xl font-display font-bold text-white mb-2 group-hover:text-[#10B981] transition-colors">Employee Pulse Session</h2>
+                        <p className="text-sm text-text-tertiary font-mono mb-4 uppercase tracking-wider">The psychometric instrument</p>
+                        <p className="text-text-secondary text-sm leading-relaxed">
+                            Understand the 10-question pulse check. What each question measures, why it matters, and how your responses are anonymized before contributing to team-level insight.
+                        </p>
                     </div>
-                    <div className="rounded-xl bg-[#020202] border border-white/5 p-6 flex flex-col gap-2 cursor-not-allowed">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-white font-medium">Platform Administration</h3>
-                            <Lock className="w-4 h-4 text-white/20" />
-                        </div>
-                        <p className="text-xs text-text-tertiary">Data privacy and systemic configuration</p>
+                </Link>
+
+                {/* Admin Track */}
+                <Link href="/tutorial/admin" className="group block h-full">
+                    <div className="relative h-full rounded-2xl bg-[#050505] border border-white/10 p-8 transition-all duration-300 hover:border-[#F59E0B]/50 hover:bg-[#F59E0B]/5 overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#F59E0B]/10 blur-[50px] rounded-full group-hover:bg-[#F59E0B]/20 transition-colors" />
+                        <Settings2 className="w-10 h-10 text-[#F59E0B] mb-6" />
+                        <h2 className="text-xl font-display font-bold text-white mb-2 group-hover:text-[#F59E0B] transition-colors">Platform Administration</h2>
+                        <p className="text-sm text-text-tertiary font-mono mb-4 uppercase tracking-wider">Data governance & pipeline</p>
+                        <p className="text-text-secondary text-sm leading-relaxed">
+                            Learn to onboard an organization, run the weekly intelligence pipeline, monitor system health, and enforce data privacy through k-anonymity configuration.
+                        </p>
                     </div>
-                </div>
+                </Link>
             </div>
         </div>
     );

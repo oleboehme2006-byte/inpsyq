@@ -128,7 +128,7 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
     return (
         <div className="min-h-screen p-8 max-w-[1600px] mx-auto space-y-12 animate-in fade-in duration-500">
             {/* Header: Acme Corporation · Team Name · inPsyq */}
-            <div className="flex items-center justify-between">
+            <div data-tutorial="team-header" className="flex items-center justify-between">
                 {/* Left: Org + Team + Badge */}
                 <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
@@ -176,7 +176,7 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
             </div>
 
             {/* KPI Cards Row */}
-            <div className="grid grid-cols-4 gap-6">
+            <div data-tutorial="team-indices" className="grid grid-cols-4 gap-6">
                 {kpis.map((kpi: any) => (
                     <KPICard
                         key={kpi.id}
@@ -200,13 +200,15 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
             </div>
 
             {/* Split Section: Internal Drivers & Actions */}
+            <div data-tutorial="team-drivers">
             <DriversActionsSection
                 drivers={teamData.drivers}
                 actions={teamData.actions}
             />
+            </div>
 
             {/* Team Briefing & Governance */}
-            <div className="space-y-8 pb-12">
+            <div data-tutorial="team-briefing" className="space-y-8 pb-12">
                 <TeamBriefing
                     teamName={teamData.name}
                     paragraphs={teamData.briefing}

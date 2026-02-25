@@ -7,7 +7,8 @@ interface LoadingScreenProps {
     durationMs?: number; // Optional safety timeout duration
 }
 
-export function LoadingScreen({ durationMs = 8000 }: LoadingScreenProps) {
+export function LoadingScreen({ durationMs = 3500 }: LoadingScreenProps) {
+
     const [isVisible, setIsVisible] = useState(true);
     const [hasFaded, setHasFaded] = useState(false);
     const [shouldRender, setShouldRender] = useState(true);

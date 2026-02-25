@@ -1,9 +1,9 @@
 /**
  * Dashboard Layout (Server Component)
- * 
+ *
  * Enforces server-side auth gating for all dashboard routes.
  * Unauthenticated users are redirected to /login.
- * 
+ *
  * When NEXT_PUBLIC_DEMO_MODE=true, auth is bypassed entirely
  * (dashboards use only mock data, no real user data is exposed).
  */
@@ -13,6 +13,8 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { resolveAuthContext } from '@/lib/auth/context';
 import { MockBanner } from '@/components/dev/MockBanner';
+import { TutorialEntryPoint } from '@/components/tutorial/TutorialEntryPoint';
+import type { Role } from '@/lib/access/roles';
 
 export const metadata: Metadata = {
     title: 'inPsyq Dashboard',
@@ -26,6 +28,8 @@ export default async function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
+    let role: Role | null = null;
+
     // In demo mode, skip auth entirely — dashboards use only mock data
     if (!DEMO_MODE) {
         // Server-side auth gate
@@ -34,6 +38,12 @@ export default async function DashboardLayout({
         // If authenticated as EMPLOYEE, they shouldn't be here (dashboard is for admins/leaders)
         if (authResult.authenticated && authResult.context?.role === 'EMPLOYEE') {
             redirect('/measure');
+        }
+
+        // Capture role for TutorialEntryPoint (only for authenticated non-employee sessions)
+        if (authResult.authenticated && authResult.context?.role &&
+            authResult.context.role !== 'EMPLOYEE') {
+            role = authResult.context.role;
         }
 
         // Note: We no longer redirect to /login here for unauthenticated users.
@@ -46,7 +56,7 @@ export default async function DashboardLayout({
         <>
             {!DEMO_MODE && <MockBanner />}
             {children}
+            {role && <TutorialEntryPoint role={role} />}
         </>
     );
 }
-

@@ -12,23 +12,36 @@ export function useTutorialScroll(totalStages: number = 4) {
             // Prevent native scrolling
             e.preventDefault();
 
-            // Calculate delta
-            const deltaY = e.deltaY;
-
-            // Update progress
-            currentProgress += deltaY / TARGET_DELTA_MAX;
-
-            // Clamp between 0 and 1
+            currentProgress += e.deltaY / TARGET_DELTA_MAX;
             currentProgress = Math.max(0, Math.min(1, currentProgress));
+            setProgress(currentProgress);
+        };
 
+        // Touch support
+        let touchStartY = 0;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartY = e.touches[0].clientY;
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            e.preventDefault();
+            const delta = touchStartY - e.touches[0].clientY;
+            touchStartY = e.touches[0].clientY;
+            currentProgress += delta / TARGET_DELTA_MAX;
+            currentProgress = Math.max(0, Math.min(1, currentProgress));
             setProgress(currentProgress);
         };
 
         // Needs to be non-passive to call preventDefault
         window.addEventListener('wheel', handleWheel, { passive: false });
+        window.addEventListener('touchstart', handleTouchStart, { passive: false });
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
 
         return () => {
             window.removeEventListener('wheel', handleWheel);
+            window.removeEventListener('touchstart', handleTouchStart);
+            window.removeEventListener('touchmove', handleTouchMove);
         };
     }, [totalStages]);
 

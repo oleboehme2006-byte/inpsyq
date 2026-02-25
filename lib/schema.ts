@@ -21,8 +21,10 @@ CREATE TABLE IF NOT EXISTS users (
     org_id UUID REFERENCES orgs(org_id),
     team_id UUID REFERENCES teams(team_id),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    tutorial_seen JSONB NOT NULL DEFAULT '{"executive":false,"teamlead":false,"employee":false,"admin":false}'
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial_seen JSONB NOT NULL DEFAULT '{"executive":false,"teamlead":false,"employee":false,"admin":false}';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_clerk_id ON users(clerk_id) WHERE clerk_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useTutorialScroll } from '@/hooks/useTutorialScroll';
 import { createTimeline, set } from 'animejs';
 
@@ -14,15 +15,16 @@ export interface TutorialStep {
 interface Props {
     children: React.ReactNode;
     steps: TutorialStep[];
+    onDismiss?: () => void;
 }
 
-export function ScrollOverlayEngine({ children, steps }: Props) {
+export function ScrollOverlayEngine({ children, steps, onDismiss }: Props) {
     const { progress } = useTutorialScroll(steps.length);
     const canvasRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<any>(null);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-    // Calculate current step based on progress aggressively to avoid lag
+    // Calculate current step based on progress
     useEffect(() => {
         const index = Math.min(steps.length - 1, Math.floor(progress * steps.length));
         setCurrentStepIndex(index);
@@ -31,11 +33,7 @@ export function ScrollOverlayEngine({ children, steps }: Props) {
     useEffect(() => {
         if (!canvasRef.current) return;
 
-        // Initialize Anime.js timeline to handle background Canvas scrolling
-        const tl = createTimeline({
-            autoplay: false,
-        });
-
+        const tl = createTimeline({ autoplay: false });
         const stepDuration = 10000 / Math.max(1, steps.length - 1);
 
         steps.forEach((step, index) => {
@@ -48,7 +46,7 @@ export function ScrollOverlayEngine({ children, steps }: Props) {
                     tl.add(canvasRef.current, {
                         translateY: step.canvasTranslateY || 0,
                         duration: stepDuration,
-                        ease: 'inOutSine'
+                        ease: 'inOutSine',
                     }, (index - 1) * stepDuration);
                 }
             }
@@ -67,13 +65,21 @@ export function ScrollOverlayEngine({ children, steps }: Props) {
         }
     }, [progress]);
 
+    // Keyboard navigation: Escape to dismiss
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onDismiss?.();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onDismiss]);
+
     const currentStep = steps[currentStepIndex] || steps[0];
 
     return (
         <div className="relative w-full h-full flex items-center overflow-hidden">
             {/* The Canvas (Dashboard Replica) */}
             <div className="absolute inset-0 w-full h-full flex justify-end">
-                {/* Push canvas to right so panel has room, or overlay it. We will overlay to match plan exactly */}
                 <div
                     ref={canvasRef}
                     className="w-full absolute top-0 left-0 transition-transform will-change-transform"
@@ -81,15 +87,27 @@ export function ScrollOverlayEngine({ children, steps }: Props) {
                 >
                     <div className="relative isolate w-full">
                         {children}
-                        {/* Overlay Dimmer - Must sit above the children but below the elevated target */}
+                        {/* Overlay Dimmer */}
                         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40 pointer-events-none" />
                     </div>
                 </div>
             </div>
 
-            {/* Explanation Panel - Floating on top */}
+            {/* Explanation Panel */}
             <div className="relative z-50 w-full max-w-7xl mx-auto px-12 pointer-events-none">
-                <div className="w-[450px] bg-[#0A0A0A]/90 backdrop-blur-2xl border border-white/10 p-10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-all duration-500 ease-out transform pointer-events-auto">
+                <div className="w-[450px] bg-[#0A0A0A]/90 backdrop-blur-2xl border border-white/10 p-10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-all duration-500 ease-out transform pointer-events-auto relative">
+
+                    {/* Dismiss button */}
+                    {onDismiss && (
+                        <button
+                            onClick={onDismiss}
+                            className="absolute top-5 right-5 flex items-center gap-1 text-white/30 hover:text-white/70 transition-colors text-xs font-mono"
+                            aria-label="Skip tutorial"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                            Skip
+                        </button>
+                    )}
 
                     {/* Progress Indicator Dots */}
                     <div className="flex gap-2 mb-8">
@@ -132,8 +150,8 @@ export function ScrollOverlayEngine({ children, steps }: Props) {
                     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
                     border: 1px solid rgba(255, 255, 255, 0.1) !important;
                     border-radius: 0.75rem !important;
-                    background-color: #050505 !important; /* Ensure visibility against blur */
-                    pointer-events: none !important; /* Prevent accidental clicks inside tutorial */
+                    background-color: #050505 !important;
+                    pointer-events: none !important;
                 }
             `}</style>
         </div>

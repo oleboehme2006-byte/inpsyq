@@ -92,7 +92,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
     return (
         <div className="min-h-screen p-8 max-w-[1600px] mx-auto space-y-12 animate-in fade-in duration-500">
             {/* Header Redesign */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div data-tutorial="executive-header" className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 {/* Left: Icon + Title + Badge */}
                 <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
@@ -125,7 +125,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
             </div>
 
             {/* KPI Cards Row */}
-            <div className="grid grid-cols-4 gap-6">
+            <div data-tutorial="executive-kpis" className="grid grid-cols-4 gap-6">
                 {kpis.map((kpi) => (
                     <KPICard
                         key={kpi.id}
@@ -141,7 +141,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
             </div>
 
             {/* Main Chart Section */}
-            <div className="w-full">
+            <div data-tutorial="executive-chart" className="w-full">
                 <EngagementIndexGraph
                     metric={selectedKpi as any}
                     data={graphData}
@@ -160,7 +160,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
             />
 
             {/* Briefing & Governance */}
-            <div className="space-y-8 pb-12">
+            <div data-tutorial="executive-briefing" className="space-y-8 pb-12">
                 <Briefing paragraphs={initialData.briefingParagraphs} />
                 <DataGovernance
                     coverage={initialData.governance.coverage}
