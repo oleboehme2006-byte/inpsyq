@@ -22,10 +22,88 @@ import {
     RunStatus,
     RunMode,
     DEFAULT_CONCURRENCY,
+    DEFAULT_ORG_CONCURRENCY,
     DEFAULT_TEAM_TIMEOUT_MS,
+    DEFAULT_PIPELINE_TIMEOUT_MS,
+    DEFAULT_INTERP_TIMEOUT_MS,
+    DEFAULT_ORG_TIMEOUT_PER_TEAM_MS,
+    DEFAULT_ORG_TIMEOUT_MAX_MS,
     DEFAULT_TOTAL_TIMEOUT_MS,
 } from './types';
 import { SECURITY_LIMITS } from '@/lib/security/limits';
+
+// ============================================================================
+// Concurrency Primitives
+// ============================================================================
+
+/**
+ * Semaphore for bounded concurrent org processing.
+ * run() acquires the slot, awaits the task, then releases.
+ */
+class OrgSemaphore {
+    private active = 0;
+    private queue: Array<() => void> = [];
+
+    constructor(private max: number) {}
+
+    async run<T>(task: () => Promise<T>): Promise<T> {
+        await this.acquire();
+        try {
+            return await task();
+        } finally {
+            this.release();
+        }
+    }
+
+    private acquire(): Promise<void> {
+        if (this.active < this.max) {
+            this.active++;
+            return Promise.resolve();
+        }
+        return new Promise<void>(resolve => { this.queue.push(resolve); });
+    }
+
+    private release(): void {
+        this.active--;
+        if (this.queue.length > 0) {
+            this.active++;
+            this.queue.shift()!();
+        }
+    }
+}
+
+/**
+ * Async mutex for safe concurrent writes to shared result arrays / counters.
+ */
+class Mutex {
+    private locked = false;
+    private queue: Array<() => void> = [];
+
+    async run<T>(task: () => T | Promise<T>): Promise<T> {
+        await this.lock();
+        try {
+            return await task();
+        } finally {
+            this.unlock();
+        }
+    }
+
+    private lock(): Promise<void> {
+        if (!this.locked) {
+            this.locked = true;
+            return Promise.resolve();
+        }
+        return new Promise<void>(resolve => { this.queue.push(resolve); });
+    }
+
+    private unlock(): void {
+        if (this.queue.length > 0) {
+            this.queue.shift()!();
+        } else {
+            this.locked = false;
+        }
+    }
+}
 
 // ============================================================================
 // Main Entry Point
@@ -69,6 +147,7 @@ export async function runWeekly(params: {
         dryRun: params.options?.dryRun ?? false,
         mode,
         concurrency: params.options?.concurrency ?? DEFAULT_CONCURRENCY,
+        orgConcurrency: params.options?.orgConcurrency ?? DEFAULT_ORG_CONCURRENCY,
         teamTimeoutMs: params.options?.teamTimeoutMs ?? DEFAULT_TEAM_TIMEOUT_MS,
         totalTimeoutMs: params.options?.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS,
     };
@@ -166,62 +245,63 @@ export async function runWeekly(params: {
 
         counts.orgsTotal = orgIds.length;
 
-        // Total timeout guard
-        const deadline = Date.now() + options.totalTimeoutMs;
+        // Bounded concurrent org processing.
+        // Each org runs its own adaptive timeout (teamCount × 45s, max 20 min).
+        // Org concurrency is controlled by ORG_CONCURRENCY env var (default 3).
+        const orgConcurrency = options.orgConcurrency ??
+            (process.env.ORG_CONCURRENCY ? parseInt(process.env.ORG_CONCURRENCY, 10) : DEFAULT_ORG_CONCURRENCY);
 
-        // Process orgs sequentially to avoid overwhelming DB
-        for (const orgId of orgIds) {
-            if (Date.now() > deadline) {
-                status = 'partial';
-                error = 'Total timeout exceeded';
-                break;
-            }
+        const orgSemaphore = new OrgSemaphore(orgConcurrency);
+        const mutex = new Mutex(); // for safe concurrent orgs[] + counts writes
 
-            try {
-                const orgResult = await runWeeklyForOrg(
-                    orgId,
-                    weekStart,
-                    weekStartStr,
-                    weekLabel,
-                    options
-                );
+        await Promise.all(orgIds.map(orgId =>
+            orgSemaphore.run(async () => {
+                try {
+                    const orgResult = await runWeeklyForOrg(
+                        orgId,
+                        weekStart,
+                        weekStartStr,
+                        weekLabel,
+                        options
+                    );
 
-                orgs.push(orgResult);
+                    await mutex.run(() => {
+                        orgs.push(orgResult);
+                        counts.teamsTotal += orgResult.counts.total;
+                        counts.teamsSuccess += orgResult.counts.total - orgResult.counts.pipelineFailed;
+                        counts.teamsFailed += orgResult.counts.pipelineFailed;
+                        counts.pipelineUpserts += orgResult.counts.pipelineSuccess - orgResult.counts.pipelineSkipped;
+                        counts.pipelineSkips += orgResult.counts.pipelineSkipped;
+                        counts.interpretationGenerations += orgResult.counts.interpretationSuccess - orgResult.counts.interpretationSkipped;
+                        counts.interpretationCacheHits += orgResult.counts.interpretationSkipped;
 
-                // Aggregate counts
-                counts.teamsTotal += orgResult.counts.total;
-                counts.teamsSuccess += orgResult.counts.total - orgResult.counts.pipelineFailed;
-                counts.teamsFailed += orgResult.counts.pipelineFailed;
-                counts.pipelineUpserts += orgResult.counts.pipelineSuccess - orgResult.counts.pipelineSkipped;
-                counts.pipelineSkips += orgResult.counts.pipelineSkipped;
-                counts.interpretationGenerations += orgResult.counts.interpretationSuccess - orgResult.counts.interpretationSkipped;
-                counts.interpretationCacheHits += orgResult.counts.interpretationSkipped;
-
-                if (orgResult.status === 'completed') {
-                    counts.orgsSuccess++;
-                } else {
-                    counts.orgsFailed++;
-                    if (orgResult.status === 'failed') {
+                        if (orgResult.status === 'completed') {
+                            counts.orgsSuccess++;
+                        } else {
+                            counts.orgsFailed++;
+                            if (orgResult.status === 'failed') status = 'partial';
+                        }
+                    });
+                } catch (e: any) {
+                    await mutex.run(() => {
+                        counts.orgsFailed++;
                         status = 'partial';
-                    }
+                        orgs.push({
+                            orgId,
+                            weekStart: weekStartStr,
+                            weekLabel,
+                            status: 'failed',
+                            teams: [],
+                            counts: { total: 0, pipelineSuccess: 0, pipelineSkipped: 0, pipelineFailed: 0, interpretationSuccess: 0, interpretationSkipped: 0, interpretationFailed: 0 },
+                            startedAt: new Date(),
+                            finishedAt: new Date(),
+                            durationMs: 0,
+                            error: e.message,
+                        });
+                    });
                 }
-            } catch (e: any) {
-                counts.orgsFailed++;
-                status = 'partial';
-                orgs.push({
-                    orgId,
-                    weekStart: weekStartStr,
-                    weekLabel,
-                    status: 'failed',
-                    teams: [],
-                    counts: { total: 0, pipelineSuccess: 0, pipelineSkipped: 0, pipelineFailed: 0, interpretationSuccess: 0, interpretationSkipped: 0, interpretationFailed: 0 },
-                    startedAt: new Date(),
-                    finishedAt: new Date(),
-                    durationMs: 0,
-                    error: e.message,
-                });
-            }
-        }
+            })
+        ));
     } catch (e: any) {
         status = 'failed';
         error = e.message;
@@ -287,7 +367,7 @@ async function runWeeklyForOrg(
     weekStart: Date,
     weekStartStr: string,
     weekLabel: string,
-    options: { concurrency: number; teamTimeoutMs: number; dryRun: boolean }
+    options: { concurrency: number; orgConcurrency?: number; teamTimeoutMs: number; dryRun: boolean }
 ): Promise<OrgRunResult> {
     const startTime = Date.now();
 
@@ -348,11 +428,11 @@ async function runWeeklyForOrg(
         }
     }
 
-    const durationMs = Date.now() - startTime;
+    const teamsDurationMs = Date.now() - startTime;
     let status: RunStatus = counts.pipelineFailed > 0 ? 'partial' : 'completed';
 
-    // 3. Run Org-Level Rollup
     if (!options.dryRun) {
+        // 3. Org-Level Rollup
         try {
             await runWeeklyOrgRollup(orgId, weekStart);
         } catch (e: any) {
@@ -360,14 +440,19 @@ async function runWeeklyForOrg(
             status = 'partial';
         }
 
-        // 4. Run Org-Level Interpretation
+        // 4. Org-Level Interpretation
         try {
             await getOrCreateOrgInterpretation(orgId, weekStartStr);
         } catch (e: any) {
             console.error(`[Weekly] Org Interpretation Failed for ${orgId}:`, e.message);
             status = 'partial';
         }
+
+        // 5. Email digests — fire-and-forget, outside any team timeout
+        void sendOrgDigests(results, weekStart, weekLabel);
     }
+
+    const durationMs = Date.now() - startTime;
 
     return {
         orgId,
@@ -385,6 +470,12 @@ async function runWeeklyForOrg(
 // ============================================================================
 // Team-Level Processing
 // ============================================================================
+
+function makeTimeout(ms: number, label: string): Promise<never> {
+    return new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms)
+    );
+}
 
 async function runWeeklyForTeam(
     orgId: string,
@@ -404,123 +495,130 @@ async function runWeeklyForTeam(
         durationMs: 0,
     };
 
-    // Create timeout promise
-    const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Team timeout')), options.teamTimeoutMs);
-    });
-
+    // Phase A — Pipeline (own timeout, no LLM involved)
+    const pipelineStart = Date.now();
     try {
-        // Run pipeline with timeout
-        const pipelinePromise = (async () => {
-            if (options.dryRun) {
-                return { upserted: false, skipped: true };
-            }
+        const pipelinePromise = options.dryRun
+            ? Promise.resolve({ upserted: false, skipped: true })
+            : runWeeklyRollup(orgId, teamId, weekStart).then(r => ({
+                upserted: r.upserted,
+                skipped: r.skipped,
+            }));
 
-            const pipelineResult = await runWeeklyRollup(orgId, teamId, weekStart);
-            return {
-                upserted: pipelineResult.upserted,
-                skipped: pipelineResult.skipped,
-            };
-        })();
-
-        const pipelineResult = await Promise.race([pipelinePromise, timeoutPromise]);
+        const pipelineResult = await Promise.race([
+            pipelinePromise,
+            makeTimeout(DEFAULT_PIPELINE_TIMEOUT_MS, 'pipeline'),
+        ]);
 
         result.pipeline = {
             status: 'success',
             upserted: pipelineResult.upserted,
             skipped: pipelineResult.skipped,
+            durationMs: Date.now() - pipelineStart,
         };
     } catch (e: any) {
         result.pipeline = {
             status: 'failed',
             upserted: false,
             skipped: false,
+            durationMs: Date.now() - pipelineStart,
             error: e.message,
         };
     }
 
-    // Only run interpretation if pipeline succeeded
+    // Phase B — Interpretation (own timeout; must be > LLM_TIMEOUT_MS=15s)
     if (result.pipeline.status === 'success' && !options.dryRun) {
+        const interpStart = Date.now();
         try {
-            const interpPromise = (async () => {
-                const interpResult = await getOrCreateTeamInterpretation(
-                    orgId,
-                    teamId,
-                    weekStart.toISOString().slice(0, 10)
-                );
-                return {
-                    generated: interpResult.generated,
-                    cacheHit: interpResult.cacheHit,
-                };
-            })();
+            const interpPromise = getOrCreateTeamInterpretation(
+                orgId,
+                teamId,
+                weekStart.toISOString().slice(0, 10)
+            ).then(r => ({ generated: r.generated, cacheHit: r.cacheHit }));
 
-            const interpResult = await Promise.race([interpPromise, timeoutPromise]);
+            const interpResult = await Promise.race([
+                interpPromise,
+                makeTimeout(DEFAULT_INTERP_TIMEOUT_MS, 'interpretation'),
+            ]);
 
             result.interpretation = {
                 status: 'success',
                 generated: interpResult.generated,
                 cacheHit: interpResult.cacheHit,
+                durationMs: Date.now() - interpStart,
             };
         } catch (e: any) {
-            // Interpretation failure is not fatal
+            // Interpretation failure is non-fatal
             result.interpretation = {
                 status: 'failed',
                 generated: false,
                 cacheHit: false,
+                durationMs: Date.now() - interpStart,
                 error: e.message,
             };
-        }
-
-        // Send Weekly Digest (Fire & Forget, but await to capture errors in log)
-        try {
-            const aggRes = await query(
-                `SELECT indices, attribution FROM org_aggregates_weekly
-                 WHERE team_id = $1 AND week_start = $2::date`,
-                [teamId, weekStart.toISOString().slice(0, 10)]
-            );
-
-            if (aggRes.rows.length > 0) {
-                const row = aggRes.rows[0];
-                const indices = row.indices || {};
-                const attribution = row.attribution || {};
-
-                let topDriver = undefined;
-                if (attribution.internal && attribution.internal.length > 0) {
-                    const d = attribution.internal[0];
-                    const fid = d.driverFamily;
-                    if (typeof fid === 'string' && isValidDriverFamilyId(fid)) {
-                        topDriver = {
-                            label: DRIVER_CONTENT[fid].label,
-                            trend: d.supportingSignals?.trend || 'stable'
-                        };
-                    }
-                }
-
-                // Use generic action or derived
-                const topAction = {
-                    title: 'Review Full Report',
-                    message: 'Log in to view detailed drivers and recommended actions.'
-                };
-
-                // Send to debug recipient/manager
-                await sendWeeklyDigest(`manager-${teamId}@inpsyq.com`, {
-                    teamName: teamName || 'Team',
-                    weekLabel,
-                    strain: Math.round(indices.strain || 0),
-                    engagement: Math.round(indices.engagement || 0),
-                    topDriver: topDriver as any, // Cast to match strict type if needed
-                    topAction,
-                    dashboardUrl: `https://inpsyq.com/team/${teamId}`
-                });
-            }
-        } catch (e: any) {
-            console.error(`[Weekly] Email failed for ${teamId}:`, e.message);
-            // Do not fail the run for email
         }
     }
 
     result.durationMs = Date.now() - startTime;
     return result;
+}
+
+/**
+ * Fire-and-forget email digest for all successfully processed teams in an org.
+ * Runs outside any team-level timeout so email latency never fails a team.
+ */
+async function sendOrgDigests(
+    teams: TeamRunResult[],
+    weekStart: Date,
+    weekLabel: string
+): Promise<void> {
+    const weekStartStr = weekStart.toISOString().slice(0, 10);
+    await Promise.allSettled(
+        teams
+            .filter(t => t.pipeline.status === 'success' && t.teamId !== 'unknown')
+            .map(async t => {
+                try {
+                    const aggRes = await query(
+                        `SELECT indices, attribution FROM org_aggregates_weekly
+                         WHERE team_id = $1 AND week_start = $2::date`,
+                        [t.teamId, weekStartStr]
+                    );
+
+                    if (aggRes.rows.length === 0) return;
+
+                    const row = aggRes.rows[0];
+                    const indices = row.indices || {};
+                    const attribution = row.attribution || {};
+
+                    let topDriver = undefined;
+                    if (attribution.internal && attribution.internal.length > 0) {
+                        const d = attribution.internal[0];
+                        const fid = d.driverFamily;
+                        if (typeof fid === 'string' && isValidDriverFamilyId(fid)) {
+                            topDriver = {
+                                label: DRIVER_CONTENT[fid].label,
+                                trend: d.supportingSignals?.trend || 'stable',
+                            };
+                        }
+                    }
+
+                    await sendWeeklyDigest(`manager-${t.teamId}@inpsyq.com`, {
+                        teamName: t.teamName || 'Team',
+                        weekLabel,
+                        strain: Math.round(indices.strain || 0),
+                        engagement: Math.round(indices.engagement || 0),
+                        topDriver: topDriver as any,
+                        topAction: {
+                            title: 'Review Full Report',
+                            message: 'Log in to view detailed drivers and recommended actions.',
+                        },
+                        dashboardUrl: `https://inpsyq.com/team/${t.teamId}`,
+                    });
+                } catch (e: any) {
+                    console.error(`[Weekly] Email failed for ${t.teamId}:`, e.message);
+                }
+            })
+    );
 }
 
 // ============================================================================

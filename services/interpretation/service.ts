@@ -47,13 +47,18 @@ async function ensureSchema(): Promise<void> {
     try {
         await query(INTERPRETATION_SCHEMA_SQL);
         schemaEnsured = true;
+        // Do NOT set schemaEnsured=true on error — let next call retry.
     } catch (e) {
-        schemaEnsured = true;
+        throw e;
     }
 }
 
 // ============================================================================
-// Concurrency Control
+// Concurrency Control — Per-Org Limiters
+//
+// Each org gets its own bounded LLM semaphore so backpressure from one org
+// never starves another. The acquire() call supports an optional timeout so
+// that a team-level timeout doesn't abandon a queued promise (memory leak).
 // ============================================================================
 
 class ConcurrencyLimiter {
@@ -72,6 +77,37 @@ class ConcurrencyLimiter {
         });
     }
 
+    /**
+     * Acquire with a timeout. Returns true if acquired, false if timed out.
+     * Prevents abandoned promise leaks when the caller's outer timeout fires.
+     */
+    async acquireWithTimeout(ms: number): Promise<boolean> {
+        if (this.active < this.max) {
+            this.active++;
+            return true;
+        }
+        return new Promise<boolean>(resolve => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (!settled) {
+                    settled = true;
+                    // Remove from queue without resolving the limiter slot
+                    const idx = this.queue.indexOf(onSlot);
+                    if (idx !== -1) this.queue.splice(idx, 1);
+                    resolve(false);
+                }
+            }, ms);
+            const onSlot = () => {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    resolve(true);
+                }
+            };
+            this.queue.push(onSlot);
+        });
+    }
+
     release(): void {
         this.active--;
         if (this.queue.length > 0) {
@@ -82,8 +118,22 @@ class ConcurrencyLimiter {
     }
 }
 
-const llmConfig = getLLMConfig();
-const concurrencyLimiter = new ConcurrencyLimiter(llmConfig.concurrency);
+// Per-org limiter map — each org gets its own independent slot pool.
+const orgLimiters = new Map<string, ConcurrencyLimiter>();
+
+function getOrgLimiter(orgId: string): ConcurrencyLimiter {
+    let limiter = orgLimiters.get(orgId);
+    if (!limiter) {
+        const llmConfig = getLLMConfig();
+        limiter = new ConcurrencyLimiter(llmConfig.concurrency);
+        orgLimiters.set(orgId, limiter);
+    }
+    return limiter;
+}
+
+// LLM acquire timeout: slightly less than DEFAULT_INTERP_TIMEOUT_MS (20s)
+// so we fail-fast rather than waiting the full budget if all slots are busy.
+const LLM_ACQUIRE_TIMEOUT_MS = 16_000;
 
 // ============================================================================
 // Service Entry Points
@@ -276,8 +326,17 @@ async function generateOrchestrated(
     const useLLM = !forceDeterministic && config.provider !== 'disabled' && !!config.apiKey;
 
     if (useLLM) {
+        // Use per-org limiter; fall back to a global fallback limiter for calls
+        // without context (e.g. one-off API calls outside the runner).
+        const limiter = context?.orgId
+            ? getOrgLimiter(context.orgId)
+            : getOrgLimiter('__global__');
+        const acquired = await limiter.acquireWithTimeout(LLM_ACQUIRE_TIMEOUT_MS);
+        if (!acquired) {
+            console.warn(`[LLM] Concurrency acquire timed out for org ${context?.orgId ?? 'unknown'}; falling back to deterministic`);
+        }
+        if (acquired) {
         try {
-            await concurrencyLimiter.acquire();
             const provider: LLMProvider = new OpenAIProvider();
 
             // Build prompts using Phase 9 prompt templates
@@ -338,8 +397,9 @@ async function generateOrchestrated(
             console.error('LLM Failed, falling back to deterministic:', e.message);
             // Fallthrough to deterministic
         } finally {
-            concurrencyLimiter.release();
+            limiter.release();
         }
+        } // end if (acquired)
     }
 
     // Deterministic Fallback

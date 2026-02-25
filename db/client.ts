@@ -13,12 +13,19 @@ function createPool(): Pool {
   const config = getDbConfig();
   const isServerless = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
 
+  // Pool sizing:
+  //   3 concurrent orgs × 3 concurrent teams × ~2 queries/team = 18 connections.
+  //   20 gives safe headroom for org-rollup queries running alongside.
+  //   DB_POOL_SIZE env var allows tuning without a deploy.
+  const maxConnections = process.env.DB_POOL_SIZE
+    ? parseInt(process.env.DB_POOL_SIZE, 10)
+    : isServerless ? 20 : 30;
+
   return new Pool({
     ...config,
-    // Item 3.13: Prevent connection exhaustion in serverless
-    max: isServerless ? 5 : 10,
-    idleTimeoutMillis: 20_000,
-    connectionTimeoutMillis: 10_000,
+    max: maxConnections,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 15_000,
   });
 }
 

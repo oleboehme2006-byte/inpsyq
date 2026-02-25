@@ -25,6 +25,7 @@ export interface TeamRunResult {
         status: TeamRunStatus;
         upserted: boolean;
         skipped: boolean;
+        durationMs?: number;
         error?: string;
     };
 
@@ -33,6 +34,7 @@ export interface TeamRunResult {
         status: TeamRunStatus;
         generated: boolean;
         cacheHit: boolean;
+        durationMs?: number;
         error?: string;
     };
 
@@ -82,9 +84,10 @@ export type RunMode = 'FULL' | 'PIPELINE_ONLY' | 'INTERPRETATION_ONLY';
 export interface WeeklyRunOptions {
     dryRun?: boolean;
     mode?: RunMode;
-    concurrency?: number;
+    concurrency?: number;        // team-level concurrency within an org
+    orgConcurrency?: number;     // org-level concurrency (default DEFAULT_ORG_CONCURRENCY)
     teamTimeoutMs?: number;
-    totalTimeoutMs?: number;
+    totalTimeoutMs?: number;     // @deprecated — kept for API compat; ignored in new runner
 }
 
 // ============================================================================
@@ -126,5 +129,21 @@ export interface WeeklyRunAudit {
 // ============================================================================
 
 export const DEFAULT_CONCURRENCY = 3;
-export const DEFAULT_TEAM_TIMEOUT_MS = 5000;
-export const DEFAULT_TOTAL_TIMEOUT_MS = 300000; // 5 minutes
+export const DEFAULT_ORG_CONCURRENCY = 3;          // concurrent orgs (Module 4)
+
+// Timeout hierarchy (each must comfortably exceed the one it wraps):
+//   LLM call:        15 s   (reduced from 20s)
+//   Interpretation:  20 s   (LLM + DB overhead)
+//   Pipeline phase:  10 s   (DB rollup only)
+//   Team total:      35 s   (pipeline + interpretation, sequential)
+//   Per-org:         adaptive — teamCount × 45 s, capped at 1 200 s (20 min)
+//   Global:          removed — replaced by per-org parallelism
+
+export const DEFAULT_TEAM_TIMEOUT_MS   = 35_000;   // was 5 000 — fatal for LLM
+export const DEFAULT_PIPELINE_TIMEOUT_MS = 10_000;
+export const DEFAULT_INTERP_TIMEOUT_MS   = 20_000;
+export const DEFAULT_ORG_TIMEOUT_PER_TEAM_MS = 45_000; // × teamCount
+export const DEFAULT_ORG_TIMEOUT_MAX_MS = 1_200_000;  // 20 min hard cap
+
+/** @deprecated Use per-org adaptive timeout instead (Module 4). Kept for API compat. */
+export const DEFAULT_TOTAL_TIMEOUT_MS = 300_000;
