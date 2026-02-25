@@ -22,7 +22,65 @@ We are executing these 4 steps in this strict sequential order. **You are respon
 **1. Dashboard Logic (Teamlead/Executive):** Taking the Demo Dashboards as reference and building the real dashboards for clients with exact functionalities of the demo dashboards + perfectioning of the LLM-integration.
 **2. Admin Dashboard:** Building the Admin Dashboard perfectly adapted to the system's needs.
 **3. Backend wiring + pipeline scaling** perfectioning processes for great amounts of clients.
-**4. Landing Page & Tutorials:** Implementing the complex logic for the Landing Page structure and scroll-driven, interactive Tutorials. The narrative must adapt to and perfectly reflect the potential and capabilities of the system, optimized like a neuro-marketing professional would do.
+**4. Landing Page & Tutorials:** Full spec below — read the "Phase 4 Requirements" section before starting.
+
+---
+
+## Phase 4 Requirements: Landing Page & Tutorials
+
+> ⚠️ Do **not** modify any file under `components/demo/`. Demo components are frozen.
+
+### Tutorial System (4 Role-Based Tracks)
+
+Build a complete tutorial system for all 4 roles. Each track is independent and adapted to its role:
+
+| Track | Role | Content Focus |
+|---|---|---|
+| Executive | EXECUTIVE | How to read org-level KPIs, interpret systemic drivers, use the watchlist |
+| Teamlead | TEAMLEAD | How to read team indices, interpret driver cards, use the actions section |
+| Employee | EMPLOYEE | How to complete the weekly survey, what the questions measure |
+| Admin | ADMIN | How to onboard an org, run the pipeline, read system health |
+
+**UX Mechanics:**
+
+- Scroll-driven overlay with smooth motion animations. Premium feel. Full creative scope on mechanics.
+- Each step highlights the relevant UI element (spotlight/mask pattern).
+- Progress indicator showing current step / total steps.
+- Always dismissible at any point via an "X" or "Skip" button.
+
+**Entry Points:**
+
+1. **Landing Page** — a "See how it works" CTA section links to each role's tutorial
+2. **Dashboard / session header** — persistent icon/button for logged-in users to re-open their tutorial
+
+**First-Login Auto-Open:**
+
+- When a user logs into their dashboard for the first time, their role-appropriate tutorial opens automatically.
+- Must be skippable immediately on open.
+- **Persistence: DB flag** — add a `tutorial_seen` JSONB column to the `users` table (shape: `{ executive: boolean, teamlead: boolean, employee: boolean, admin: boolean }`). Do not use localStorage — state must persist across devices and browser clears. Add the migration.
+
+---
+
+### Landing Page
+
+**Bilingual Toggle (DE / EN):**
+
+- Full language switching for the entire landing page content.
+- Build a `useLanguage()` hook or context that toggles between a `de` and `en` content map.
+- Toggle UI: a DE | EN pill in the header. Default to browser language if detectable, else EN.
+- All static text (headlines, CTAs, feature descriptions) must exist in both languages.
+
+**Narrative & Content:**
+
+- The narrative must reflect the actual depth of the platform as a neuro-marketing professional would present it.
+- Showcase: psychometric precision, causal attribution engine, LLM-backed briefings, multi-role dashboards, weekly batch pipeline, enterprise RBAC.
+- Do NOT make it sound like a generic HR tool. It is an advanced organizational intelligence platform.
+- Sections (suggested, adapt as needed): Hero → How It Works → The Science → Dashboards Preview → Tutorial CTA per Role → Pricing/Contact
+
+**Tutorial CTA Section:**
+
+- One card per tutorial track (Executive, Teamlead, Employee, Admin).
+- Each card links to (or opens) the corresponding tutorial.
 
 ---
 
