@@ -6,7 +6,7 @@ Welcome to the inPsyq project. You are Claude Code, operating as the lead logic 
 
 inPsyq is an advanced, enterprise-grade analytical platform that provides "Social Sentiment, Data-Driven Depth, and Psychological Insights." It features complex data visualizations (Causal Graphs, Risk Spaces, Latent Fields), LLM-backed briefings, and distinct dashboards for different user roles (Teamlead vs. Executive).
 
-The system relies on high-fidelity, neuro-sales narrative structures and "instrument-grade" UI. It is highly stateful, processing multi-week temporal data and causal drivers.
+The system relies on high-fidelity narrative structures. (Note: "neuro-sales" means optimizing the UI and landing page like a neuro-marketing professional would. The narrative must adapt to and perfectly showcase the full potential and capability of the system). It is highly stateful, processing multi-week temporal data and causal drivers.
 
 ## Division of Labor (Updated)
 
@@ -22,7 +22,7 @@ We are executing these 4 steps in this strict sequential order. **You are respon
 **1. Dashboard Logic (Teamlead/Executive):** Taking the Demo Dashboards as reference and building the real dashboards for clients with exact functionalities of the demo dashboards + perfectioning of the LLM-integration.
 **2. Admin Dashboard:** Building the Admin Dashboard perfectly adapted to the system's needs.
 **3. Backend wiring + pipeline scaling** perfectioning processes for great amounts of clients.
-**4. Landing Page & Tutorials:** Implementing the complex logic for the Landing Page structure and scroll-driven, interactive Tutorials.
+**4. Landing Page & Tutorials:** Implementing the complex logic for the Landing Page structure and scroll-driven, interactive Tutorials. The narrative must adapt to and perfectly reflect the potential and capabilities of the system, optimized like a neuro-marketing professional would do.
 
 ---
 
