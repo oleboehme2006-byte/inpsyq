@@ -26,61 +26,100 @@ We are executing these 4 steps in this strict sequential order. **You are respon
 
 ---
 
-## Phase 4 Requirements: Landing Page & Tutorials
+## Phase 4 v2 Requirements: Landing Page & Tutorials
 
 > ⚠️ Do **not** modify any file under `components/demo/`. Demo components are frozen.
-
-### Tutorial System (4 Role-Based Tracks)
-
-Build a complete tutorial system for all 4 roles. Each track is independent and adapted to its role:
-
-| Track | Role | Content Focus |
-|---|---|---|
-| Executive | EXECUTIVE | How to read org-level KPIs, interpret systemic drivers, use the watchlist |
-| Teamlead | TEAMLEAD | How to read team indices, interpret driver cards, use the actions section |
-| Employee | EMPLOYEE | How to complete the weekly survey, what the questions measure |
-| Admin | ADMIN | How to onboard an org, run the pipeline, read system health |
-
-**UX Mechanics:**
-
-- Scroll-driven overlay with smooth motion animations. Premium feel. Full creative scope on mechanics.
-- Each step highlights the relevant UI element (spotlight/mask pattern).
-- Progress indicator showing current step / total steps.
-- Always dismissible at any point via an "X" or "Skip" button.
-
-**Entry Points:**
-
-1. **Landing Page** — a "See how it works" CTA section links to each role's tutorial
-2. **Dashboard / session header** — persistent icon/button for logged-in users to re-open their tutorial
-
-**First-Login Auto-Open:**
-
-- When a user logs into their dashboard for the first time, their role-appropriate tutorial opens automatically.
-- Must be skippable immediately on open.
-- **Persistence: DB flag** — add a `tutorial_seen` JSONB column to the `users` table (shape: `{ executive: boolean, teamlead: boolean, employee: boolean, admin: boolean }`). Do not use localStorage — state must persist across devices and browser clears. Add the migration.
+> ⚠️ This is a **complete rebuild** of Phase 4. Discard all v1 content for the landing page and tutorial engine.
 
 ---
 
-### Landing Page
+### Landing Page — Complete Rewrite
 
-**Bilingual Toggle (DE / EN):**
+**6 sections in order.** Headers must be narrative (not generic labels):
 
-- Full language switching for the entire landing page content.
-- Build a `useLanguage()` hook or context that toggles between a `de` and `en` content map.
-- Toggle UI: a DE | EN pill in the header. Default to browser language if detectable, else EN.
-- All static text (headlines, CTAs, feature descriptions) must exist in both languages.
+| # | Section ID | Narrative Direction |
+|---|---|---|
+| 1 | Hero | Opening statement that immediately conveys the product's depth |
+| 2 | Problem | What org leaders fly blind on — and why current tools fail |
+| 3 | How It Works | Signal → model → insight → action — the 72-hour intelligence loop |
+| 4 | Science | The psychometric and mathematical engine — what makes it different |
+| 5 | Role Demos | 4 role cards (Executive, Teamlead, Employee, Admin) → link to tutorials |
+| 6 | Pricing | Closing CTA — contact/demo booking |
 
-**Narrative & Content:**
+**Rules:**
 
-- The narrative must reflect the actual depth of the platform as a neuro-marketing professional would present it.
-- Showcase: psychometric precision, causal attribution engine, LLM-backed briefings, multi-role dashboards, weekly batch pipeline, enterprise RBAC.
-- Do NOT make it sound like a generic HR tool. It is an advanced organizational intelligence platform.
-- Sections (suggested, adapt as needed): Hero → How It Works → The Science → Dashboards Preview → Tutorial CTA per Role → Pricing/Contact
+- All copy written fresh in **both DE and EN** in `lib/landing/content.ts`
+- DE/EN toggle pill in the nav bar — **no auto-detect**, no URL change, default EN
+- No live dashboard iframes or embeds — static visuals only (styled mockup tiles or screenshot blocks)
+- Narrative must reflect the platform's actual depth: psychometric precision, causal attribution, LLM briefings, multi-role intelligence, enterprise RBAC. Not a generic HR tool.
 
-**Tutorial CTA Section:**
+---
 
-- One card per tutorial track (Executive, Teamlead, Employee, Admin).
-- Each card links to (or opens) the corresponding tutorial.
+### Tutorial System — Rebuilt from Scratch
+
+#### Executive + Teamlead: Guided Tour Popover on Live Demo Dashboard
+
+**Mechanic:** A `TourEngine` component renders floating popover cards anchored to `data-tutorial-*` elements on the actual demo dashboard. Dashboard renders fully underneath. Spotlight/dimming mask highlights the target element.
+
+**Popover card must:**
+
+- Never cover the highlighted element
+- Use smart positioning (try right → bottom → left → top based on viewport space)
+- Scroll the page to bring the target element into view before showing
+- Show: step counter, headline, longer explanatory body text (3–5 sentences), Back/Next, Skip
+
+**Executive track — target elements + content per step:**
+
+1. `[data-tutorial="executive-header"]` — org context, what the LIVE/DEMO badge means
+2. `[data-tutorial="executive-kpis"]` — the 4 indices, how to read them, what high strain means
+3. KPI click interaction — explain that clicking a card changes the chart dimension
+4. `[data-tutorial="executive-chart"]` — reading trends, the confidence band, what the shaded area means
+5. `[data-tutorial="executive-portfolio"]` — team status columns, what Critical/At Risk means
+6. `[data-tutorial="executive-drivers"]` — systemic vs team-local drivers, how they're identified
+7. `[data-tutorial="executive-watchlist"]` — severity computation, when to escalate
+8. `[data-tutorial="executive-briefing"]` — how LLM briefings are generated, how to use them in board prep
+
+**Teamlead track — target elements + content per step:**
+
+1. `[data-tutorial="team-header"]` — the breadcrumb context, back to executive view
+2. `[data-tutorial="team-kpis"]` — team-scoped indices vs org-level
+3. `[data-tutorial="team-chart"]` — reading the team trend, week-over-week changes
+4. `[data-tutorial="team-drivers"]` — internal driver cards, expanding detail panels
+5. `[data-tutorial="team-actions"]` — need states N0–N3, why some actions are gated
+6. `[data-tutorial="team-briefing"]` — how to use the briefing for 1-on-1s and retrospectives
+
+**Add any missing `data-tutorial-*` attributes** to the dashboard components as needed.
+
+---
+
+#### Employee + Admin: Slide-Based Presentation (no live dashboard)
+
+**Mechanic:** `SlideShow` component. Full-screen cards, one at a time. No underlying UI. Each slide has: large icon, headline, body text (3–5 sentences, can include bullet list or callout block), Back/Next/Skip.
+
+**Employee slides:**
+
+1. Why the pulse check exists — the organizational intelligence loop
+2. The 10 questions — what each psychological dimension measures
+3. Anonymity — k-anonymity explained; what is and isn't visible to leadership
+4. From answer to insight — the pipeline from your response to the team briefing
+5. Your participation matters — consistency and why weekly cadence is essential
+
+**Admin slides:**
+
+1. Your role as platform operator — what you own
+2. Onboarding an organization — roster import, team setup, invite flow
+3. The weekly pipeline — what it does automatically, how to trigger manually and dry-run
+4. System health — reading lock status, alert feed, data quality metrics
+5. Data governance — coverage thresholds, retention policy, k-anonymity enforcement
+
+---
+
+### First-Login Behavior
+
+- `TutorialEntryPoint` detects `tutorial_seen[track] === false` on dashboard mount → auto-opens the tour
+- User clicks through all steps OR clicks "Skip" — either action marks the track seen via `PATCH /api/user/tutorial-status`
+- "?" button **always visible** in dashboard header (not just on first login) — re-opens tour at step 1
+- In demo mode (no auth): "?" button still visible, links to `/tutorial/{track}` public page. No DB write.
 
 ---
 
