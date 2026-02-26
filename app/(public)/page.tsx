@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     motion,
@@ -8,6 +8,7 @@ import {
     useTransform,
     useSpring,
     useMotionTemplate,
+    useInView,
 } from 'framer-motion';
 import {
     Activity,
@@ -27,16 +28,44 @@ import { LanguageProvider, useLanguage } from '@/hooks/useLanguage';
 import { content } from '@/lib/landing/content';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Science pillar card — isolated to hold its own tilt state
+// CountUp — counts from 0 to `to` when entering viewport
+// ─────────────────────────────────────────────────────────────────────────────
+function CountUp({ to, suffix }: { to: number; suffix: string }) {
+    const [count, setCount] = useState(0);
+    const ref = useRef<HTMLSpanElement>(null);
+    const inView = useInView(ref, { once: true });
+    useEffect(() => {
+        if (!inView) return;
+        let start = 0;
+        const step = to / 40;
+        const timer = setInterval(() => {
+            start += step;
+            if (start >= to) { setCount(to); clearInterval(timer); return; }
+            setCount(Math.floor(start));
+        }, 30);
+        return () => clearInterval(timer);
+    }, [inView, to]);
+    return <span ref={ref}>{count}{suffix}</span>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rotating dimension ring — decorative atmospheric background for Science
+// ─────────────────────────────────────────────────────────────────────────────
+const DIMENSIONS = ['STRAIN', 'WITHDRAWAL', 'TRUST GAP', 'ENGAGEMENT', 'AUTONOMY', 'ROLE CLARITY', 'SAFETY', 'WORKLOAD', 'DEPENDENCY', 'BELONGING'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ScienceCard — isolated for tilt state, now with accentColor
 // ─────────────────────────────────────────────────────────────────────────────
 function ScienceCard({
     pillar,
     icon,
     hoverClass,
+    accentColor,
 }: {
     pillar: { title: string; desc: string };
     icon: React.ReactNode;
     hoverClass: string;
+    accentColor: string;
 }) {
     const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
 
@@ -58,12 +87,15 @@ function ScienceCard({
                 style={{
                     transform: `perspective(800px) rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg)`,
                     transition: 'transform 0.3s ease-out',
+                    borderTop: `2px solid ${accentColor}`,
                 }}
-                className={`p-8 rounded-2xl bg-[#050505] border border-white/8 h-full cursor-default ${hoverClass}`}
+                className={`rounded-2xl bg-[#050505] border border-white/8 h-full cursor-default overflow-hidden ${hoverClass}`}
             >
-                <div className="mb-6">{icon}</div>
-                <h3 className="text-lg font-display font-bold text-white mb-4">{pillar.title}</h3>
-                <p className="text-text-secondary text-base leading-relaxed">{pillar.desc}</p>
+                <div className="p-8">
+                    <div className="mb-6">{icon}</div>
+                    <h3 className="text-xl font-display font-semibold mb-4" style={{ color: accentColor }}>{pillar.title}</h3>
+                    <p className="text-base font-body text-text-secondary leading-relaxed">{pillar.desc}</p>
+                </div>
             </div>
         </motion.div>
     );
@@ -126,13 +158,16 @@ function LandingPageInner() {
     const stepOpacities = [step1Opacity, step2Opacity, step3Opacity, step4Opacity];
     const stepYValues = [step1Y, step2Y, step3Y, step4Y];
 
-    // Node border colours animate from faint white → cyan as line reaches each node
-    const node1Color = useTransform(howProgress, [0.09, 0.12], ['rgba(255,255,255,0.1)', 'rgba(14,165,233,1)']);
+    // Node border colours animate from faint white → step colour as line reaches each node
+    const node1Color = useTransform(howProgress, [0.09, 0.12], ['rgba(255,255,255,0.1)', 'rgba(139,92,246,1)']);
     const node2Color = useTransform(howProgress, [0.33, 0.36], ['rgba(255,255,255,0.1)', 'rgba(14,165,233,1)']);
-    const node3Color = useTransform(howProgress, [0.56, 0.59], ['rgba(255,255,255,0.1)', 'rgba(14,165,233,1)']);
-    const node4Color = useTransform(howProgress, [0.79, 0.82], ['rgba(255,255,255,0.1)', 'rgba(14,165,233,1)']);
+    const node3Color = useTransform(howProgress, [0.56, 0.59], ['rgba(255,255,255,0.1)', 'rgba(225,29,72,1)']);
+    const node4Color = useTransform(howProgress, [0.79, 0.82], ['rgba(255,255,255,0.1)', 'rgba(16,185,129,1)']);
     const nodeColors = [node1Color, node2Color, node3Color, node4Color];
     const nodePositions = ['0%', '33%', '66%', 'calc(100% - 44px)'];
+
+    // Step watermark accent colours match the node colours
+    const stepAccents = ['#8B5CF6', '#0EA5E9', '#E11D48', '#10B981'];
 
     // ── Pricing section ────────────────────────────────────────────────────────
     const pricingRef = useRef<HTMLElement>(null);
@@ -144,7 +179,7 @@ function LandingPageInner() {
     const blurValue = useTransform(pricingProgress, [0.2, 0.5], [4, 0]);
     const pricingFilter = useMotionTemplate`blur(${blurValue}px)`;
 
-    // ── Icon maps ──────────────────────────────────────────────────────────────
+    // ── Icon / meta maps ───────────────────────────────────────────────────────
     const trackIcons: Record<string, React.ReactNode> = {
         EXECUTIVE: <Activity className="w-6 h-6" />,
         TEAMLEAD: <LayoutDashboard className="w-6 h-6" />,
@@ -152,33 +187,30 @@ function LandingPageInner() {
         ADMIN: <Settings2 className="w-6 h-6" />,
     };
 
+    const trackSubLabels: Record<string, string> = {
+        EXECUTIVE: 'MACRO-LEVEL · SYSTEMIC RISK',
+        TEAMLEAD: 'MICRO-LEVEL · CAUSAL DRIVERS',
+        EMPLOYEE: 'PSYCHOMETRIC · INSTRUMENT',
+        ADMIN: 'DATA GOVERNANCE · PIPELINE',
+    };
+
     const sciencePillarMeta = [
         {
             icon: <Brain className="w-8 h-8 text-[#8B5CF6]" />,
-            hoverClass: 'hover:border-[#8B5CF6]/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300',
+            hoverClass: 'hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300',
+            accentColor: '#8B5CF6',
         },
         {
             icon: <Activity className="w-8 h-8 text-[#0EA5E9]" />,
-            hoverClass: 'hover:border-[#0EA5E9]/50 hover:shadow-[0_0_20px_rgba(14,165,233,0.15)] transition-all duration-300',
+            hoverClass: 'hover:shadow-[0_0_20px_rgba(14,165,233,0.15)] transition-all duration-300',
+            accentColor: '#0EA5E9',
         },
         {
             icon: <Zap className="w-8 h-8 text-[#10B981]" />,
-            hoverClass: 'hover:border-[#10B981]/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300',
+            hoverClass: 'hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300',
+            accentColor: '#10B981',
         },
     ];
-
-    // Highlight a specific word/phrase in headline text with a colour
-    const highlightWord = (text: string, word: string, color: string) => {
-        const idx = text.indexOf(word);
-        if (idx === -1) return <>{text}</>;
-        return (
-            <>
-                {text.slice(0, idx)}
-                <span style={{ color }}>{word}</span>
-                {text.slice(idx + word.length)}
-            </>
-        );
-    };
 
     // Word-by-word headline — preserve line breaks
     const headlineWords = c.hero.headline
@@ -231,7 +263,7 @@ function LandingPageInner() {
             <main className="flex-1 flex flex-col relative z-10 w-full pt-16">
 
                 {/* ── 1. Hero ───────────────────────────────────────────────────── */}
-                <section className="relative min-h-[90vh] px-6 flex flex-col items-center justify-center text-center overflow-hidden">
+                <section className="relative min-h-screen px-6 flex flex-col items-center justify-center text-center overflow-hidden">
 
                     {/* Parallax orbs */}
                     <motion.div
@@ -252,26 +284,20 @@ function LandingPageInner() {
                         className="relative z-10 flex flex-col items-center"
                         style={{ scale: heroScale, opacity: heroOpacity }}
                     >
-                        {/* Logo with animated underline reveal */}
-                        <div className="relative inline-block mb-10 overflow-visible">
-                            <span className="text-3xl font-display font-semibold text-white tracking-tight">
-                                inPsyq
-                            </span>
-                            {/* Static glow underline */}
-                            <div className="absolute -bottom-1 left-0 w-full h-1 bg-[#8B5CF6] rounded-full shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
-                            {/* Black mask that wipes right→left to reveal underline */}
-                            <motion.div
-                                className="absolute -bottom-1 left-0 w-full h-1 bg-black rounded-full"
-                                initial={{ scaleX: 1 }}
-                                animate={{ scaleX: 0 }}
-                                transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
-                                style={{ transformOrigin: 'right' }}
-                            />
-                        </div>
+                        {/* Platform badge */}
+                        <motion.div
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[11px] font-mono tracking-[0.15em] text-[#8B5CF6] uppercase mb-10"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                        >
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
+                            PSYCHOMETRIC INTELLIGENCE PLATFORM
+                        </motion.div>
 
                         {/* Word-by-word headline */}
                         <motion.h1
-                            className="max-w-3xl text-6xl md:text-8xl font-display font-bold text-white tracking-tight mb-6 leading-tight"
+                            className="max-w-5xl text-[5rem] leading-[1.05] md:text-[7rem] font-display font-semibold text-white tracking-tight mb-10"
                             variants={{ show: { transition: { staggerChildren: 0.08 } } }}
                             initial="hidden"
                             animate="show"
@@ -294,22 +320,55 @@ function LandingPageInner() {
                             )}
                         </motion.h1>
 
-                        {/* Subtext — fades in after headline */}
+                        {/* Gut feeling line — prominent white medium */}
                         <motion.p
-                            className="max-w-2xl text-xl md:text-2xl text-text-secondary mb-12 leading-relaxed"
+                            className="text-2xl md:text-3xl font-display font-medium text-white mb-4 max-w-3xl leading-snug"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 1.2 }}
+                            transition={{ delay: 1.0 }}
+                        >
+                            {c.hero.gutFeeling}
+                        </motion.p>
+
+                        {/* Body sub — dimmer */}
+                        <motion.p
+                            className="text-lg font-body text-text-secondary mb-10 max-w-2xl leading-relaxed"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 1.3 }}
                         >
                             {c.hero.sub}
                         </motion.p>
+
+                        {/* KPI pills */}
+                        <motion.div
+                            className="flex gap-3 flex-wrap justify-center mb-12"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 1.5 }}
+                        >
+                            {[
+                                { label: 'STRAIN', value: '73', color: '#E11D48' },
+                                { label: 'WITHDRAWAL', value: '41', color: '#F59E0B' },
+                                { label: 'TRUST GAP', value: '28', color: '#0EA5E9' },
+                                { label: 'ENGAGEMENT', value: '59', color: '#10B981' },
+                            ].map(({ label, value, color }) => (
+                                <div
+                                    key={label}
+                                    className="px-4 py-2 rounded-full border text-[11px] font-mono tracking-[0.12em] uppercase"
+                                    style={{ color, borderColor: `${color}40`, backgroundColor: `${color}18` }}
+                                >
+                                    {label} · {value}
+                                </div>
+                            ))}
+                        </motion.div>
 
                         {/* CTA buttons */}
                         <motion.div
                             className="flex flex-col sm:flex-row items-center gap-4"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 1.4 }}
+                            transition={{ delay: 1.7 }}
                         >
                             <Link
                                 href="/executive"
@@ -341,17 +400,34 @@ function LandingPageInner() {
 
                     <div className="max-w-6xl mx-auto">
                         {/* Left-aligned headline area */}
-                        <div className="max-w-3xl mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E11D48]/15 border border-[#E11D48]/20 text-xs font-mono text-[#E11D48] mb-8">
-                                <span className="w-2 h-2 rounded-full bg-[#E11D48] animate-pulse" />
+                        <div className="max-w-3xl mb-12">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E11D48]/15 border border-[#E11D48]/30 text-[11px] font-mono tracking-[0.15em] text-[#E11D48] uppercase mb-8">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
                                 {c.problem.badge}
                             </div>
-                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-8 whitespace-pre-line">
-                                {highlightWord(c.problem.headline, lang === 'EN' ? 'symptoms' : 'Symptome', '#E11D48')}
+                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6 max-w-4xl">
+                                <span className="text-white">You&apos;re treating symptoms.</span><br />
+                                <span className="text-[#E11D48]">The cause was invisible.</span>
                             </h2>
-                            <p className="text-xl md:text-2xl text-text-secondary leading-relaxed">
+                            <p className="text-xl font-body text-text-secondary max-w-2xl leading-relaxed">
                                 {c.problem.body}
                             </p>
+                        </div>
+
+                        {/* Stat row — count up on enter */}
+                        <div className="flex gap-8 mb-16 border-t border-white/5 pt-8">
+                            {[
+                                { value: 6, suffix: 'wk', label: 'avg signal lag before detection' },
+                                { value: 73, suffix: '%', label: 'burnout incidents preceded by 4w+ strain signal' },
+                                { value: 0, suffix: '', label: 'of that captured by annual surveys' },
+                            ].map(({ value, suffix, label }) => (
+                                <div key={label} className="flex-1">
+                                    <div className="text-4xl font-display font-bold text-[#E11D48] mb-1">
+                                        <CountUp to={value} suffix={suffix} />
+                                    </div>
+                                    <div className="text-sm font-body text-text-tertiary leading-tight">{label}</div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Cards deal in from alternating sides */}
@@ -362,33 +438,56 @@ function LandingPageInner() {
                             whileInView="visible"
                             viewport={{ once: true, margin: '-100px' }}
                         >
-                            {c.problem.items.map((item, i) => (
-                                <motion.div
-                                    key={item.title}
-                                    custom={i}
-                                    variants={{
-                                        hidden: (index: number) => ({
-                                            x: index === 1 ? 120 : -120,
-                                            rotate: index === 1 ? 6 : -6,
-                                            opacity: 0,
-                                        }),
-                                        visible: {
-                                            x: 0,
-                                            rotate: 0,
-                                            opacity: 1,
-                                            transition: { type: 'spring', stiffness: 100, damping: 20 },
-                                        },
-                                    }}
-                                    className="backdrop-blur-sm bg-white/[0.03] border border-white/[0.06] rounded-2xl p-8"
-                                    style={{ borderLeftWidth: '3px', borderLeftColor: '#E11D48' }}
-                                >
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-[#E11D48] animate-pulse shrink-0" />
-                                        <h3 className="text-lg font-display font-semibold text-white">{item.title}</h3>
-                                    </div>
-                                    <p className="text-text-secondary text-base leading-relaxed">{item.desc}</p>
-                                </motion.div>
-                            ))}
+                            {c.problem.items.map((item, i) => {
+                                const cardStyles = [
+                                    {
+                                        wrapper: 'bg-[#E11D48]/[0.06] border border-[#E11D48]/20 rounded-2xl p-8',
+                                        leftBorder: { borderLeftWidth: '3px', borderLeftColor: '#E11D48' },
+                                        dot: 'bg-[#E11D48]',
+                                        title: 'text-[#E11D48]',
+                                    },
+                                    {
+                                        wrapper: 'bg-[#F59E0B]/[0.06] border border-[#F59E0B]/20 rounded-2xl p-8',
+                                        leftBorder: { borderLeftWidth: '3px', borderLeftColor: '#F59E0B' },
+                                        dot: 'bg-[#F59E0B]',
+                                        title: 'text-[#F59E0B]',
+                                    },
+                                    {
+                                        wrapper: 'bg-white/[0.03] border border-white/10 rounded-2xl p-8',
+                                        leftBorder: { borderLeftWidth: '3px', borderLeftColor: 'rgba(255,255,255,0.3)' },
+                                        dot: 'bg-white/50',
+                                        title: 'text-white',
+                                    },
+                                ];
+                                const s = cardStyles[i] || cardStyles[2];
+                                return (
+                                    <motion.div
+                                        key={item.title}
+                                        custom={i}
+                                        variants={{
+                                            hidden: (index: number) => ({
+                                                x: index === 1 ? 120 : -120,
+                                                rotate: index === 1 ? 6 : -6,
+                                                opacity: 0,
+                                            }),
+                                            visible: {
+                                                x: 0,
+                                                rotate: 0,
+                                                opacity: 1,
+                                                transition: { type: 'spring', stiffness: 100, damping: 20 },
+                                            },
+                                        }}
+                                        className={s.wrapper}
+                                        style={s.leftBorder}
+                                    >
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <span className={`w-2.5 h-2.5 rounded-full ${s.dot} animate-pulse shrink-0`} />
+                                            <h3 className={`text-xl font-display font-semibold ${s.title}`}>{item.title}</h3>
+                                        </div>
+                                        <p className="text-base font-body text-text-secondary leading-relaxed">{item.desc}</p>
+                                    </motion.div>
+                                );
+                            })}
                         </motion.div>
                     </div>
                 </section>
@@ -403,14 +502,15 @@ function LandingPageInner() {
                     <div className="max-w-6xl mx-auto">
                         {/* Section header */}
                         <div className="text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0EA5E9]/15 border border-[#0EA5E9]/20 text-xs font-mono text-[#0EA5E9] mb-8">
-                                <span className="w-2 h-2 rounded-full bg-[#0EA5E9]" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0EA5E9]/15 border border-[#0EA5E9]/30 text-[11px] font-mono tracking-[0.15em] text-[#0EA5E9] uppercase mb-8">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#0EA5E9] animate-pulse" />
                                 {c.howItWorks.badge}
                             </div>
-                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                {highlightWord(c.howItWorks.headline, lang === 'EN' ? 'Monday briefing' : 'Montags-Briefing', '#0EA5E9')}
+                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
+                                <span className="text-white">From two-minute pulse</span><br />
+                                <span className="text-[#0EA5E9]">to Monday briefing.</span>
                             </h2>
-                            <p className="text-xl md:text-2xl text-text-secondary leading-relaxed max-w-2xl mx-auto">
+                            <p className="text-xl md:text-2xl font-body text-text-secondary leading-relaxed max-w-2xl mx-auto">
                                 {c.howItWorks.body}
                             </p>
                         </div>
@@ -454,15 +554,18 @@ function LandingPageInner() {
                                         style={{ opacity: stepOpacities[i], y: stepYValues[i] }}
                                         className="relative p-8 rounded-2xl bg-[#050505] border border-white/8 overflow-hidden"
                                     >
-                                        {/* Watermark number */}
-                                        <span className="text-8xl font-display text-white/5 absolute top-4 right-6 leading-none select-none pointer-events-none">
+                                        {/* Watermark number — per-step colour */}
+                                        <span
+                                            className="text-[8rem] font-display font-semibold absolute top-2 right-6 leading-none select-none pointer-events-none opacity-[0.06]"
+                                            style={{ color: stepAccents[i] }}
+                                        >
                                             {step.step}
                                         </span>
                                         <div className="relative z-10">
-                                            <h3 className="text-lg font-display font-semibold text-white mb-3">
+                                            <h3 className="text-xl font-display font-semibold text-white mb-3">
                                                 {step.title}
                                             </h3>
-                                            <p className="text-text-secondary text-base leading-relaxed">{step.desc}</p>
+                                            <p className="text-base font-body text-text-secondary leading-relaxed">{step.desc}</p>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -475,16 +578,45 @@ function LandingPageInner() {
                 <section className="py-40 px-6 relative border-t border-white/5 overflow-hidden">
                     <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-[#10B981]/5 rounded-full blur-[150px] pointer-events-none" />
 
-                    <div className="max-w-6xl mx-auto">
+                    {/* Rotating dimension ring — atmospheric background */}
+                    <motion.div
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none"
+                        style={{ zIndex: 0 }}
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
+                    >
+                        {DIMENSIONS.map((dim, i) => {
+                            const angle = (i / DIMENSIONS.length) * 360;
+                            const rad = (angle * Math.PI) / 180;
+                            const x = 50 + 47 * Math.cos(rad);
+                            const y = 50 + 47 * Math.sin(rad);
+                            return (
+                                <div
+                                    key={dim}
+                                    className="absolute text-[10px] font-mono text-[#8B5CF6]/15 whitespace-nowrap"
+                                    style={{
+                                        left: `${x}%`,
+                                        top: `${y}%`,
+                                        transform: `translate(-50%, -50%) rotate(${angle + 90}deg)`,
+                                    }}
+                                >
+                                    {dim}
+                                </div>
+                            );
+                        })}
+                    </motion.div>
+
+                    <div className="max-w-6xl mx-auto relative z-10">
                         <div className="text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/20 text-xs font-mono text-[#8B5CF6] mb-8">
-                                <FlaskConical className="w-3 h-3" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/30 text-[11px] font-mono tracking-[0.15em] text-[#10B981] uppercase mb-8">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
                                 {c.science.badge}
                             </div>
-                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                {highlightWord(c.science.headline, lang === 'EN' ? 'seven days' : 'sieben Tagen', '#10B981')}
+                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
+                                <span className="text-white">Thirty years of research.</span><br />
+                                <span className="text-[#10B981]">Operationalised in seven days.</span>
                             </h2>
-                            <p className="text-xl md:text-2xl text-text-secondary leading-relaxed max-w-3xl mx-auto">
+                            <p className="text-xl md:text-2xl font-body text-text-secondary leading-relaxed max-w-3xl mx-auto">
                                 {c.science.body}
                             </p>
                         </div>
@@ -503,6 +635,7 @@ function LandingPageInner() {
                                     pillar={pillar}
                                     icon={sciencePillarMeta[i].icon}
                                     hoverClass={sciencePillarMeta[i].hoverClass}
+                                    accentColor={sciencePillarMeta[i].accentColor}
                                 />
                             ))}
                         </motion.div>
@@ -515,14 +648,15 @@ function LandingPageInner() {
 
                     <div className="max-w-6xl mx-auto">
                         <div className="text-center mb-16">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/20 text-xs font-mono text-[#8B5CF6] mb-8">
-                                <span className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[11px] font-mono tracking-[0.15em] text-[#8B5CF6] uppercase mb-8">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
                                 {c.roleDemos.badge}
                             </div>
-                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                {c.roleDemos.headline}
+                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
+                                <span className="text-white">Four roles. Four lenses.</span><br />
+                                <span className="text-[#8B5CF6]">One platform.</span>
                             </h2>
-                            <p className="text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto">
+                            <p className="text-xl md:text-2xl font-body text-text-secondary max-w-2xl mx-auto">
                                 {c.roleDemos.sub}
                             </p>
                         </div>
@@ -533,7 +667,7 @@ function LandingPageInner() {
                             whileInView={{ scale: 1, opacity: 1 }}
                             transition={{ type: 'spring', stiffness: 80, damping: 15 }}
                             viewport={{ once: true }}
-                            className="backdrop-blur-sm bg-white/[0.03] border border-[#8B5CF6]/30 rounded-2xl p-10 shadow-[0_0_40px_rgba(139,92,246,0.1)] mb-8"
+                            className="backdrop-blur-sm bg-white/[0.03] border border-[#8B5CF6]/30 rounded-2xl p-10 shadow-[0_0_60px_rgba(139,92,246,0.2)] mb-8"
                         >
                             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                                 <p className="text-text-secondary max-w-xl">{c.roleDemos.demoCta}</p>
@@ -569,23 +703,36 @@ function LandingPageInner() {
                                             <div className="relative z-10">
                                                 {/* Icon — scale pulse on hover */}
                                                 <motion.div
-                                                    className="mb-6 w-fit"
+                                                    className="mb-4 w-fit"
                                                     style={{ color: track.color }}
                                                     whileHover={{ scale: [1, 1.15, 1] }}
                                                     transition={{ duration: 0.4 }}
                                                 >
                                                     {trackIcons[track.role]}
                                                 </motion.div>
-                                                <div className="text-xs font-mono uppercase tracking-widest mb-3" style={{ color: track.color }}>
-                                                    {track.role}
+                                                <div className="mb-1">
+                                                    <span
+                                                        className="text-[11px] font-mono tracking-[0.15em] uppercase"
+                                                        style={{ color: track.color }}
+                                                    >
+                                                        {track.role}
+                                                    </span>
                                                 </div>
-                                                <h3 className="text-xl font-display font-bold text-white mb-3 group-hover:opacity-90 transition-opacity">
+                                                <div className="mb-3">
+                                                    <span
+                                                        className="text-[11px] font-mono tracking-[0.15em] uppercase"
+                                                        style={{ color: track.color }}
+                                                    >
+                                                        {trackSubLabels[track.role]}
+                                                    </span>
+                                                </div>
+                                                <h3 className="text-xl font-display font-semibold text-white mb-3 group-hover:opacity-90 transition-opacity">
                                                     {track.title}
                                                 </h3>
-                                                <p className="text-text-secondary text-base leading-relaxed mb-6">
+                                                <p className="text-base font-body text-text-secondary leading-relaxed mb-6">
                                                     {track.desc}
                                                 </p>
-                                                <div className="flex items-center gap-2 text-xs font-mono" style={{ color: track.color }}>
+                                                <div className="flex items-center gap-2 text-[11px] font-mono tracking-[0.12em]" style={{ color: track.color }}>
                                                     {c.roleDemos.tourCta}
                                                 </div>
                                             </div>
@@ -606,15 +753,37 @@ function LandingPageInner() {
                     <motion.div style={{ scale: pricingScale }}>
                         <motion.div style={{ filter: pricingFilter }}>
                             <div className="max-w-3xl mx-auto text-center">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-text-secondary mb-8">
+                                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[11px] font-mono tracking-[0.15em] text-[#8B5CF6] uppercase mb-8">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
                                     {c.pricing.badge}
                                 </div>
-                                <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                    {highlightWord(c.pricing.headline, lang === 'EN' ? 'culture' : 'Kultur', '#8B5CF6')}
+                                <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
+                                    <span className="text-white">Built for organisations that take</span><br />
+                                    <span className="text-[#8B5CF6]">culture seriously.</span>
                                 </h2>
-                                <p className="text-xl md:text-2xl text-text-secondary leading-relaxed mb-12">
+                                <p className="text-xl md:text-2xl font-body text-text-secondary leading-relaxed mb-12">
                                     {c.pricing.sub}
                                 </p>
+
+                                {/* Stat row */}
+                                <div className="flex items-center gap-8 md:gap-16 justify-center mb-12">
+                                    {[
+                                        { n: 10, label: 'DIMENSIONS' },
+                                        { n: 48, label: 'SIGNAL VECTOR' },
+                                        { n: 7, label: 'DAY DEPLOY' },
+                                    ].map(({ n, label }, i) => (
+                                        <React.Fragment key={label}>
+                                            {i > 0 && <div className="w-px h-12 bg-white/10" />}
+                                            <div className="text-center">
+                                                <div className="text-5xl md:text-6xl font-display font-bold text-white">
+                                                    <CountUp to={n} suffix="" />
+                                                </div>
+                                                <div className="text-[11px] font-mono tracking-[0.15em] text-text-tertiary mt-2 uppercase">{label}</div>
+                                            </div>
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+
                                 <div className="flex flex-col items-center gap-4">
                                     <a
                                         href="mailto:hello@inpsyq.com"

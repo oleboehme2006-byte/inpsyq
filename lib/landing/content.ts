@@ -38,6 +38,7 @@ export interface LandingContent {
     };
     hero: {
         headline: string;
+        gutFeeling: string;
         sub: string;
         scroll: string;
     };
@@ -90,8 +91,9 @@ export const content: Record<Lang, LandingContent> = {
             langToggle: 'DE',
         },
         hero: {
-            headline: 'Your organisation speaks in signals.\nNo one\'s listening.',
-            sub: 'Ten validated psychometric items. Weekly. Bayesian latent-state inference resolves strain, trust erosion, and withdrawal risk per team — with confidence bands. Causal attribution separates structure from noise. Monday morning, every stakeholder has a role-calibrated briefing.',
+            headline: 'You can\'t put a psychologist\non every team.\nSo we engineered one.',
+            gutFeeling: 'The gut feeling was right. The instrument was missing.',
+            sub: 'We encoded thirty years of occupational health psychology into a causal inference engine. Weekly. It tells you which team is deteriorating, which structural driver is causing it, and what to do — before the damage shows in your attrition data.',
             scroll: 'Scroll',
         },
         problem: {
@@ -218,8 +220,9 @@ export const content: Record<Lang, LandingContent> = {
             langToggle: 'EN',
         },
         hero: {
-            headline: 'Ihre Organisation sendet Signale.\nNiemand hört zu.',
-            sub: 'Zehn validierte psychometrische Items. Wöchentlich. Bayesianische Latent-State-Inferenz löst Belastung, Vertrauenserosion und Rückzugsrisiko pro Team auf — mit Konfidenzintervallen. Kausale Attribution trennt Struktur von Rauschen. Montag früh hat jede Stakeholderin ein rollenspezifisches Briefing.',
+            headline: 'Man kann jeder Abteilung\nkeinen eigenen Psychologen zuteilen.\nAlso haben wir einen entwickelt.',
+            gutFeeling: 'Das Bauchgefühl hatte recht. Das Instrument fehlte.',
+            sub: 'Wir haben dreißig Jahre Arbeits- und Gesundheitspsychologie in ein Kausalinferenz-System kodiert. Wöchentlich. Es sagt Ihnen, welches Team sich verschlechtert, welcher strukturelle Treiber die Ursache ist — bevor der Schaden in Ihren Fluktuationsdaten sichtbar wird.',
             scroll: 'Scrollen',
         },
         problem: {
