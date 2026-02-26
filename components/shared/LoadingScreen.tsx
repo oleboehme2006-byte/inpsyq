@@ -1,77 +1,61 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface LoadingScreenProps {
-    durationMs?: number; // Optional safety timeout duration
+    durationMs?: number;
 }
 
-export function LoadingScreen({ durationMs = 3500 }: LoadingScreenProps) {
-
+export function LoadingScreen({ durationMs = 1800 }: LoadingScreenProps) {
     const [isVisible, setIsVisible] = useState(true);
-    const [hasFaded, setHasFaded] = useState(false);
     const [shouldRender, setShouldRender] = useState(true);
-    const videoRef = useRef<HTMLVideoElement>(null);
-
-    const handleFadeOut = React.useCallback(() => {
-        setIsVisible((prev) => {
-            if (!prev) return prev;
-            setHasFaded(true);
-            setTimeout(() => {
-                setShouldRender(false);
-            }, 1100);
-            return false;
-        });
-    }, []);
 
     useEffect(() => {
-        const minTimer = setTimeout(() => {
-            if (videoRef.current?.ended || videoRef.current?.error) {
-                handleFadeOut();
-            }
-        }, 1000);
-
-        const fallbackTimer = setTimeout(() => {
-            handleFadeOut();
+        const fadeTimer = setTimeout(() => {
+            setIsVisible(false);
         }, durationMs);
 
-        return () => {
-            clearTimeout(minTimer);
-            clearTimeout(fallbackTimer);
-        };
-    }, [durationMs, handleFadeOut]);
+        const removeTimer = setTimeout(() => {
+            setShouldRender(false);
+        }, durationMs + 1000); // 1s for fade-out transition
 
-    useEffect(() => {
-        if (videoRef.current) {
-            videoRef.current.play().catch(() => {
-                console.warn("Autoplay was blocked - waiting for safety timeout.");
-            });
-        }
-    }, []);
+        return () => {
+            clearTimeout(fadeTimer);
+            clearTimeout(removeTimer);
+        };
+    }, [durationMs]);
 
     if (!shouldRender) return null;
 
     return (
         <div
             className={cn(
-                "fixed inset-0 z-[100] bg-black flex items-center justify-center transition-opacity duration-1000",
-                isVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                'fixed inset-0 z-[100] bg-black flex items-center justify-center transition-opacity duration-700',
+                isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
             )}
         >
-            <video
-                ref={videoRef}
-                className="w-48 h-48 object-contain"
-                autoPlay
-                muted
-                playsInline
-                onEnded={handleFadeOut}
-                onError={handleFadeOut}
-            >
-                <source src="/inpsyq_loader.mp4" type="video/mp4" />
-                {/* Fallback for browsers that don't support video */}
-                <div className="w-12 h-12 rounded-full border-4 border-[#8B5CF6] border-t-transparent animate-spin" />
-            </video>
+            {/* inPsyq wordmark */}
+            <div className="relative inline-block">
+                <span className="text-4xl font-display font-semibold text-white tracking-tight">
+                    inPsyq
+                </span>
+                {/* Animated violet underline */}
+                <div
+                    className="absolute -bottom-1 left-0 h-[3px] bg-[#8B5CF6] rounded-full shadow-[0_0_12px_rgba(139,92,246,0.6)]"
+                    style={{
+                        animation: 'loader-bar 1.6s ease-in-out infinite',
+                    }}
+                />
+            </div>
+
+            <style>{`
+                @keyframes loader-bar {
+                    0%   { width: 0%;   opacity: 1; }
+                    60%  { width: 100%; opacity: 1; }
+                    100% { width: 100%; opacity: 0.3; }
+                }
+            `}</style>
         </div>
     );
 }
