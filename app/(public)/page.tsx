@@ -1,36 +1,58 @@
 'use client';
-
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import {
-    motion,
-    useScroll,
-    useTransform,
-    useSpring,
-    useMotionTemplate,
-    useInView,
-} from 'framer-motion';
-import {
-    Activity,
-    Brain,
-    Zap,
-    FlaskConical,
-    UserCheck,
-    Settings2,
-    LayoutDashboard,
-    Mail,
-    ArrowRight,
-    ChevronDown,
-} from 'lucide-react';
-import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
-import { InPsyqLogo } from '@/components/shared/InPsyqLogo';
-import { LanguageProvider, useLanguage } from '@/hooks/useLanguage';
-import { content } from '@/lib/landing/content';
+import { motion, useScroll, useTransform, useSpring, useInView, MotionValue } from 'framer-motion';
+import { Activity, LayoutDashboard, UserCheck, Settings2, ArrowRight, ChevronDown } from 'lucide-react';
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import { LanguageProvider, useLanguage } from '@/components/landing/LanguageProvider';
+import { LanguageToggle } from '@/components/landing/LanguageToggle';
+import { content as contentMap, Lang } from '@/lib/landing/content';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CountUp — counts from 0 to `to` when entering viewport
-// ─────────────────────────────────────────────────────────────────────────────
-function CountUp({ to, suffix }: { to: number; suffix: string }) {
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+
+const DIMENSIONS = [
+    'STRAIN', 'WITHDRAWAL', 'TRUST', 'ENGAGEMENT', 'AUTONOMY',
+    'ROLE CLARITY', 'SAFETY', 'WORKLOAD', 'DEPENDENCY', 'BELONGING',
+];
+const DIM_COLORS = [
+    '#E11D48', '#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6',
+    '#E11D48', '#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6',
+];
+
+// ─── TILTCARD ─────────────────────────────────────────────────────────────────
+
+function TiltCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [style, setStyle] = useState<React.CSSProperties>({});
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!ref.current) return;
+        const rect = ref.current.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        setStyle({
+            transform: `perspective(800px) rotateX(${y * -8}deg) rotateY(${x * 8}deg)`,
+            transition: 'transform 0.15s ease-out',
+        });
+    }, []);
+
+    const handleMouseLeave = useCallback(() => {
+        setStyle({
+            transform: 'perspective(800px) rotateX(0deg) rotateY(0deg)',
+            transition: 'transform 0.4s ease-out',
+        });
+    }, []);
+
+    return (
+        <div ref={ref} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={style} className={className}>
+            {children}
+        </div>
+    );
+}
+
+// ─── COUNTUP ──────────────────────────────────────────────────────────────────
+
+function CountUp({ to, suffix = '' }: { to: number; suffix?: string }) {
     const [count, setCount] = useState(0);
     const ref = useRef<HTMLSpanElement>(null);
     const inView = useInView(ref, { once: true });
@@ -48,770 +70,687 @@ function CountUp({ to, suffix }: { to: number; suffix: string }) {
     return <span ref={ref}>{count}{suffix}</span>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rotating dimension ring — decorative atmospheric background for Science
-// ─────────────────────────────────────────────────────────────────────────────
-const DIMENSIONS = ['STRAIN', 'WITHDRAWAL', 'TRUST GAP', 'ENGAGEMENT', 'AUTONOMY', 'ROLE CLARITY', 'SAFETY', 'WORKLOAD', 'DEPENDENCY', 'BELONGING'];
+// ─── ANIMATION SUB-COMPONENTS (hooks-in-map workaround) ──────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ScienceCard — isolated for tilt state, now with accentColor
-// ─────────────────────────────────────────────────────────────────────────────
-function ScienceCard({
-    pillar,
-    icon,
-    hoverClass,
-    accentColor,
-}: {
-    pillar: { title: string; desc: string };
-    icon: React.ReactNode;
-    hoverClass: string;
-    accentColor: string;
-}) {
-    const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
-
+function DimItem({ prog, dim, i }: { prog: MotionValue<number>; dim: string; i: number }) {
+    const activateAt = 0.15 + i * 0.04;
+    const opacity = useTransform(prog, [activateAt, activateAt + 0.03], [0.15, 1]);
+    const scale = useTransform(prog, [activateAt, activateAt + 0.03], [0.5, 1]);
     return (
         <motion.div
-            variants={{
-                hidden: { opacity: 0, y: 50 },
-                show: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-            }}
+            className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3"
+            style={{ top: `${8 + i * 8.5}%`, opacity, scale }}
         >
-            <div
-                onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = (e.clientX - rect.left) / rect.width - 0.5;
-                    const y = (e.clientY - rect.top) / rect.height - 0.5;
-                    setTilt({ rotateX: y * -10, rotateY: x * 10 });
-                }}
-                onMouseLeave={() => setTilt({ rotateX: 0, rotateY: 0 })}
-                style={{
-                    transform: `perspective(800px) rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg)`,
-                    transition: 'transform 0.3s ease-out',
-                    borderTop: `2px solid ${accentColor}`,
-                }}
-                className={`rounded-2xl bg-[#050505] border border-white/8 h-full cursor-default overflow-hidden ${hoverClass}`}
-            >
-                <div className="p-8">
-                    <div className="mb-6">{icon}</div>
-                    <h3 className="text-xl font-display font-semibold mb-4" style={{ color: accentColor }}>{pillar.title}</h3>
-                    <p className="text-base font-body text-text-secondary leading-relaxed">{pillar.desc}</p>
-                </div>
-            </div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: DIM_COLORS[i] }} />
+            <span className="text-[10px] font-mono tracking-wider" style={{ color: DIM_COLORS[i] }}>{dim}</span>
         </motion.div>
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Inner page (needs the LanguageProvider context)
-// ─────────────────────────────────────────────────────────────────────────────
-function LandingPageInner() {
-    const { lang, setLang } = useLanguage();
-    const c = content[lang];
+interface DotData {
+    id: number;
+    randomX: number;
+    randomY: number;
+    laneX: number;
+    sortedY: number;
+    color: string;
+}
 
-    // ── Global scroll ──────────────────────────────────────────────────────────
+function BayesianDot({ prog, dot }: { prog: MotionValue<number>; dot: DotData }) {
+    const x = useTransform(prog, [0.15, 0.35, 0.65, 0.85], [dot.randomX, dot.laneX, dot.laneX, 50]);
+    const y = useTransform(prog, [0.15, 0.35, 0.65, 0.85], [dot.randomY, dot.sortedY, dot.sortedY, 50]);
+    const bg = useTransform(prog, [0.30, 0.40], ['rgba(255,255,255,0.15)', dot.color]);
+    const left = useTransform(x, (v) => `${v}%`);
+    const top = useTransform(y, (v) => `${v}%`);
+    return (
+        <motion.div
+            className="absolute w-2 h-2 rounded-full"
+            style={{ left, top, backgroundColor: bg }}
+        />
+    );
+}
+
+function DriverNode({ prog, d, i }: { prog: MotionValue<number>; d: string; i: number }) {
+    const opacity = useTransform(prog, [0.1 + i * 0.02, 0.15 + i * 0.02], [0, 1]);
+    const y = 30 + i * 50;
+    return (
+        <motion.g style={{ opacity }}>
+            <circle cx={50} cy={y} r={4} fill="#52525B" />
+            <text x={60} y={y + 4} fontSize="9" fontFamily="monospace" fill="#A1A1AA">{d}</text>
+        </motion.g>
+    );
+}
+
+function DimNode({ prog, i }: { prog: MotionValue<number>; i: number }) {
+    const opacity = useTransform(prog, [0.35 + i * 0.02, 0.40 + i * 0.02], [0, 1]);
+    const y = 50 + i * 60;
+    return (
+        <motion.g style={{ opacity }}>
+            <circle cx={190} cy={y} r={5} fill="#A1A1AA" />
+        </motion.g>
+    );
+}
+
+function IndexNode({ prog, node, i }: { prog: MotionValue<number>; node: { label: string; color: string }; i: number }) {
+    const opacity = useTransform(prog, [0.65 + i * 0.03, 0.72 + i * 0.03], [0, 1]);
+    const y = 60 + i * 70;
+    return (
+        <motion.g style={{ opacity }}>
+            <circle cx={340} cy={y} r={8} fill={node.color} />
+            <text x={340} y={y + 3} textAnchor="middle" fontSize="8" fontFamily="monospace" fontWeight="bold" fill="white">{node.label}</text>
+        </motion.g>
+    );
+}
+
+function AnimatedEdge({
+    prog, x1, y1, x2, y2, activateStart, activateEnd,
+}: {
+    prog: MotionValue<number>;
+    x1: number; y1: number; x2: number; y2: number;
+    activateStart: number; activateEnd: number;
+}) {
+    const dashOffset = useTransform(prog, [activateStart, activateEnd], [200, 0]);
+    const opacity = useTransform(prog, [activateStart, activateStart + 0.05], [0, 1]);
+    return (
+        <motion.line
+            x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke="#52525B" strokeWidth={0.5} strokeDasharray="200"
+            style={{ strokeDashoffset: dashOffset, opacity }}
+        />
+    );
+}
+
+// ─── MAIN LANDING CONTENT ─────────────────────────────────────────────────────
+
+function LandingContent() {
+    const { lang } = useLanguage();
+    const c = contentMap[lang as Lang] ?? contentMap.EN;
+
+    // Global scroll progress
     const { scrollYProgress } = useScroll();
+    const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
 
-    // Scroll progress bar — smoothed with spring
-    const scrollBarScaleX = useSpring(scrollYProgress, {
-        stiffness: 100,
-        damping: 30,
-        restDelta: 0.001,
-    });
+    // Background orb opacities
+    const redOpacity = useTransform(scrollYProgress, [0.05, 0.15, 0.35, 0.45], [0, 0.12, 0.12, 0]);
+    const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
+    const amberOpacity = useTransform(scrollYProgress, [0.25, 0.35, 0.55, 0.65], [0, 0.10, 0.10, 0]);
+    const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
+    const greenOpacity = useTransform(scrollYProgress, [0.50, 0.60, 0.82, 0.92], [0, 0.12, 0.12, 0]);
+    const greenY = useTransform(scrollYProgress, [0, 1], ['0%', '-8%']);
 
-    // Background tint overlay
-    const bgTint = useTransform(
-        scrollYProgress,
-        [0, 0.2, 0.5, 1],
-        [
-            'rgba(0,0,0,0)',
-            'rgba(225,29,72,0.03)',
-            'rgba(14,165,233,0.03)',
-            'rgba(0,0,0,0)',
-        ]
+    // Hero exit
+    const heroScale = useTransform(scrollYProgress, [0, 0.12], [1, 0.92]);
+    const heroOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
+    const heroBlur = useTransform(scrollYProgress, [0, 0.12], [0, 4]);
+    const heroFilter = useTransform(heroBlur, (v) => `blur(${v}px)`);
+
+    // Section 5 scroll refs
+    const methodologyRef = useRef<HTMLDivElement>(null);
+    const { scrollYProgress: methProg } = useScroll({ target: methodologyRef, offset: ['start end', 'end start'] });
+    const lineHeight = useTransform(methProg, [0.55, 0.80], ['0%', '100%']);
+    const convDotOpacity = useTransform(methProg, [0.80, 0.90], [0, 1]);
+    const convDotScale = useTransform(methProg, [0.80, 0.95], [0.5, 1.2]);
+
+    const algoRef = useRef<HTMLDivElement>(null);
+    const { scrollYProgress: algoProg } = useScroll({ target: algoRef, offset: ['start end', 'end start'] });
+
+    const synthRef = useRef<HTMLDivElement>(null);
+    const { scrollYProgress: synthProg } = useScroll({ target: synthRef, offset: ['start end', 'end start'] });
+    const briefingOpacity = useTransform(synthProg, [0.80, 0.95], [0, 1]);
+
+    // 5B: 40 Bayesian dots
+    const [dots] = useState<DotData[]>(() =>
+        Array.from({ length: 40 }, (_, i) => ({
+            id: i,
+            randomX: Math.random() * 100,
+            randomY: Math.random() * 100,
+            color: (['#E11D48', '#F59E0B', '#0EA5E9', '#10B981'] as const)[i % 4],
+            laneX: 20 + (i % 4) * 20,
+            sortedY: 10 + Math.floor(i / 4) * 8,
+        }))
     );
 
-    // ── Hero parallax ──────────────────────────────────────────────────────────
-    const heroScale = useTransform(scrollYProgress, [0, 0.15], [1, 0.92]);
-    const heroOpacity = useTransform(scrollYProgress, [0.05, 0.15], [1, 0]);
-    const orbRedY = useTransform(scrollYProgress, [0, 0.3], [0, -200]);
-    const orbCyanY = useTransform(scrollYProgress, [0, 0.3], [0, -120]);
-    const orbAmberY = useTransform(scrollYProgress, [0, 0.3], [0, -60]);
-
-    // ── How It Works section ───────────────────────────────────────────────────
-    const howItWorksRef = useRef<HTMLElement>(null);
-    const { scrollYProgress: howProgress } = useScroll({
-        target: howItWorksRef,
-        offset: ['start end', 'end start'],
-    });
-
-    const lineHeight = useTransform(howProgress, [0.1, 0.8], ['0%', '100%']);
-
-    const step1Opacity = useTransform(howProgress, [0.1, 0.2], [0, 1]);
-    const step1Y = useTransform(howProgress, [0.1, 0.2], [30, 0]);
-    const step2Opacity = useTransform(howProgress, [0.25, 0.35], [0, 1]);
-    const step2Y = useTransform(howProgress, [0.25, 0.35], [30, 0]);
-    const step3Opacity = useTransform(howProgress, [0.4, 0.5], [0, 1]);
-    const step3Y = useTransform(howProgress, [0.4, 0.5], [30, 0]);
-    const step4Opacity = useTransform(howProgress, [0.55, 0.65], [0, 1]);
-    const step4Y = useTransform(howProgress, [0.55, 0.65], [30, 0]);
-
-    const stepOpacities = [step1Opacity, step2Opacity, step3Opacity, step4Opacity];
-    const stepYValues = [step1Y, step2Y, step3Y, step4Y];
-
-    // Node border colours animate from faint white → step colour as line reaches each node
-    const node1Color = useTransform(howProgress, [0.09, 0.12], ['rgba(255,255,255,0.1)', 'rgba(139,92,246,1)']);
-    const node2Color = useTransform(howProgress, [0.33, 0.36], ['rgba(255,255,255,0.1)', 'rgba(14,165,233,1)']);
-    const node3Color = useTransform(howProgress, [0.56, 0.59], ['rgba(255,255,255,0.1)', 'rgba(225,29,72,1)']);
-    const node4Color = useTransform(howProgress, [0.79, 0.82], ['rgba(255,255,255,0.1)', 'rgba(16,185,129,1)']);
-    const nodeColors = [node1Color, node2Color, node3Color, node4Color];
-    const nodePositions = ['0%', '33%', '66%', 'calc(100% - 44px)'];
-
-    // Step watermark accent colours match the node colours
-    const stepAccents = ['#8B5CF6', '#0EA5E9', '#E11D48', '#10B981'];
-
-    // ── Pricing section ────────────────────────────────────────────────────────
-    const pricingRef = useRef<HTMLElement>(null);
-    const { scrollYProgress: pricingProgress } = useScroll({
-        target: pricingRef,
-        offset: ['start end', 'end start'],
-    });
-    const pricingScale = useTransform(pricingProgress, [0.2, 0.5], [0.85, 1]);
-    const blurValue = useTransform(pricingProgress, [0.2, 0.5], [4, 0]);
-    const pricingFilter = useMotionTemplate`blur(${blurValue}px)`;
-
-    // ── Icon / meta maps ───────────────────────────────────────────────────────
-    const trackIcons: Record<string, React.ReactNode> = {
-        EXECUTIVE: <Activity className="w-6 h-6" />,
-        TEAMLEAD: <LayoutDashboard className="w-6 h-6" />,
-        EMPLOYEE: <UserCheck className="w-6 h-6" />,
-        ADMIN: <Settings2 className="w-6 h-6" />,
-    };
-
-    const trackSubLabels: Record<string, string> = {
-        EXECUTIVE: 'MACRO-LEVEL · SYSTEMIC RISK',
-        TEAMLEAD: 'MICRO-LEVEL · CAUSAL DRIVERS',
-        EMPLOYEE: 'PSYCHOMETRIC · INSTRUMENT',
-        ADMIN: 'DATA GOVERNANCE · PIPELINE',
-    };
-
-    const sciencePillarMeta = [
-        {
-            icon: <Brain className="w-8 h-8 text-[#8B5CF6]" />,
-            hoverClass: 'hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300',
-            accentColor: '#8B5CF6',
-        },
-        {
-            icon: <Activity className="w-8 h-8 text-[#0EA5E9]" />,
-            hoverClass: 'hover:shadow-[0_0_20px_rgba(14,165,233,0.15)] transition-all duration-300',
-            accentColor: '#0EA5E9',
-        },
-        {
-            icon: <Zap className="w-8 h-8 text-[#10B981]" />,
-            hoverClass: 'hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300',
-            accentColor: '#10B981',
-        },
+    // 5C: Causal graph data
+    const driverNodes = ['Workload', 'Role Clarity', 'Dependencies', 'Scope', 'Autonomy', 'Overtime'];
+    const dimNodeCount = 5;
+    const indexNodes = [
+        { label: 'STR', color: '#E11D48' },
+        { label: 'WDR', color: '#F59E0B' },
+        { label: 'TRU', color: '#0EA5E9' },
+        { label: 'ENG', color: '#10B981' },
+    ];
+    const d2dEdges: Array<[number, number, number, number]> = [
+        [30, 50, 0.25, 0.50],
+        [30, 170, 0.27, 0.52],
+        [80, 110, 0.29, 0.54],
+        [80, 230, 0.31, 0.56],
+        [130, 170, 0.33, 0.58],
+        [130, 290, 0.35, 0.60],
+        [180, 50, 0.30, 0.55],
+        [230, 110, 0.32, 0.57],
+        [280, 50, 0.34, 0.59],
+    ];
+    const d2iEdges: Array<[number, number, number, number]> = [
+        [50, 60, 0.50, 0.75],
+        [110, 130, 0.52, 0.77],
+        [170, 60, 0.54, 0.79],
+        [230, 200, 0.56, 0.81],
+        [290, 270, 0.58, 0.83],
+        [110, 270, 0.60, 0.85],
+        [170, 200, 0.62, 0.87],
     ];
 
-    // Word-by-word headline — preserve line breaks
-    const headlineWords = c.hero.headline
-        .split(/(\n)/)
-        .flatMap((part) => (part === '\n' ? ['\n'] : part.split(' ')))
-        .filter((w) => w !== '');
+    const dds = c.deepDive.sections;
 
     return (
-        <div className="min-h-screen bg-black text-text-primary flex flex-col font-body selection:bg-accent-primary/30 overflow-x-hidden">
+        <div className="relative bg-black text-white min-h-screen">
 
-            {/* ── Fixed background tint ── */}
-            <motion.div
-                className="fixed inset-0 pointer-events-none z-0"
-                style={{ backgroundColor: bgTint }}
-            />
-
-            {/* ── Scroll progress bar ── */}
+            {/* === SCROLL PROGRESS BAR === */}
             <motion.div
                 className="fixed top-0 left-0 right-0 h-[2px] bg-[#8B5CF6] origin-left z-[100]"
-                style={{ scaleX: scrollBarScaleX }}
+                style={{ scaleX }}
             />
 
-            {/* ── Navigation ── */}
-            <nav className="w-full border-b border-white/5 bg-black/80 backdrop-blur-md fixed top-[2px] z-50">
+            {/* === BACKGROUND ORBS === */}
+            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+                <motion.div
+                    className="absolute w-[600px] h-[600px] rounded-full blur-[200px] bg-[#E11D48]"
+                    style={{ opacity: redOpacity, top: '15%', left: '10%', y: redY }}
+                />
+                <motion.div
+                    className="absolute w-[600px] h-[600px] rounded-full blur-[200px] bg-[#F59E0B]"
+                    style={{ opacity: amberOpacity, top: '40%', right: '5%', y: amberY }}
+                />
+                <motion.div
+                    className="absolute w-[600px] h-[600px] rounded-full blur-[200px] bg-[#10B981]"
+                    style={{ opacity: greenOpacity, top: '65%', left: '30%', y: greenY }}
+                />
+            </div>
+
+            {/* === FIXED NAV === */}
+            <nav className="fixed top-[2px] left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <Link href="/" className="hover:opacity-80 transition-opacity">
-                        <InPsyqLogo size="sm" />
+                    <Link href="/" className="relative">
+                        <span className="text-2xl font-display font-semibold text-white tracking-tight">inPsyq</span>
+                        <div className="absolute -bottom-1 left-0 w-full h-[2px] bg-[#8B5CF6] rounded-full" />
                     </Link>
                     <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setLang(lang === 'EN' ? 'DE' : 'EN')}
-                            className="px-3 py-1 rounded-full border border-white/10 text-xs font-mono text-text-secondary hover:text-white hover:border-white/20 transition-all"
-                        >
-                            {c.nav.langToggle}
-                        </button>
+                        <LanguageToggle />
                         <SignedOut>
-                            <SignInButton mode="modal">
-                                <button className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
-                                    {c.nav.login}
-                                </button>
-                            </SignInButton>
+                            <Link href="/sign-in" className="text-sm font-body text-text-secondary hover:text-white transition-colors">
+                                {c.nav.login}
+                            </Link>
                         </SignedOut>
-                        <SignedIn>
-                            <UserButton />
-                        </SignedIn>
+                        <SignedIn><UserButton /></SignedIn>
                     </div>
                 </div>
             </nav>
 
-            <main className="flex-1 flex flex-col relative z-10 w-full pt-16">
-
-                {/* ── 1. Hero ───────────────────────────────────────────────────── */}
-                <section className="relative min-h-screen px-6 flex flex-col items-center justify-center text-center overflow-hidden">
-
-                    {/* Parallax orbs */}
-                    <motion.div
-                        className="absolute top-1/4 -left-16 w-[300px] h-[300px] rounded-full bg-[#E11D48]/20 blur-[80px] pointer-events-none"
-                        style={{ y: orbRedY }}
-                    />
-                    <motion.div
-                        className="absolute top-1/3 -right-8 w-[250px] h-[250px] rounded-full bg-[#0EA5E9]/15 blur-[80px] pointer-events-none"
-                        style={{ y: orbCyanY }}
-                    />
-                    <motion.div
-                        className="absolute bottom-1/4 left-1/4 w-[200px] h-[200px] rounded-full bg-[#F59E0B]/15 blur-[80px] pointer-events-none"
-                        style={{ y: orbAmberY }}
-                    />
-
-                    {/* Content with zoom-out on scroll */}
-                    <motion.div
-                        className="relative z-10 flex flex-col items-center"
-                        style={{ scale: heroScale, opacity: heroOpacity }}
-                    >
-                        {/* Platform badge */}
-                        <motion.div
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[11px] font-mono tracking-[0.15em] text-[#8B5CF6] uppercase mb-10"
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                        >
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
-                            PSYCHOMETRIC INTELLIGENCE PLATFORM
-                        </motion.div>
-
-                        {/* Word-by-word headline */}
-                        <motion.h1
-                            className="max-w-5xl text-[5rem] leading-[1.05] md:text-[7rem] font-display font-semibold text-white tracking-tight mb-10"
-                            variants={{ show: { transition: { staggerChildren: 0.08 } } }}
-                            initial="hidden"
-                            animate="show"
-                        >
-                            {headlineWords.map((word, i) =>
-                                word === '\n' ? (
-                                    <br key={`br-${i}`} />
-                                ) : (
-                                    <motion.span
-                                        key={`w-${i}`}
-                                        variants={{
-                                            hidden: { opacity: 0, y: 20 },
-                                            show: { opacity: 1, y: 0 },
-                                        }}
-                                        className="inline-block mr-[0.3em]"
-                                    >
-                                        {word}
-                                    </motion.span>
-                                )
-                            )}
-                        </motion.h1>
-
-                        {/* Gut feeling line — prominent white medium */}
-                        <motion.p
-                            className="text-2xl md:text-3xl font-display font-medium text-white mb-4 max-w-3xl leading-snug"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 1.0 }}
-                        >
-                            {c.hero.gutFeeling}
-                        </motion.p>
-
-                        {/* Body sub — dimmer */}
-                        <motion.p
-                            className="text-lg font-body text-text-secondary mb-10 max-w-2xl leading-relaxed"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 1.3 }}
-                        >
-                            {c.hero.sub}
-                        </motion.p>
-
-                        {/* KPI pills */}
-                        <motion.div
-                            className="flex gap-3 flex-wrap justify-center mb-12"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 1.5 }}
-                        >
-                            {[
-                                { label: 'STRAIN', value: '73', color: '#E11D48' },
-                                { label: 'WITHDRAWAL', value: '41', color: '#F59E0B' },
-                                { label: 'TRUST GAP', value: '28', color: '#0EA5E9' },
-                                { label: 'ENGAGEMENT', value: '59', color: '#10B981' },
-                            ].map(({ label, value, color }) => (
-                                <div
-                                    key={label}
-                                    className="px-4 py-2 rounded-full border text-[11px] font-mono tracking-[0.12em] uppercase"
-                                    style={{ color, borderColor: `${color}40`, backgroundColor: `${color}18` }}
-                                >
-                                    {label} · {value}
-                                </div>
-                            ))}
-                        </motion.div>
-
-                        {/* CTA buttons */}
-                        <motion.div
-                            className="flex flex-col sm:flex-row items-center gap-4"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 1.7 }}
-                        >
-                            <Link
-                                href="/executive"
-                                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#8B5CF6] text-white font-semibold hover:bg-[#7C3AED] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all"
-                            >
-                                Live Demo <ArrowRight className="w-4 h-4" />
-                            </Link>
-                            <Link
-                                href="#roles"
-                                className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border border-white/10 text-white font-medium hover:border-white/20 transition-all"
-                            >
-                                Guided Tours
-                            </Link>
-                        </motion.div>
-                    </motion.div>
-
-                    {/* Scroll chevron */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-text-tertiary animate-bounce">
-                        <span className="text-[10px] uppercase font-mono tracking-widest">{c.hero.scroll}</span>
-                        <ChevronDown className="w-4 h-4" />
-                    </div>
-                </section>
-
-                {/* ── 2. Problem ───────────────────────────────────────────────── */}
-                <section className="py-40 px-6 relative overflow-hidden border-t border-white/5">
-                    {/* Gradient blobs */}
-                    <div className="absolute top-1/4 -left-32 w-[600px] h-[600px] bg-[#E11D48]/8 rounded-full blur-[150px] pointer-events-none" />
-                    <div className="absolute bottom-1/4 -right-32 w-[600px] h-[600px] bg-[#F59E0B]/8 rounded-full blur-[150px] pointer-events-none" />
-
-                    <div className="max-w-6xl mx-auto">
-                        {/* Left-aligned headline area */}
-                        <div className="max-w-3xl mb-12">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E11D48]/15 border border-[#E11D48]/30 text-[11px] font-mono tracking-[0.15em] text-[#E11D48] uppercase mb-8">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
-                                {c.problem.badge}
-                            </div>
-                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6 max-w-4xl">
-                                <span className="text-white">You&apos;re treating symptoms.</span><br />
-                                <span className="text-[#E11D48]">The cause was invisible.</span>
-                            </h2>
-                            <p className="text-xl font-body text-text-secondary max-w-2xl leading-relaxed">
-                                {c.problem.body}
-                            </p>
-                        </div>
-
-                        {/* Stat row — count up on enter */}
-                        <div className="flex gap-8 mb-16 border-t border-white/5 pt-8">
-                            {[
-                                { value: 6, suffix: 'wk', label: 'avg signal lag before detection' },
-                                { value: 73, suffix: '%', label: 'burnout incidents preceded by 4w+ strain signal' },
-                                { value: 0, suffix: '', label: 'of that captured by annual surveys' },
-                            ].map(({ value, suffix, label }) => (
-                                <div key={label} className="flex-1">
-                                    <div className="text-4xl font-display font-bold text-[#E11D48] mb-1">
-                                        <CountUp to={value} suffix={suffix} />
-                                    </div>
-                                    <div className="text-sm font-body text-text-tertiary leading-tight">{label}</div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Cards deal in from alternating sides */}
-                        <motion.div
-                            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-                            variants={{ visible: { transition: { staggerChildren: 0.15 } } }}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true, margin: '-100px' }}
-                        >
-                            {c.problem.items.map((item, i) => {
-                                const cardStyles = [
-                                    {
-                                        wrapper: 'bg-[#E11D48]/[0.06] border border-[#E11D48]/20 rounded-2xl p-8',
-                                        leftBorder: { borderLeftWidth: '3px', borderLeftColor: '#E11D48' },
-                                        dot: 'bg-[#E11D48]',
-                                        title: 'text-[#E11D48]',
-                                    },
-                                    {
-                                        wrapper: 'bg-[#F59E0B]/[0.06] border border-[#F59E0B]/20 rounded-2xl p-8',
-                                        leftBorder: { borderLeftWidth: '3px', borderLeftColor: '#F59E0B' },
-                                        dot: 'bg-[#F59E0B]',
-                                        title: 'text-[#F59E0B]',
-                                    },
-                                    {
-                                        wrapper: 'bg-white/[0.03] border border-white/10 rounded-2xl p-8',
-                                        leftBorder: { borderLeftWidth: '3px', borderLeftColor: 'rgba(255,255,255,0.3)' },
-                                        dot: 'bg-white/50',
-                                        title: 'text-white',
-                                    },
-                                ];
-                                const s = cardStyles[i] || cardStyles[2];
-                                return (
-                                    <motion.div
-                                        key={item.title}
-                                        custom={i}
-                                        variants={{
-                                            hidden: (index: number) => ({
-                                                x: index === 1 ? 120 : -120,
-                                                rotate: index === 1 ? 6 : -6,
-                                                opacity: 0,
-                                            }),
-                                            visible: {
-                                                x: 0,
-                                                rotate: 0,
-                                                opacity: 1,
-                                                transition: { type: 'spring', stiffness: 100, damping: 20 },
-                                            },
-                                        }}
-                                        className={s.wrapper}
-                                        style={s.leftBorder}
-                                    >
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <span className={`w-2.5 h-2.5 rounded-full ${s.dot} animate-pulse shrink-0`} />
-                                            <h3 className={`text-xl font-display font-semibold ${s.title}`}>{item.title}</h3>
-                                        </div>
-                                        <p className="text-base font-body text-text-secondary leading-relaxed">{item.desc}</p>
-                                    </motion.div>
-                                );
-                            })}
-                        </motion.div>
-                    </div>
-                </section>
-
-                {/* ── 3. How It Works ──────────────────────────────────────────── */}
-                <section
-                    ref={howItWorksRef}
-                    className="py-40 px-6 relative border-t border-white/5 min-h-[120vh]"
+            {/* === SECTION 1: HERO === */}
+            <motion.section
+                className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10"
+                style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
+            >
+                <motion.div
+                    className="mb-12"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1, duration: 0.6 }}
                 >
-                    <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#0EA5E9]/5 rounded-full blur-[150px] pointer-events-none" />
+                    <span className="text-sm font-mono tracking-[0.2em] text-text-tertiary uppercase">inPsyq</span>
+                </motion.div>
 
-                    <div className="max-w-6xl mx-auto">
-                        {/* Section header */}
-                        <div className="text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0EA5E9]/15 border border-[#0EA5E9]/30 text-[11px] font-mono tracking-[0.15em] text-[#0EA5E9] uppercase mb-8">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#0EA5E9] animate-pulse" />
-                                {c.howItWorks.badge}
+                <h1 className="text-[4.5rem] leading-[1.05] md:text-[7rem] font-display font-semibold text-white tracking-tight max-w-5xl">
+                    {c.hero.headline.split('\n').map((line, li) => (
+                        <React.Fragment key={li}>
+                            {line.split(' ').map((word, wi) => (
+                                <motion.span
+                                    key={`${li}-${wi}`}
+                                    className="inline-block mr-[0.3em]"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.3 + (li * 5 + wi) * 0.08, duration: 0.4 }}
+                                >
+                                    {word}
+                                </motion.span>
+                            ))}
+                            {li < c.hero.headline.split('\n').length - 1 && <br />}
+                        </React.Fragment>
+                    ))}
+                </h1>
+
+                <motion.div className="mt-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}>
+                    <a
+                        href="#gut-feeling"
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#8B5CF6]/40 text-[#8B5CF6] font-body text-base hover:bg-[#8B5CF6]/10 transition-colors"
+                    >
+                        {c.hero.cta}
+                        <ArrowRight className="w-4 h-4" />
+                    </a>
+                </motion.div>
+
+                <motion.div className="absolute bottom-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>
+                    <ChevronDown className="w-5 h-5 text-text-tertiary animate-bounce" />
+                </motion.div>
+            </motion.section>
+
+            {/* === SECTION 2: GUT FEELING === */}
+            <section id="gut-feeling" className="relative z-10 py-32 md:py-48 border-t border-white/5">
+                <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-12 md:gap-16">
+                    <div className="md:col-span-2 md:sticky md:top-[30vh] md:self-start">
+                        <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1]">
+                            {c.gutFeeling.headline.split('\n').map((line, i) => (
+                                <React.Fragment key={i}>
+                                    {line}
+                                    {i === 0 && <br />}
+                                </React.Fragment>
+                            ))}
+                        </h2>
+                    </div>
+                    <div className="md:col-span-3 space-y-10">
+                        <motion.p
+                            className="text-lg font-body text-text-secondary leading-relaxed"
+                            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }} transition={{ duration: 0.5 }}
+                        >
+                            {c.gutFeeling.p1}
+                        </motion.p>
+                        <motion.p
+                            className="text-lg font-body text-text-secondary leading-relaxed"
+                            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }} transition={{ duration: 0.5 }}
+                        >
+                            {c.gutFeeling.p2}
+                        </motion.p>
+                        <motion.p
+                            className="text-lg font-body text-white font-medium leading-relaxed"
+                            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }} transition={{ duration: 0.5 }}
+                        >
+                            {c.gutFeeling.p3}
+                        </motion.p>
+                    </div>
+                </div>
+            </section>
+
+            {/* === DIMENSION ORBIT WRAPPER (spans S3 + S4) === */}
+            <div className="relative">
+                <motion.div
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 90, repeat: Infinity, ease: 'linear' }}
+                >
+                    {DIMENSIONS.map((dim, i) => {
+                        const angle = (i / DIMENSIONS.length) * 360;
+                        const rad = (angle * Math.PI) / 180;
+                        const x = 50 + 45 * Math.cos(rad);
+                        const y = 50 + 45 * Math.sin(rad);
+                        return (
+                            <div
+                                key={dim}
+                                className="absolute text-[10px] font-mono tracking-widest whitespace-nowrap"
+                                style={{
+                                    left: `${x}%`, top: `${y}%`,
+                                    transform: 'translate(-50%, -50%)',
+                                    color: DIM_COLORS[i], opacity: 0.08,
+                                }}
+                            >
+                                {dim}
                             </div>
-                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
-                                <span className="text-white">From two-minute pulse</span><br />
-                                <span className="text-[#0EA5E9]">to Monday briefing.</span>
-                            </h2>
-                            <p className="text-xl md:text-2xl font-body text-text-secondary leading-relaxed max-w-2xl mx-auto">
-                                {c.howItWorks.body}
-                            </p>
-                        </div>
+                        );
+                    })}
+                </motion.div>
 
-                        {/* Timeline + step cards */}
-                        <div className="grid gap-8" style={{ gridTemplateColumns: '48px 1fr' }}>
+                {/* === SECTION 3: THE DEPTH === */}
+                <section className="relative z-10 py-32 md:py-48">
+                    <div className="max-w-3xl mx-auto px-6 text-center mb-20">
+                        <motion.h2
+                            className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1] mb-8"
+                            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                        >
+                            {c.depth.headline.split('\n').map((l, i) => (
+                                <React.Fragment key={i}>{l}{i === 0 && <br />}</React.Fragment>
+                            ))}
+                        </motion.h2>
+                        <motion.p
+                            className="text-lg font-body text-text-secondary leading-relaxed mb-8"
+                            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
+                        >
+                            {c.depth.body}
+                        </motion.p>
+                        <motion.p
+                            className="text-xl font-body text-white font-medium"
+                            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.4 }}
+                        >
+                            {c.depth.depthReveal}
+                        </motion.p>
+                    </div>
 
-                            {/* Left: animated pipeline line */}
-                            <div className="relative">
-                                {/* Background track */}
-                                <div className="absolute left-[21px] top-0 bottom-0 w-[2px] bg-white/5" />
-                                {/* Growing gradient line */}
-                                <motion.div
-                                    className="absolute left-[21px] top-0 w-[2px] rounded-full"
-                                    style={{
-                                        height: lineHeight,
-                                        background: 'linear-gradient(to bottom, #8B5CF6, #0EA5E9)',
-                                    }}
-                                />
-                                {/* Step nodes */}
-                                {nodeColors.map((color, i) => (
-                                    <motion.div
-                                        key={i}
-                                        className="absolute w-[44px] h-[44px] rounded-full border-2 bg-black flex items-center justify-center"
-                                        style={{
-                                            top: nodePositions[i],
-                                            left: 0,
-                                            borderColor: color,
-                                        }}
+                    <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {c.depth.cards.map((card, i) => (
+                            <motion.div
+                                key={card.label}
+                                initial={{ opacity: 0, y: 60 }} whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, margin: '-100px' }}
+                                transition={{ type: 'spring', stiffness: 100, damping: 20, delay: i * 0.15 }}
+                            >
+                                <TiltCard className="h-full">
+                                    <div
+                                        className="relative bg-[#050505] rounded-2xl p-8 h-full overflow-hidden"
+                                        style={{ borderLeft: `3px solid ${card.color}` }}
                                     >
-                                        <span className="text-[9px] font-mono text-white/40">{`0${i + 1}`}</span>
-                                    </motion.div>
-                                ))}
-                            </div>
-
-                            {/* Right: step cards */}
-                            <div className="space-y-12 py-1">
-                                {c.howItWorks.steps.map((step, i) => (
-                                    <motion.div
-                                        key={step.step}
-                                        style={{ opacity: stepOpacities[i], y: stepYValues[i] }}
-                                        className="relative p-8 rounded-2xl bg-[#050505] border border-white/8 overflow-hidden"
-                                    >
-                                        {/* Watermark number — per-step colour */}
+                                        <div
+                                            className="absolute top-0 right-0 w-24 h-24 rounded-full blur-[40px]"
+                                            style={{ backgroundColor: `${card.color}15` }}
+                                        />
                                         <span
-                                            className="text-[8rem] font-display font-semibold absolute top-2 right-6 leading-none select-none pointer-events-none opacity-[0.06]"
-                                            style={{ color: stepAccents[i] }}
+                                            className="text-xs font-mono tracking-widest uppercase mb-4 block"
+                                            style={{ color: card.color }}
                                         >
-                                            {step.step}
+                                            {card.label}
                                         </span>
-                                        <div className="relative z-10">
-                                            <h3 className="text-xl font-display font-semibold text-white mb-3">
-                                                {step.title}
-                                            </h3>
-                                            <p className="text-base font-body text-text-secondary leading-relaxed">{step.desc}</p>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
+                                        <h3 className="text-xl font-display font-semibold text-white mb-3">{card.title}</h3>
+                                        <p className="text-base font-body text-text-secondary leading-relaxed">{card.body}</p>
+                                    </div>
+                                </TiltCard>
+                            </motion.div>
+                        ))}
                     </div>
                 </section>
 
-                {/* ── 4. Science ───────────────────────────────────────────────── */}
-                <section className="py-40 px-6 relative border-t border-white/5 overflow-hidden">
-                    <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-[#10B981]/5 rounded-full blur-[150px] pointer-events-none" />
+                {/* === SECTION 4: WHAT CHANGES === */}
+                <section className="relative z-10 py-32 md:py-48">
+                    <div className="max-w-3xl mx-auto px-6">
+                        <motion.h2
+                            className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1] mb-20 text-center"
+                            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                        >
+                            {c.whatChanges.headline}
+                        </motion.h2>
+                        <div className="space-y-20">
+                            {c.whatChanges.statements.map((stmt, i) => (
+                                <React.Fragment key={i}>
+                                    {i > 0 && <div className="w-16 h-px bg-white/10 mx-auto" />}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                                        viewport={{ once: true }} transition={{ duration: 0.5 }}
+                                    >
+                                        <TiltCard className="bg-[#050505] rounded-2xl p-10 text-center">
+                                            <h3 className="text-2xl font-display font-semibold text-white mb-4">{stmt.lead}</h3>
+                                            <motion.p
+                                                className="text-base font-body text-text-secondary leading-relaxed"
+                                                initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}
+                                                viewport={{ once: true }} transition={{ delay: 0.2 }}
+                                            >
+                                                {stmt.body}
+                                            </motion.p>
+                                        </TiltCard>
+                                    </motion.div>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            </div>
 
-                    {/* Rotating dimension ring — atmospheric background */}
-                    <motion.div
-                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] pointer-events-none"
-                        style={{ zIndex: 0 }}
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
-                    >
-                        {DIMENSIONS.map((dim, i) => {
-                            const angle = (i / DIMENSIONS.length) * 360;
-                            const rad = (angle * Math.PI) / 180;
-                            const x = 50 + 47 * Math.cos(rad);
-                            const y = 50 + 47 * Math.sin(rad);
-                            return (
-                                <div
-                                    key={dim}
-                                    className="absolute text-[10px] font-mono text-[#8B5CF6]/15 whitespace-nowrap"
-                                    style={{
-                                        left: `${x}%`,
-                                        top: `${y}%`,
-                                        transform: `translate(-50%, -50%) rotate(${angle + 90}deg)`,
-                                    }}
+            {/* === SECTION 5: DEEP DIVE === */}
+            <section className="relative z-10 py-32 md:py-48 border-t border-white/5">
+                <div className="max-w-6xl mx-auto px-6">
+                    <div className="text-center mb-24">
+                        <motion.h2
+                            className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1] mb-6"
+                            initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                        >
+                            {c.deepDive.headline}
+                        </motion.h2>
+                        <motion.p
+                            className="text-lg font-body text-text-secondary"
+                            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+                        >
+                            {c.deepDive.sub}
+                        </motion.p>
+                    </div>
+
+                    {/* 5A: METHODOLOGY — Signal Pulse */}
+                    <div ref={methodologyRef} className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 min-h-[80vh] items-center mb-32">
+                        <div className="md:sticky md:top-[25vh] md:self-start h-[400px] relative bg-[#050505] rounded-2xl overflow-hidden">
+                            {DIMENSIONS.map((dim, i) => (
+                                <DimItem key={dim} prog={methProg} dim={dim} i={i} />
+                            ))}
+                            <motion.div
+                                className="absolute left-1/2 -translate-x-1/2 w-[1px] top-[8%]"
+                                style={{ height: lineHeight, background: 'linear-gradient(to bottom, #8B5CF600, #8B5CF6)' }}
+                            />
+                            <motion.div
+                                className="absolute left-1/2 -translate-x-1/2 bottom-[5%] w-4 h-4 rounded-full bg-[#8B5CF6]"
+                                style={{ opacity: convDotOpacity, scale: convDotScale, boxShadow: '0 0 20px rgba(139,92,246,0.6)' }}
+                            />
+                        </div>
+                        <div>
+                            <span
+                                className="text-xs font-mono tracking-widest uppercase mb-4 block"
+                                style={{ color: dds[0]?.labelColor }}
+                            >
+                                {dds[0]?.label}
+                            </span>
+                            <h3 className="text-3xl font-display font-semibold text-white mb-6">{dds[0]?.title}</h3>
+                            {dds[0]?.body.split('\n\n').map((para, i) => (
+                                <motion.p
+                                    key={i}
+                                    className="text-base font-body text-text-secondary leading-relaxed mb-6"
+                                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }} transition={{ delay: i * 0.1 }}
                                 >
-                                    {dim}
+                                    {para}
+                                </motion.p>
+                            ))}
+                            <Link
+                                href={dds[0]?.linkHref ?? '#'}
+                                className="inline-flex items-center gap-2 text-sm font-mono tracking-widest uppercase mt-4 transition-colors hover:text-white"
+                                style={{ color: dds[0]?.labelColor }}
+                            >
+                                Coming soon <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* 5B: ALGORITHMS — Bayesian Convergence */}
+                    <div ref={algoRef} className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 min-h-[80vh] items-center mb-32">
+                        <div className="md:sticky md:top-[25vh] md:self-start h-[400px] relative bg-[#050505] rounded-2xl overflow-hidden">
+                            {dots.map((dot) => (
+                                <BayesianDot key={dot.id} prog={algoProg} dot={dot} />
+                            ))}
+                        </div>
+                        <div>
+                            <span
+                                className="text-xs font-mono tracking-widest uppercase mb-4 block"
+                                style={{ color: dds[1]?.labelColor }}
+                            >
+                                {dds[1]?.label}
+                            </span>
+                            <h3 className="text-3xl font-display font-semibold text-white mb-6">{dds[1]?.title}</h3>
+                            {dds[1]?.body.split('\n\n').map((para, i) => (
+                                <motion.p
+                                    key={i}
+                                    className="text-base font-body text-text-secondary leading-relaxed mb-6"
+                                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+                                >
+                                    {para}
+                                </motion.p>
+                            ))}
+                            <Link
+                                href={dds[1]?.linkHref ?? '#'}
+                                className="inline-flex items-center gap-2 text-sm font-mono tracking-widest uppercase mt-4 transition-colors hover:text-white"
+                                style={{ color: dds[1]?.labelColor }}
+                            >
+                                Coming soon <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* 5C: PSYCHOLOGY — Causal Network Graph */}
+                    <div ref={synthRef} className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 min-h-[80vh] items-center">
+                        <div className="md:sticky md:top-[25vh] md:self-start h-[400px] relative bg-[#050505] rounded-2xl overflow-hidden">
+                            <svg viewBox="0 0 400 350" className="w-full h-full">
+                                {d2dEdges.map(([y1, y2, aStart, aEnd], i) => (
+                                    <AnimatedEdge
+                                        key={`d2d-${i}`} prog={synthProg}
+                                        x1={50} y1={y1} x2={190} y2={y2}
+                                        activateStart={aStart} activateEnd={aEnd}
+                                    />
+                                ))}
+                                {d2iEdges.map(([y1, y2, aStart, aEnd], i) => (
+                                    <AnimatedEdge
+                                        key={`d2i-${i}`} prog={synthProg}
+                                        x1={190} y1={y1} x2={340} y2={y2}
+                                        activateStart={aStart} activateEnd={aEnd}
+                                    />
+                                ))}
+                                {driverNodes.map((d, i) => (
+                                    <DriverNode key={d} prog={synthProg} d={d} i={i} />
+                                ))}
+                                {Array.from({ length: dimNodeCount }, (_, i) => (
+                                    <DimNode key={i} prog={synthProg} i={i} />
+                                ))}
+                                {indexNodes.map((node, i) => (
+                                    <IndexNode key={node.label} prog={synthProg} node={node} i={i} />
+                                ))}
+                                <motion.text
+                                    x={200} y={340} textAnchor="middle"
+                                    fontSize="10" fontFamily="monospace" fill="#8B5CF6"
+                                    style={{ opacity: briefingOpacity }}
+                                >
+                                    BRIEFING GENERATED
+                                </motion.text>
+                            </svg>
+                        </div>
+                        <div>
+                            <span
+                                className="text-xs font-mono tracking-widest uppercase mb-4 block"
+                                style={{ color: dds[2]?.labelColor }}
+                            >
+                                {dds[2]?.label}
+                            </span>
+                            <h3 className="text-3xl font-display font-semibold text-white mb-6">{dds[2]?.title}</h3>
+                            {dds[2]?.body.split('\n\n').map((para, i) => (
+                                <motion.p
+                                    key={i}
+                                    className="text-base font-body text-text-secondary leading-relaxed mb-6"
+                                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+                                >
+                                    {para}
+                                </motion.p>
+                            ))}
+                            <Link
+                                href={dds[2]?.linkHref ?? '#'}
+                                className="inline-flex items-center gap-2 text-sm font-mono tracking-widest uppercase mt-4 transition-colors hover:text-white"
+                                style={{ color: dds[2]?.labelColor }}
+                            >
+                                Coming soon <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* === SECTION 6: EXPERIENCE IT === */}
+            <section className="relative z-10 py-32 md:py-48">
+                <div className="max-w-5xl mx-auto px-6 space-y-20">
+
+                    {/* Demo CTA */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true }} transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                    >
+                        <TiltCard>
+                            <Link href="/executive" className="block bg-[#050505] rounded-2xl p-10 border border-[#8B5CF6]/20 hover:shadow-[0_0_40px_rgba(139,92,246,0.15)] transition-shadow">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <span className="text-xs font-mono tracking-widest text-text-tertiary uppercase block mb-3">{c.experience.demoLabel}</span>
+                                        <h3 className="text-3xl font-display font-semibold text-white mb-2">{c.experience.demoTitle}</h3>
+                                        <p className="text-base font-body text-text-secondary">{c.experience.demoSub}</p>
+                                    </div>
+                                    <ArrowRight className="w-6 h-6 text-[#8B5CF6] flex-shrink-0" />
                                 </div>
-                            );
-                        })}
+                            </Link>
+                        </TiltCard>
                     </motion.div>
 
-                    <div className="max-w-6xl mx-auto relative z-10">
-                        <div className="text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/30 text-[11px] font-mono tracking-[0.15em] text-[#10B981] uppercase mb-8">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                                {c.science.badge}
-                            </div>
-                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
-                                <span className="text-white">Thirty years of research.</span><br />
-                                <span className="text-[#10B981]">Operationalised in seven days.</span>
-                            </h2>
-                            <p className="text-xl md:text-2xl font-body text-text-secondary leading-relaxed max-w-3xl mx-auto">
-                                {c.science.body}
-                            </p>
-                        </div>
-
-                        {/* Rise-in stagger + 3D tilt */}
-                        <motion.div
-                            className="grid grid-cols-1 md:grid-cols-3 gap-8"
-                            variants={{ show: { transition: { staggerChildren: 0.15 } } }}
-                            initial="hidden"
-                            whileInView="show"
-                            viewport={{ once: true }}
-                        >
-                            {c.science.pillars.map((pillar, i) => (
-                                <ScienceCard
-                                    key={pillar.title}
-                                    pillar={pillar}
-                                    icon={sciencePillarMeta[i].icon}
-                                    hoverClass={sciencePillarMeta[i].hoverClass}
-                                    accentColor={sciencePillarMeta[i].accentColor}
-                                />
-                            ))}
-                        </motion.div>
-                    </div>
-                </section>
-
-                {/* ── 5. Role Demos ────────────────────────────────────────────── */}
-                <section id="roles" className="py-40 px-6 border-t border-white/5 relative">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#8B5CF6]/5 rounded-full blur-[150px] pointer-events-none" />
-
-                    <div className="max-w-6xl mx-auto">
-                        <div className="text-center mb-16">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[11px] font-mono tracking-[0.15em] text-[#8B5CF6] uppercase mb-8">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
-                                {c.roleDemos.badge}
-                            </div>
-                            <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
-                                <span className="text-white">Four roles. Four lenses.</span><br />
-                                <span className="text-[#8B5CF6]">One platform.</span>
-                            </h2>
-                            <p className="text-xl md:text-2xl font-body text-text-secondary max-w-2xl mx-auto">
-                                {c.roleDemos.sub}
-                            </p>
-                        </div>
-
-                        {/* Demo CTA card — scales up on viewport entry */}
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            whileInView={{ scale: 1, opacity: 1 }}
-                            transition={{ type: 'spring', stiffness: 80, damping: 15 }}
-                            viewport={{ once: true }}
-                            className="backdrop-blur-sm bg-white/[0.03] border border-[#8B5CF6]/30 rounded-2xl p-10 shadow-[0_0_60px_rgba(139,92,246,0.2)] mb-8"
-                        >
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                                <p className="text-text-secondary max-w-xl">{c.roleDemos.demoCta}</p>
-                                <Link
-                                    href="/executive"
-                                    className="shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-[#8B5CF6] text-white font-medium hover:bg-[#7C3AED] transition-colors whitespace-nowrap"
-                                >
-                                    {c.roleDemos.demoCtaButton} <ArrowRight className="w-4 h-4" />
-                                </Link>
-                            </div>
-                        </motion.div>
-
-                        {/* Tutorial cards — cascade with 100ms stagger */}
-                        <motion.div
-                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                            variants={{ show: { transition: { staggerChildren: 0.1 } } }}
-                            initial="hidden"
-                            whileInView="show"
-                            viewport={{ once: true }}
-                        >
-                            {c.roleDemos.tracks.map((track) => (
+                    {/* Tutorial Hub */}
+                    <div>
+                        <h2 className="text-3xl md:text-5xl font-display font-bold text-white text-center mb-4">{c.experience.tutorialHeadline}</h2>
+                        <p className="text-text-secondary text-center max-w-lg mx-auto mb-12 font-body">{c.experience.tutorialSub}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                            {c.experience.tracks.map((track, i) => (
                                 <motion.div
                                     key={track.role}
-                                    variants={{ hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0 } }}
+                                    initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={{ type: 'spring', stiffness: 100, damping: 20, delay: i * 0.12 }}
                                 >
-                                    <Link href={track.href} className="block h-full group">
-                                        <div className="relative h-full rounded-2xl bg-[#050505] border border-white/8 p-8 transition-all duration-300 hover:border-white/15 overflow-hidden">
-                                            {/* Colour glow */}
+                                    <Link href={track.href} className="group block h-full">
+                                        <div
+                                            className="relative h-full rounded-2xl bg-[#050505] border border-white/10 p-8 transition-all duration-300 overflow-hidden"
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.borderColor = `${track.color}80`;
+                                                e.currentTarget.style.backgroundColor = `${track.color}08`;
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                                                e.currentTarget.style.backgroundColor = '#050505';
+                                            }}
+                                        >
                                             <div
-                                                className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none"
-                                                style={{ backgroundColor: track.color }}
+                                                className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[50px]"
+                                                style={{ backgroundColor: `${track.color}15` }}
                                             />
-                                            <div className="relative z-10">
-                                                {/* Icon — scale pulse on hover */}
-                                                <motion.div
-                                                    className="mb-4 w-fit"
-                                                    style={{ color: track.color }}
-                                                    whileHover={{ scale: [1, 1.15, 1] }}
-                                                    transition={{ duration: 0.4 }}
-                                                >
-                                                    {trackIcons[track.role]}
-                                                </motion.div>
-                                                <div className="mb-1">
-                                                    <span
-                                                        className="text-[11px] font-mono tracking-[0.15em] uppercase"
-                                                        style={{ color: track.color }}
-                                                    >
-                                                        {track.role}
-                                                    </span>
-                                                </div>
-                                                <div className="mb-3">
-                                                    <span
-                                                        className="text-[11px] font-mono tracking-[0.15em] uppercase"
-                                                        style={{ color: track.color }}
-                                                    >
-                                                        {trackSubLabels[track.role]}
-                                                    </span>
-                                                </div>
-                                                <h3 className="text-xl font-display font-semibold text-white mb-3 group-hover:opacity-90 transition-opacity">
-                                                    {track.title}
-                                                </h3>
-                                                <p className="text-base font-body text-text-secondary leading-relaxed mb-6">
-                                                    {track.desc}
-                                                </p>
-                                                <div className="flex items-center gap-2 text-[11px] font-mono tracking-[0.12em]" style={{ color: track.color }}>
-                                                    {c.roleDemos.tourCta}
-                                                </div>
-                                            </div>
+                                            {track.role === 'EXECUTIVE' && <Activity className="w-10 h-10 mb-6" style={{ color: track.color }} />}
+                                            {track.role === 'TEAMLEAD' && <LayoutDashboard className="w-10 h-10 mb-6" style={{ color: track.color }} />}
+                                            {track.role === 'EMPLOYEE' && <UserCheck className="w-10 h-10 mb-6" style={{ color: track.color }} />}
+                                            {track.role === 'ADMIN' && <Settings2 className="w-10 h-10 mb-6" style={{ color: track.color }} />}
+                                            <h3 className="text-xl font-display font-bold text-white mb-2">{track.title}</h3>
+                                            <p className="text-sm text-text-tertiary font-mono mb-4 uppercase tracking-wider">{track.sub}</p>
+                                            <p className="text-text-secondary text-sm leading-relaxed font-body">{track.desc}</p>
                                         </div>
                                     </Link>
                                 </motion.div>
                             ))}
-                        </motion.div>
+                        </div>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                {/* ── 6. Pricing ───────────────────────────────────────────────── */}
-                <section ref={pricingRef} className="py-40 px-6 border-t border-white/5 relative">
-                    <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{ background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03), transparent 70%)' }}
-                    />
-                    <motion.div style={{ scale: pricingScale }}>
-                        <motion.div style={{ filter: pricingFilter }}>
-                            <div className="max-w-3xl mx-auto text-center">
-                                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 text-[11px] font-mono tracking-[0.15em] text-[#8B5CF6] uppercase mb-8">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
-                                    {c.pricing.badge}
-                                </div>
-                                <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight mb-6">
-                                    <span className="text-white">Built for organisations that take</span><br />
-                                    <span className="text-[#8B5CF6]">culture seriously.</span>
-                                </h2>
-                                <p className="text-xl md:text-2xl font-body text-text-secondary leading-relaxed mb-12">
-                                    {c.pricing.sub}
-                                </p>
+            {/* === SECTION 7: CONTACT === */}
+            <section className="relative z-10 py-32 md:py-48">
+                <motion.div
+                    className="max-w-2xl mx-auto px-6 text-center"
+                    initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }} transition={{ duration: 0.6 }}
+                >
+                    <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1] mb-8">
+                        {c.contact.headline}
+                    </h2>
+                    <p className="text-lg font-body text-text-secondary mb-12 leading-relaxed">{c.contact.sub}</p>
+                    <a
+                        href="mailto:contact@inpsyq.com"
+                        className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[#8B5CF6] text-white font-body font-medium text-base hover:bg-[#7C3AED] transition-colors"
+                    >
+                        {c.contact.cta}
+                    </a>
+                    <p className="mt-6 text-xs font-mono text-text-tertiary tracking-widest uppercase">{c.contact.note}</p>
+                </motion.div>
+            </section>
 
-                                {/* Stat row */}
-                                <div className="flex items-center gap-8 md:gap-16 justify-center mb-12">
-                                    {[
-                                        { n: 10, label: 'DIMENSIONS' },
-                                        { n: 48, label: 'SIGNAL VECTOR' },
-                                        { n: 7, label: 'DAY DEPLOY' },
-                                    ].map(({ n, label }, i) => (
-                                        <React.Fragment key={label}>
-                                            {i > 0 && <div className="w-px h-12 bg-white/10" />}
-                                            <div className="text-center">
-                                                <div className="text-5xl md:text-6xl font-display font-bold text-white">
-                                                    <CountUp to={n} suffix="" />
-                                                </div>
-                                                <div className="text-[11px] font-mono tracking-[0.15em] text-text-tertiary mt-2 uppercase">{label}</div>
-                                            </div>
-                                        </React.Fragment>
-                                    ))}
-                                </div>
-
-                                <div className="flex flex-col items-center gap-4">
-                                    <a
-                                        href="mailto:hello@inpsyq.com"
-                                        className="inline-flex items-center gap-3 px-10 py-5 rounded-xl bg-white text-bg-base font-semibold text-lg hover:bg-white/90 transition-all hover:shadow-[0_0_40px_rgba(255,255,255,0.15)]"
-                                    >
-                                        <Mail className="w-5 h-5" />
-                                        {c.pricing.cta}
-                                    </a>
-                                    <p className="text-xs text-text-tertiary font-mono">{c.pricing.note}</p>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                </section>
-
-            </main>
-
-            {/* ── Footer ── */}
-            <footer className="border-t border-white/5 py-10 px-6 relative z-10 bg-black">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                        <InPsyqLogo size="sm" />
-                        <span className="text-xs text-text-tertiary">{c.footer.rights}</span>
-                    </div>
-                    <div className="flex items-center gap-8 text-xs text-text-tertiary font-mono">
-                        <Link href="/privacy" className="hover:text-text-secondary transition-colors">{c.footer.privacy}</Link>
-                        <Link href="/terms" className="hover:text-text-secondary transition-colors">{c.footer.terms}</Link>
-                        <Link href="/imprint" className="hover:text-text-secondary transition-colors">{c.footer.imprint}</Link>
+            {/* === FOOTER === */}
+            <footer className="relative z-10 border-t border-white/5 py-8">
+                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono text-text-tertiary">
+                    <span>{c.footer.rights}</span>
+                    <div className="flex gap-6">
+                        <span>{c.footer.privacy}</span>
+                        <span>{c.footer.terms}</span>
+                        <span>{c.footer.imprint}</span>
                     </div>
                 </div>
             </footer>
@@ -819,13 +758,10 @@ function LandingPageInner() {
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Root export — wraps in LanguageProvider
-// ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
     return (
         <LanguageProvider>
-            <LandingPageInner />
+            <LandingContent />
         </LanguageProvider>
     );
 }
