@@ -13,8 +13,6 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { resolveAuthContext } from '@/lib/auth/context';
 import { MockBanner } from '@/components/dev/MockBanner';
-import { TutorialEntryPoint } from '@/components/tutorial/TutorialEntryPoint';
-import type { Role } from '@/lib/access/roles';
 
 export const metadata: Metadata = {
     title: 'inPsyq Dashboard',
@@ -28,8 +26,6 @@ export default async function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    let role: Role | null = null;
-
     // In demo mode, skip auth entirely — dashboards use only mock data
     if (!DEMO_MODE) {
         // Server-side auth gate
@@ -40,28 +36,16 @@ export default async function DashboardLayout({
             redirect('/measure');
         }
 
-        // Capture role for TutorialEntryPoint (only for authenticated non-employee sessions)
-        if (authResult.authenticated && authResult.context?.role &&
-            authResult.context.role !== 'EMPLOYEE') {
-            role = authResult.context.role;
-        }
-
         // Note: We no longer redirect to /login here for unauthenticated users.
         // This allows specific pages (Executive, Team) to fall back to "Public Demo Mode"
         // if the user is not logged in.
         // Protected pages must enforce their own auth checks.
     }
 
-    // In demo mode with no authenticated role, show the tutorial button for EXECUTIVE view
-    const tutorialRole: Role | null = role || (DEMO_MODE ? 'EXECUTIVE' : null);
-
     return (
         <>
             {!DEMO_MODE && <MockBanner />}
             {children}
-            {tutorialRole && (
-                <TutorialEntryPoint role={tutorialRole} isDemo={DEMO_MODE || !role} />
-            )}
         </>
     );
 }

@@ -63,7 +63,7 @@ function ScienceCard({
             >
                 <div className="mb-6">{icon}</div>
                 <h3 className="text-lg font-display font-bold text-white mb-4">{pillar.title}</h3>
-                <p className="text-text-secondary text-sm leading-relaxed">{pillar.desc}</p>
+                <p className="text-text-secondary text-base leading-relaxed">{pillar.desc}</p>
             </div>
         </motion.div>
     );
@@ -167,6 +167,19 @@ function LandingPageInner() {
         },
     ];
 
+    // Highlight a specific word/phrase in headline text with a colour
+    const highlightWord = (text: string, word: string, color: string) => {
+        const idx = text.indexOf(word);
+        if (idx === -1) return <>{text}</>;
+        return (
+            <>
+                {text.slice(0, idx)}
+                <span style={{ color }}>{word}</span>
+                {text.slice(idx + word.length)}
+            </>
+        );
+    };
+
     // Word-by-word headline — preserve line breaks
     const headlineWords = c.hero.headline
         .split(/(\n)/)
@@ -258,7 +271,7 @@ function LandingPageInner() {
 
                         {/* Word-by-word headline */}
                         <motion.h1
-                            className="max-w-3xl text-5xl md:text-7xl font-display font-bold text-white tracking-tight mb-6 leading-tight"
+                            className="max-w-3xl text-6xl md:text-8xl font-display font-bold text-white tracking-tight mb-6 leading-tight"
                             variants={{ show: { transition: { staggerChildren: 0.08 } } }}
                             initial="hidden"
                             animate="show"
@@ -283,7 +296,7 @@ function LandingPageInner() {
 
                         {/* Subtext — fades in after headline */}
                         <motion.p
-                            className="max-w-2xl text-lg text-text-secondary mb-12 leading-relaxed"
+                            className="max-w-2xl text-xl md:text-2xl text-text-secondary mb-12 leading-relaxed"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 1.2 }}
@@ -305,7 +318,7 @@ function LandingPageInner() {
                                 Live Demo <ArrowRight className="w-4 h-4" />
                             </Link>
                             <Link
-                                href="/tutorial"
+                                href="#roles"
                                 className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border border-white/10 text-white font-medium hover:border-white/20 transition-all"
                             >
                                 Guided Tours
@@ -329,14 +342,14 @@ function LandingPageInner() {
                     <div className="max-w-6xl mx-auto">
                         {/* Left-aligned headline area */}
                         <div className="max-w-3xl mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E11D48]/10 border border-[#E11D48]/20 text-xs font-mono text-[#E11D48] mb-8">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E11D48]/15 border border-[#E11D48]/20 text-xs font-mono text-[#E11D48] mb-8">
                                 <span className="w-2 h-2 rounded-full bg-[#E11D48] animate-pulse" />
                                 {c.problem.badge}
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight mb-8 whitespace-pre-line">
-                                {c.problem.headline}
+                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-8 whitespace-pre-line">
+                                {highlightWord(c.problem.headline, lang === 'EN' ? 'symptoms' : 'Symptome', '#E11D48')}
                             </h2>
-                            <p className="text-xl text-text-secondary leading-relaxed">
+                            <p className="text-xl md:text-2xl text-text-secondary leading-relaxed">
                                 {c.problem.body}
                             </p>
                         </div>
@@ -371,9 +384,9 @@ function LandingPageInner() {
                                 >
                                     <div className="flex items-center gap-3 mb-4">
                                         <span className="w-2.5 h-2.5 rounded-full bg-[#E11D48] animate-pulse shrink-0" />
-                                        <h3 className="text-base font-display font-semibold text-white">{item.title}</h3>
+                                        <h3 className="text-lg font-display font-semibold text-white">{item.title}</h3>
                                     </div>
-                                    <p className="text-text-secondary text-sm leading-relaxed">{item.desc}</p>
+                                    <p className="text-text-secondary text-base leading-relaxed">{item.desc}</p>
                                 </motion.div>
                             ))}
                         </motion.div>
@@ -390,14 +403,14 @@ function LandingPageInner() {
                     <div className="max-w-6xl mx-auto">
                         {/* Section header */}
                         <div className="text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0EA5E9]/10 border border-[#0EA5E9]/20 text-xs font-mono text-[#0EA5E9] mb-8">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0EA5E9]/15 border border-[#0EA5E9]/20 text-xs font-mono text-[#0EA5E9] mb-8">
                                 <span className="w-2 h-2 rounded-full bg-[#0EA5E9]" />
                                 {c.howItWorks.badge}
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                {c.howItWorks.headline}
+                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
+                                {highlightWord(c.howItWorks.headline, lang === 'EN' ? 'Monday briefing' : 'Montags-Briefing', '#0EA5E9')}
                             </h2>
-                            <p className="text-xl text-text-secondary leading-relaxed max-w-2xl mx-auto">
+                            <p className="text-xl md:text-2xl text-text-secondary leading-relaxed max-w-2xl mx-auto">
                                 {c.howItWorks.body}
                             </p>
                         </div>
@@ -446,10 +459,10 @@ function LandingPageInner() {
                                             {step.step}
                                         </span>
                                         <div className="relative z-10">
-                                            <h3 className="text-base font-display font-semibold text-white mb-3">
+                                            <h3 className="text-lg font-display font-semibold text-white mb-3">
                                                 {step.title}
                                             </h3>
-                                            <p className="text-text-secondary text-sm leading-relaxed">{step.desc}</p>
+                                            <p className="text-text-secondary text-base leading-relaxed">{step.desc}</p>
                                         </div>
                                     </motion.div>
                                 ))}
@@ -464,14 +477,14 @@ function LandingPageInner() {
 
                     <div className="max-w-6xl mx-auto">
                         <div className="text-center mb-20">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 text-xs font-mono text-[#8B5CF6] mb-8">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/20 text-xs font-mono text-[#8B5CF6] mb-8">
                                 <FlaskConical className="w-3 h-3" />
                                 {c.science.badge}
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                {c.science.headline}
+                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
+                                {highlightWord(c.science.headline, lang === 'EN' ? 'seven days' : 'sieben Tagen', '#10B981')}
                             </h2>
-                            <p className="text-xl text-text-secondary leading-relaxed max-w-3xl mx-auto">
+                            <p className="text-xl md:text-2xl text-text-secondary leading-relaxed max-w-3xl mx-auto">
                                 {c.science.body}
                             </p>
                         </div>
@@ -497,19 +510,19 @@ function LandingPageInner() {
                 </section>
 
                 {/* ── 5. Role Demos ────────────────────────────────────────────── */}
-                <section className="py-40 px-6 border-t border-white/5 relative">
+                <section id="roles" className="py-40 px-6 border-t border-white/5 relative">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#8B5CF6]/5 rounded-full blur-[150px] pointer-events-none" />
 
                     <div className="max-w-6xl mx-auto">
                         <div className="text-center mb-16">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 text-xs font-mono text-[#8B5CF6] mb-8">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/20 text-xs font-mono text-[#8B5CF6] mb-8">
                                 <span className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
                                 {c.roleDemos.badge}
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
+                            <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
                                 {c.roleDemos.headline}
                             </h2>
-                            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+                            <p className="text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto">
                                 {c.roleDemos.sub}
                             </p>
                         </div>
@@ -569,7 +582,7 @@ function LandingPageInner() {
                                                 <h3 className="text-xl font-display font-bold text-white mb-3 group-hover:opacity-90 transition-opacity">
                                                     {track.title}
                                                 </h3>
-                                                <p className="text-text-secondary text-sm leading-relaxed mb-6">
+                                                <p className="text-text-secondary text-base leading-relaxed mb-6">
                                                     {track.desc}
                                                 </p>
                                                 <div className="flex items-center gap-2 text-xs font-mono" style={{ color: track.color }}>
@@ -596,10 +609,10 @@ function LandingPageInner() {
                                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-text-secondary mb-8">
                                     {c.pricing.badge}
                                 </div>
-                                <h2 className="text-4xl md:text-5xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
-                                    {c.pricing.headline}
+                                <h2 className="text-4xl md:text-6xl font-display font-bold text-white tracking-tight mb-6 whitespace-pre-line">
+                                    {highlightWord(c.pricing.headline, lang === 'EN' ? 'culture' : 'Kultur', '#8B5CF6')}
                                 </h2>
-                                <p className="text-xl text-text-secondary leading-relaxed mb-12">
+                                <p className="text-xl md:text-2xl text-text-secondary leading-relaxed mb-12">
                                     {c.pricing.sub}
                                 </p>
                                 <div className="flex flex-col items-center gap-4">

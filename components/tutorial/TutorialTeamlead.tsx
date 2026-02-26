@@ -38,6 +38,11 @@ export const teamleadSteps: TourStep[] = [
         content: 'The Team Briefing is your weekly narrative summary — generated fresh every Monday from the same inference run that produced the KPI cards. It contains the talking points most relevant to this team\'s current state. Use it directly in your 1:1s and retrospectives: share it as context, read specific sections, or use it to structure the agenda. It replaces gut-feel with model-grounded language.',
         targetSelector: '[data-tutorial="team-briefing"]',
     },
+    {
+        title: 'Data Governance & Signal Confidence',
+        content: 'The Data Governance panel shows the statistical backbone of the briefing you just read. Coverage indicates what percentage of your team submitted their pulse this week — low coverage means wider confidence bands. Data Quality, Temporal Stability, and Signal Confidence are quality metrics the model uses internally. If any metric drops below threshold, the briefing will flag reduced reliability. The session count and last-updated timestamp let you verify data freshness.',
+        targetSelector: '[data-tutorial="team-governance"]',
+    },
 ];
 
 export function TutorialTeamlead() {

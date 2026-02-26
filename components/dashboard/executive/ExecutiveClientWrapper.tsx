@@ -8,7 +8,8 @@ import { DriversWatchlistSection } from '@/components/dashboard/executive/Driver
 import { Briefing } from '@/components/dashboard/executive/Briefing';
 import { DataGovernance } from '@/components/dashboard/executive/DataGovernance';
 import { ExecutiveDashboardData } from '@/services/dashboard/executiveReader';
-import { Globe } from 'lucide-react';
+import { Globe, HelpCircle } from 'lucide-react';
+import Link from 'next/link';
 import { format, subWeeks } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +29,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
     // Graph Data — use real series from DB; fall back to synthetic for demo mode
     // -------------------------------------------------------------------------
     const graphData = useMemo(() => {
-        if (initialData.series && initialData.series.length > 0) {
+        if (initialData?.series && initialData.series.length > 0) {
             return initialData.series;
         }
         // Demo / empty fallback: deterministic synthetic series
@@ -59,13 +60,13 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
                 engagementRange: [e - c, e + c] as [number, number],
             };
         });
-    }, [initialData.series]);
+    }, [initialData?.series]);
 
     // -------------------------------------------------------------------------
     // KPI Cards — use real KPIs from server; fall back to derived from graphData
     // -------------------------------------------------------------------------
     const kpis = useMemo(() => {
-        if (initialData.kpis && initialData.kpis.length > 0) {
+        if (initialData?.kpis && initialData.kpis.length > 0) {
             return initialData.kpis.map(k => ({
                 id: k.id,
                 title: k.title,
@@ -85,7 +86,7 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
             { id: 'trust', title: 'Trust Gap', value: latest.trust.toFixed(0), color: 'trust-gap' as const, trendValue: getTrend(latest.trust, previous.trust) },
             { id: 'engagement', title: 'Engagement', value: latest.engagement.toFixed(0), color: 'engagement' as const, trendValue: getTrend(latest.engagement, previous.engagement) },
         ];
-    }, [initialData.kpis, graphData]);
+    }, [initialData?.kpis, graphData]);
 
     if (!mounted) return null;
 
@@ -97,26 +98,33 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
                 <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
                         <Globe className="w-8 h-8 text-[#8B5CF6]" strokeWidth={1.5} />
-                        <h1 className="text-4xl font-display font-medium text-white tracking-tight">{initialData.orgName || 'Acme Corporation'}</h1>
+                        <h1 className="text-4xl font-display font-medium text-white tracking-tight">{initialData?.orgName || 'Acme Corporation'}</h1>
                     </div>
 
                     {/* Data Status Badge */}
                     <div className={cn(
                         "px-3 py-1 rounded-full text-xs font-mono font-medium flex items-center gap-2 border",
-                        initialData.series && initialData.series.length > 0
+                        initialData?.series && initialData.series.length > 0
                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                             : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                     )}>
                         <div className={cn(
                             "w-1.5 h-1.5 rounded-full animate-pulse",
-                            initialData.series && initialData.series.length > 0 ? "bg-emerald-400" : "bg-amber-400"
+                            initialData?.series && initialData.series.length > 0 ? "bg-emerald-400" : "bg-amber-400"
                         )} />
-                        {initialData.series && initialData.series.length > 0 ? "LIVE DATA" : "DEMO MODE"}
+                        {initialData?.series && initialData.series.length > 0 ? "LIVE DATA" : "DEMO MODE"}
                     </div>
                 </div>
 
-                {/* Right: Brand Logo */}
-                <div>
+                {/* Right: Tutorial + Brand Logo */}
+                <div className="flex items-center gap-4">
+                    <Link
+                        href="/tutorial/executive"
+                        className="flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-text-secondary hover:text-white hover:border-[#8B5CF6]/50 transition-all"
+                        title="Open tutorial"
+                    >
+                        <HelpCircle className="w-4 h-4" />
+                    </Link>
                     <div className="relative">
                         <span className="text-3xl font-display font-semibold text-white tracking-tight">inPsyq</span>
                         <div className="absolute -bottom-1 left-0 w-full h-1 bg-[#8B5CF6] rounded-full shadow-[0_0_10px_rgba(139,92,246,0.5)]"></div>
@@ -150,24 +158,28 @@ export function ExecutiveClientWrapper({ initialData }: ExecutiveClientWrapperPr
 
             {/* Team Portfolio — receives real teams from server */}
             <div data-tutorial="executive-portfolio" className="w-full">
-                <TeamPortfolioTable teams={initialData.teams} />
+                <TeamPortfolioTable teams={initialData?.teams ?? []} />
             </div>
 
             {/* Split Section: Drivers & Watchlist with Interaction */}
             <DriversWatchlistSection
-                drivers={initialData.drivers}
-                watchlist={initialData.watchlist}
+                drivers={initialData?.drivers}
+                watchlist={initialData?.watchlist}
             />
 
             {/* Briefing & Governance */}
-            <div data-tutorial="executive-briefing" className="space-y-8 pb-12">
-                <Briefing paragraphs={initialData.briefingParagraphs} />
-                <DataGovernance
-                    coverage={initialData.governance.coverage}
-                    dataQuality={initialData.governance.dataQuality}
-                    totalSessions={initialData.governance.totalSessions}
-                    lastUpdated={initialData.governance.lastUpdated}
-                />
+            <div className="space-y-8 pb-12">
+                <div data-tutorial="executive-briefing">
+                    <Briefing paragraphs={initialData?.briefingParagraphs} />
+                </div>
+                <div data-tutorial="executive-governance">
+                    <DataGovernance
+                        coverage={initialData?.governance?.coverage}
+                        dataQuality={initialData?.governance?.dataQuality}
+                        totalSessions={initialData?.governance?.totalSessions}
+                        lastUpdated={initialData?.governance?.lastUpdated}
+                    />
+                </div>
             </div>
         </div>
     );

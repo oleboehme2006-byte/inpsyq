@@ -7,7 +7,7 @@ import { DriversActionsSection } from '@/components/dashboard/team/DriversAction
 import { TeamBriefing } from '@/components/dashboard/team/TeamBriefing';
 import { DataGovernance } from '@/components/dashboard/executive/DataGovernance';
 import { getTeamData } from '@/lib/mock/teamDashboardData';
-import { Globe, ArrowLeft, Users } from 'lucide-react';
+import { Globe, ArrowLeft, Users, HelpCircle } from 'lucide-react';
 import { format, subWeeks } from 'date-fns';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -166,8 +166,15 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
                     </div>
                 </div>
 
-                {/* Right: Brand Logo */}
-                <div>
+                {/* Right: Tutorial + Brand Logo */}
+                <div className="flex items-center gap-4">
+                    <Link
+                        href="/tutorial/teamlead"
+                        className="flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-text-secondary hover:text-white hover:border-[#8B5CF6]/50 transition-all"
+                        title="Open tutorial"
+                    >
+                        <HelpCircle className="w-4 h-4" />
+                    </Link>
                     <div className="relative">
                         <span className="text-3xl font-display font-semibold text-white tracking-tight">inPsyq</span>
                         <div className="absolute -bottom-1 left-0 w-full h-1 bg-[#8B5CF6] rounded-full shadow-[0_0_10px_rgba(139,92,246,0.5)]"></div>
@@ -206,19 +213,23 @@ export function TeamClientWrapper({ teamId, initialData }: TeamClientWrapperProp
             />
 
             {/* Team Briefing & Governance */}
-            <div data-tutorial="team-briefing" className="space-y-8 pb-12">
-                <TeamBriefing
-                    teamName={teamData.name}
-                    paragraphs={teamData.briefing}
-                />
-                <DataGovernance
-                    coverage={teamData.governance.coverage}
-                    dataQuality={teamData.governance.dataQuality}
-                    temporalStability={teamData.governance.temporalStability}
-                    signalConfidence={teamData.governance.signalConfidence}
-                    totalSessions={teamData.governance.totalSessions}
-                    lastUpdated={teamData.governance.lastUpdated}
-                />
+            <div className="space-y-8 pb-12">
+                <div data-tutorial="team-briefing">
+                    <TeamBriefing
+                        teamName={teamData.name}
+                        paragraphs={teamData.briefing}
+                    />
+                </div>
+                <div data-tutorial="team-governance">
+                    <DataGovernance
+                        coverage={teamData.governance.coverage}
+                        dataQuality={teamData.governance.dataQuality}
+                        temporalStability={teamData.governance.temporalStability}
+                        signalConfidence={teamData.governance.signalConfidence}
+                        totalSessions={teamData.governance.totalSessions}
+                        lastUpdated={teamData.governance.lastUpdated}
+                    />
+                </div>
             </div>
         </div>
     );

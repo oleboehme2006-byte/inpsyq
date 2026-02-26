@@ -91,13 +91,13 @@ export const content: Record<Lang, LandingContent> = {
         },
         hero: {
             headline: 'Your organisation speaks in signals.\nNo one\'s listening.',
-            sub: 'inPsyq is the first causal-inference platform that quantifies psychological strain, trust erosion, and systemic withdrawal — weekly, at enterprise scale — and tells leadership exactly why the numbers are moving.',
+            sub: 'Ten validated psychometric items. Weekly. Bayesian latent-state inference resolves strain, trust erosion, and withdrawal risk per team — with confidence bands. Causal attribution separates structure from noise. Monday morning, every stakeholder has a role-calibrated briefing.',
             scroll: 'Scroll',
         },
         problem: {
             badge: 'SYSTEMIC BLIND SPOT',
             headline: 'You\'re treating symptoms.\nThe cause was invisible.',
-            body: 'Attrition, burnout, and delivery failures are lag metrics. By the time they surface, the psychological conditions that caused them were set weeks ago. No existing instrument was designed to detect the signal before the damage.',
+            body: 'Attrition, burnout, and delivery failures are lag metrics. By the time they register, the psychological preconditions were set weeks ago. Annual surveys capture snapshots. Sentiment tools report correlation without causal structure. No existing instrument detects the signal before the damage.',
             items: [
                 {
                     title: 'Annual surveys capture snapshots',
@@ -219,13 +219,13 @@ export const content: Record<Lang, LandingContent> = {
         },
         hero: {
             headline: 'Ihre Organisation sendet Signale.\nNiemand hört zu.',
-            sub: 'inPsyq ist die erste Kausalinferenz-Plattform, die psychologische Belastung, Vertrauenserosion und systemischen Rückzug quantifiziert — wöchentlich, auf Unternehmensebene — und der Führung erklärt, warum sich die Werte bewegen.',
+            sub: 'Zehn validierte psychometrische Items. Wöchentlich. Bayesianische Latent-State-Inferenz löst Belastung, Vertrauenserosion und Rückzugsrisiko pro Team auf — mit Konfidenzintervallen. Kausale Attribution trennt Struktur von Rauschen. Montag früh hat jede Stakeholderin ein rollenspezifisches Briefing.',
             scroll: 'Scrollen',
         },
         problem: {
             badge: 'DER SYSTEMISCHE BLINDE FLECK',
             headline: 'Sie behandeln Symptome.\nDie Ursache war unsichtbar.',
-            body: 'Fluktuation, Burnout und gescheiterte Lieferungen sind Nachlaufindikatoren. Wenn sie sichtbar werden, standen die psychologischen Bedingungen, die sie verursacht haben, schon Wochen fest. Kein bestehendes Instrument erkennt das Signal vor dem Schaden.',
+            body: 'Fluktuation, Burnout und gescheiterte Lieferungen sind Nachlaufindikatoren. Wenn sie sichtbar werden, standen die psychologischen Vorbedingungen schon Wochen fest. Jahresumfragen erfassen Momentaufnahmen. Stimmungstools berichten Korrelation ohne kausale Struktur. Kein bestehendes Instrument erkennt das Signal vor dem Schaden.',
             items: [
                 {
                     title: 'Jahresumfragen messen Momentaufnahmen',
