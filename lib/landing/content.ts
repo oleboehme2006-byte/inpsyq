@@ -1,7 +1,7 @@
 /**
- * LANDING PAGE CONTENT — DE / EN
+ * LANDING PAGE CONTENT MAPS — DE / EN
  *
- * Fresh bilingual copy for the 6-section landing page (Phase 4 v3 — Antigravity redesign).
+ * Complete bilingual content for the 6-section landing page.
  * Consumed by useLanguage() hook via LanguageProvider.
  */
 
@@ -10,7 +10,6 @@ export type Lang = 'EN' | 'DE';
 export interface SciencePillar {
     title: string;
     desc: string;
-    color: string;
 }
 
 export interface TutorialCtaTrack {
@@ -19,7 +18,6 @@ export interface TutorialCtaTrack {
     desc: string;
     href: string;
     color: string;
-    cta: string;
 }
 
 export interface ProblemItem {
@@ -42,8 +40,8 @@ export interface LandingContent {
         headline: string;
         sub: string;
         scroll: string;
-        ctaPrimary: string;
-        ctaSecondary: string;
+        ctaDemo: string;
+        ctaTour: string;
     };
     problem: {
         badge: string;
@@ -67,9 +65,9 @@ export interface LandingContent {
         badge: string;
         headline: string;
         sub: string;
-        demoHeadline: string;
-        demoSub: string;
         demoCta: string;
+        demoSub: string;
+        tourCta: string;
         tracks: TutorialCtaTrack[];
     };
     pricing: {
@@ -94,11 +92,11 @@ export const content: Record<Lang, LandingContent> = {
             langToggle: 'DE',
         },
         hero: {
-            headline: 'Your organisation speaks\nin signals.\nNo one\'s listening.',
+            headline: 'Your organisation speaks in signals.\nNo one\'s listening.',
             sub: 'inPsyq is the first causal-inference platform that quantifies psychological strain, trust erosion, and systemic withdrawal — weekly, at enterprise scale — and tells leadership exactly why the numbers are moving.',
             scroll: 'Scroll',
-            ctaPrimary: 'Live Demo',
-            ctaSecondary: 'Guided Tours',
+            ctaDemo: 'Live Demo',
+            ctaTour: 'Guided Tours',
         },
         problem: {
             badge: 'SYSTEMIC BLIND SPOT',
@@ -154,27 +152,24 @@ export const content: Record<Lang, LandingContent> = {
                 {
                     title: 'Psychometric Precision',
                     desc: 'Ten validated dimensions engineered to hold construct ambiguity below 5% standard error. Items drawn from peer-reviewed OHP instruments. Construct validity tracked per deployment cohort.',
-                    color: '#8B5CF6',
                 },
                 {
                     title: 'Bayesian Latent-State Model',
                     desc: 'A Kalman-variant engine tracking each psychological dimension as a time-evolving latent state. Uncertainty quantified per parameter per week. k-anonymity enforced at every aggregation step.',
-                    color: '#0EA5E9',
                 },
                 {
                     title: 'LLM Narrative Synthesis',
-                    desc: 'A fine-tuned model converting 48-dimensional signal vectors into role-appropriate natural language. Executive briefings, teamlead talking points, employee summaries — generated from the same causal substrate. Updated every Monday.',
-                    color: '#10B981',
+                    desc: 'A fine-tuned model converting 48-dimensional signal vectors into role-appropriate natural language. Executive briefings, teamlead talking points, employee summaries — from the same causal substrate. Every Monday.',
                 },
             ],
         },
         roleDemos: {
             badge: 'SEE IT IN ACTION',
             headline: 'Four roles. Four lenses.\nOne platform.',
-            sub: 'Every stakeholder — from the board room to the individual contributor — sees exactly what they need. Explore a live demo or walk through a guided tour of any role.',
-            demoHeadline: 'Executive Dashboard — Live Demo',
-            demoSub: 'Experience the full Executive Dashboard with synthetic data. KPIs, trends, causal drivers, team portfolio, and LLM-generated briefings.',
-            demoCta: 'Open Demo',
+            sub: 'Every stakeholder — from the board room to the individual contributor — sees exactly what they need. Explore a live demo or walk through a guided tour.',
+            demoCta: 'Experience the full Executive Dashboard — live, with synthetic data.',
+            demoSub: 'Open Live Demo',
+            tourCta: 'Start Tour',
             tracks: [
                 {
                     role: 'EXECUTIVE',
@@ -182,15 +177,13 @@ export const content: Record<Lang, LandingContent> = {
                     desc: 'Macro-level systemic risk, leading indicators, causal driver attribution, and board-ready narrative briefings.',
                     href: '/tutorial/executive',
                     color: '#0EA5E9',
-                    cta: 'Start Tour →',
                 },
                 {
                     role: 'TEAMLEAD',
                     title: 'Team Operations',
-                    desc: 'Team-scoped psychological indices, internal driver analysis, targeted interventions, and weekly 1:1 talking points.',
+                    desc: 'Team-scoped indices, internal driver analysis, targeted interventions, and weekly 1:1 talking points.',
                     href: '/tutorial/teamlead',
                     color: '#E11D48',
-                    cta: 'Start Tour →',
                 },
                 {
                     role: 'EMPLOYEE',
@@ -198,15 +191,13 @@ export const content: Record<Lang, LandingContent> = {
                     desc: 'The 10-question psychometric instrument — what each dimension measures, how anonymity is enforced, and what happens to your response.',
                     href: '/tutorial/employee',
                     color: '#10B981',
-                    cta: 'Start Tour →',
                 },
                 {
                     role: 'ADMIN',
                     title: 'Platform Administration',
-                    desc: 'Org onboarding, roster management, pipeline orchestration, system health monitoring, and data governance.',
+                    desc: 'Org onboarding, roster management, pipeline orchestration, system health, and RBAC configuration.',
                     href: '/tutorial/admin',
                     color: '#F59E0B',
-                    cta: 'Start Tour →',
                 },
             ],
         },
@@ -231,11 +222,11 @@ export const content: Record<Lang, LandingContent> = {
             langToggle: 'EN',
         },
         hero: {
-            headline: 'Ihre Organisation sendet\nSignale.\nNiemand hört zu.',
+            headline: 'Ihre Organisation sendet Signale.\nNiemand hört zu.',
             sub: 'inPsyq ist die erste Kausalinferenz-Plattform, die psychologische Belastung, Vertrauenserosion und systemischen Rückzug quantifiziert — wöchentlich, auf Unternehmensebene — und der Führung erklärt, warum sich die Werte bewegen.',
             scroll: 'Scrollen',
-            ctaPrimary: 'Live Demo',
-            ctaSecondary: 'Geführte Touren',
+            ctaDemo: 'Live-Demo',
+            ctaTour: 'Geführte Touren',
         },
         problem: {
             badge: 'DER SYSTEMISCHE BLINDE FLECK',
@@ -291,17 +282,14 @@ export const content: Record<Lang, LandingContent> = {
                 {
                     title: 'Psychometrische Präzision',
                     desc: 'Zehn validierte Dimensionen, konstruiert, um Konstruktambiguität unter 5 % Standardfehler zu halten. Items aus peer-reviewten AHP-Instrumenten. Konstruktvalidität wird pro Deployment-Kohorte verfolgt.',
-                    color: '#8B5CF6',
                 },
                 {
                     title: 'Bayesianisches Latent-State-Modell',
                     desc: 'Eine Kalman-Varianten-Engine verfolgt jede psychologische Dimension als zeitlich evolvierenden Latent-State. Unsicherheit wird pro Parameter pro Woche quantifiziert. k-Anonymität wird bei jedem Aggregationsschritt erzwungen.',
-                    color: '#0EA5E9',
                 },
                 {
                     title: 'LLM-Narrativ-Synthese',
-                    desc: 'Ein feinabgestimmtes Modell konvertiert 48-dimensionale Signalvektoren in rollenangemessene natürliche Sprache. Executive-Briefings, Teamlead-Talking-Points, Mitarbeiter:innen-Zusammenfassungen — generiert aus demselben kausalen Substrat. Jeden Montag aktualisiert.',
-                    color: '#10B981',
+                    desc: 'Ein feinabgestimmtes Modell konvertiert 48-dimensionale Signalvektoren in rollenangemessene natürliche Sprache. Executive-Briefings, Teamlead-Talking-Points, Mitarbeiter:innen-Zusammenfassungen — aus demselben kausalen Substrat. Jeden Montag.',
                 },
             ],
         },
@@ -309,48 +297,44 @@ export const content: Record<Lang, LandingContent> = {
             badge: 'ERLEBEN SIE ES LIVE',
             headline: 'Vier Rollen. Vier Perspektiven.\nEine Plattform.',
             sub: 'Jede Stakeholder:in — vom Vorstand bis zur Einzelkontributor:in — sieht genau das, was sie braucht. Erkunden Sie eine Live-Demo oder nehmen Sie an einer geführten Tour teil.',
-            demoHeadline: 'Executive Dashboard — Live Demo',
-            demoSub: 'Erleben Sie das vollständige Executive Dashboard mit synthetischen Daten. KPIs, Trends, kausale Treiber, Team-Portfolio und LLM-generierte Briefings.',
-            demoCta: 'Demo öffnen',
+            demoCta: 'Erleben Sie das komplette Executive Dashboard — live, mit synthetischen Daten.',
+            demoSub: 'Live-Demo öffnen',
+            tourCta: 'Tour starten',
             tracks: [
                 {
                     role: 'EXECUTIVE',
                     title: 'Executive Board',
-                    desc: 'Systemische Makro-Risiken, Frühwarnindikatoren, Kausalattribution und vorstandsreife Narrative Briefings.',
+                    desc: 'Systemische Makro-Risiken, Frühwarnindikatoren, kausale Treiberattribution und vorstandsreife Narrative Briefings.',
                     href: '/tutorial/executive',
                     color: '#0EA5E9',
-                    cta: 'Tour starten →',
                 },
                 {
                     role: 'TEAMLEAD',
                     title: 'Team-Operations',
-                    desc: 'Teamspezifische psychologische Indizes, interne Treiberanalyse, zielgerichtete Interventionen und wöchentliche 1:1-Gesprächspunkte.',
+                    desc: 'Teamspezifische Indizes, interne Treiberanalyse, zielgerichtete Interventionen und wöchentliche 1:1-Gesprächspunkte.',
                     href: '/tutorial/teamlead',
                     color: '#E11D48',
-                    cta: 'Tour starten →',
                 },
                 {
                     role: 'EMPLOYEE',
                     title: 'Mitarbeiter-Puls',
-                    desc: 'Das psychometrische 10-Fragen-Instrument — was jede Dimension misst, wie Anonymität gewährleistet wird und was mit Ihrer Antwort geschieht.',
+                    desc: 'Das psychometrische 10-Fragen-Instrument — was jede Dimension misst, wie Anonymität durchgesetzt wird und was mit Ihrer Antwort passiert.',
                     href: '/tutorial/employee',
                     color: '#10B981',
-                    cta: 'Tour starten →',
                 },
                 {
                     role: 'ADMIN',
                     title: 'Plattform-Administration',
-                    desc: 'Org-Onboarding, Roster-Management, Pipeline-Orchestrierung, System-Health-Monitoring und Data Governance.',
+                    desc: 'Org-Onboarding, Roster-Management, Pipeline-Orchestrierung, System-Health-Monitoring und RBAC-Konfiguration.',
                     href: '/tutorial/admin',
                     color: '#F59E0B',
-                    cta: 'Tour starten →',
                 },
             ],
         },
         pricing: {
             badge: 'ENTERPRISE-DEPLOYMENT',
             headline: 'Für Organisationen,\ndie Kultur ernst nehmen.',
-            sub: 'inPsyq wird als White-Glove-Deployment bereitgestellt. Wir konfigurieren Indizes, kalibrieren Schwellenwerte, integrieren Ihre Dateninfrastruktur und schulen Ihre Stakeholder — in Tagen, nicht Monaten.',
+            sub: 'inPsyq wird White-Glove deployed. Wir konfigurieren Indizes, kalibrieren Schwellenwerte, integrieren Ihre Dateninfrastruktur und schulen Ihre Stakeholder — in Tagen, nicht Monaten.',
             cta: 'Demo anfragen',
             note: 'Nur auf Einladung.',
         },
