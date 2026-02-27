@@ -170,12 +170,12 @@ function LandingContent() {
     // Global scroll progress
     const { scrollYProgress } = useScroll();
 
-    // Background orb opacities — sequential, no two bright at once
-    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.08, 0.15, 0.15, 0]);
+    // Background orb opacities — sequential, bright but not outshining
+    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.15, 0.25, 0.25, 0]);
     const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
-    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.12, 0.12, 0]);
+    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.20, 0.20, 0]);
     const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
-    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.15, 0.15, 0]);
+    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.25, 0.25, 0]);
     const greenY = useTransform(scrollYProgress, [0, 1], ['0%', '-8%']);
 
     // Hero exit
@@ -241,7 +241,9 @@ function LandingContent() {
     const dds = c.deepDive.sections;
 
     return (
-        <div className="relative bg-black text-white min-h-screen">
+        <div className="relative text-white min-h-screen">
+            {/* Black base — sits behind the orbs */}
+            <div className="fixed inset-0 bg-black" style={{ zIndex: -1 }} />
             {/* === SCROLLBAR === */}
             <style jsx global>{`
                 ::-webkit-scrollbar { width: 6px; background: transparent; }
@@ -251,23 +253,23 @@ function LandingContent() {
             `}</style>
 
             {/* === BACKGROUND ORBS === */}
-            <div className="fixed inset-0 pointer-events-none z-0">
+            <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 1 }}>
                 <motion.div
-                    className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#E11D48]"
-                    style={{ opacity: redOpacity, top: '10%', left: '10%', y: redY }}
+                    className="absolute rounded-full bg-[#E11D48]"
+                    style={{ opacity: redOpacity, top: '5%', left: '5%', width: '80vw', height: '80vh', filter: 'blur(120px)', y: redY }}
                 />
                 <motion.div
-                    className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#F59E0B]"
-                    style={{ opacity: amberOpacity, top: '10%', left: '10%', y: amberY }}
+                    className="absolute rounded-full bg-[#F59E0B]"
+                    style={{ opacity: amberOpacity, top: '10%', right: '5%', width: '80vw', height: '80vh', filter: 'blur(120px)', y: amberY }}
                 />
                 <motion.div
-                    className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#10B981]"
-                    style={{ opacity: greenOpacity, top: '10%', left: '10%', y: greenY }}
+                    className="absolute rounded-full bg-[#10B981]"
+                    style={{ opacity: greenOpacity, top: '5%', left: '15%', width: '80vw', height: '80vh', filter: 'blur(120px)', y: greenY }}
                 />
             </div>
 
             {/* === FIXED NAV === */}
-            <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
+            <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md">
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="relative">
                         <span className="text-2xl font-display font-semibold text-white tracking-tight">inPsyq</span>
@@ -287,15 +289,15 @@ function LandingContent() {
 
             {/* === SECTION 1: HERO === */}
             <motion.section
-                className="relative min-h-screen grid place-items-center px-4 pb-[5vh] z-10 overflow-visible"
-                style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
+                className="relative min-h-screen grid place-items-center px-6 pb-[5vh] overflow-visible"
+                style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter, zIndex: 2 }}
             >
-                <div className="w-full text-center overflow-visible">
+                <div className="w-full max-w-5xl mx-auto text-center overflow-visible">
                     {c.hero.headline.split('\n').map((line, li) => (
                         <motion.div
                             key={li}
-                            className="font-display font-semibold text-white tracking-tighter overflow-visible"
-                            style={{ fontSize: 'clamp(3rem, 11vw, 13rem)', lineHeight: 1.05 }}
+                            className="font-display font-semibold text-white tracking-tight overflow-visible"
+                            style={{ fontSize: 'clamp(2rem, 5.5vw, 6rem)', lineHeight: 1.1 }}
                             initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 + li * 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -311,7 +313,7 @@ function LandingContent() {
             </motion.section>
 
             {/* === SECTION 2: GUT FEELING === */}
-            <section id="gut-feeling" className="relative z-10 py-32 md:py-48 border-t border-white/5">
+            <section id="gut-feeling" className="relative z-[2] py-32 md:py-48">
                 <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-12 md:gap-16">
                     <div className="md:col-span-2 md:sticky md:top-[30vh] md:self-start">
                         <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1]">
@@ -373,7 +375,7 @@ function LandingContent() {
                 </motion.div>
 
                 {/* === SECTION 3: THE DEPTH === */}
-                <section className="relative z-10 py-32 md:py-48">
+                <section className="relative z-[2] py-32 md:py-48">
                     <div className="max-w-3xl mx-auto px-6 text-center mb-20">
                         <motion.h2
                             className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1] mb-8"
@@ -430,7 +432,7 @@ function LandingContent() {
                 </section>
 
                 {/* === SECTION 4: WHAT CHANGES === */}
-                <section className="relative z-10 py-32 md:py-48">
+                <section className="relative z-[2] py-32 md:py-48">
                     <div className="max-w-3xl mx-auto px-6">
                         <motion.h2
                             className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1] mb-20 text-center"
@@ -465,7 +467,7 @@ function LandingContent() {
             </div>
 
             {/* === SECTION 5: DEEP DIVE === */}
-            <section className="relative z-10 py-32 md:py-48 border-t border-white/5">
+            <section className="relative z-[2] py-32 md:py-48">
                 <div className="max-w-6xl mx-auto px-6">
                     <div className="text-center mb-24">
                         <motion.h2
@@ -623,7 +625,7 @@ function LandingContent() {
             </section>
 
             {/* === SECTION 6: EXPERIENCE IT === */}
-            <section className="relative z-10 py-32 md:py-48">
+            <section className="relative z-[2] py-32 md:py-48">
                 <div className="max-w-5xl mx-auto px-6 space-y-20">
 
                     {/* Demo CTA */}
@@ -690,7 +692,7 @@ function LandingContent() {
             </section>
 
             {/* === SECTION 7: CONTACT === */}
-            <section className="relative z-10 py-32 md:py-48">
+            <section className="relative z-[2] py-32 md:py-48">
                 <motion.div
                     className="max-w-2xl mx-auto px-6 text-center"
                     initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }}
@@ -711,7 +713,7 @@ function LandingContent() {
             </section>
 
             {/* === FOOTER === */}
-            <footer className="relative z-10 py-8">
+            <footer className="relative z-[2] py-8">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono text-text-tertiary">
                     <span>{c.footer.rights}</span>
                     <div className="flex gap-6">

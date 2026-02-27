@@ -84,7 +84,7 @@ export const content: Record<Lang, LandingContent> = {
     EN: {
         nav: { login: 'Log in', langToggle: 'DE' },
         hero: {
-            headline: "A psychologist can't decode\nevery team at once.\nSo we engineered one that can.",
+            headline: "A psychologist can't\ndecode every team at once.\nSo we engineered\none that can.",
             cta: 'See how',
             scroll: 'Scroll',
         },
@@ -189,7 +189,7 @@ export const content: Record<Lang, LandingContent> = {
     DE: {
         nav: { login: 'Anmelden', langToggle: 'EN' },
         hero: {
-            headline: "Ein Psychologe kann nicht jedes Team\ngleichzeitig entschlüsseln.\nAlso haben wir einen entwickelt, der das kann.",
+            headline: "Ein Psychologe kann nicht\njedes Team gleichzeitig entschlüsseln.\nAlso haben wir einen entwickelt,\nder das kann.",
             cta: 'So funktioniert es',
             scroll: 'Scrollen',
         },
