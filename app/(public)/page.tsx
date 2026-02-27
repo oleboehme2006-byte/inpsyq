@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { motion, useScroll, useTransform, useSpring, useInView, MotionValue } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView, MotionValue } from 'framer-motion';
 import { Activity, LayoutDashboard, UserCheck, Settings2, ArrowRight, ChevronDown } from 'lucide-react';
 import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import { LanguageProvider, useLanguage } from '@/components/landing/LanguageProvider';
@@ -13,10 +13,6 @@ import { content as contentMap, Lang } from '@/lib/landing/content';
 const DIMENSIONS = [
     'STRAIN', 'WITHDRAWAL', 'TRUST', 'ENGAGEMENT', 'AUTONOMY',
     'ROLE CLARITY', 'SAFETY', 'WORKLOAD', 'DEPENDENCY', 'BELONGING',
-];
-const DIM_COLORS = [
-    '#E11D48', '#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6',
-    '#E11D48', '#F59E0B', '#0EA5E9', '#10B981', '#8B5CF6',
 ];
 
 // ─── TILTCARD ─────────────────────────────────────────────────────────────────
@@ -81,8 +77,8 @@ function DimItem({ prog, dim, i }: { prog: MotionValue<number>; dim: string; i: 
             className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3"
             style={{ top: `${8 + i * 8.5}%`, opacity, scale }}
         >
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: DIM_COLORS[i] }} />
-            <span className="text-[10px] font-mono tracking-wider" style={{ color: DIM_COLORS[i] }}>{dim}</span>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B5CF6' }} />
+            <span className="text-[10px] font-mono tracking-wider" style={{ color: '#8B5CF6' }}>{dim}</span>
         </motion.div>
     );
 }
@@ -111,7 +107,7 @@ function BayesianDot({ prog, dot }: { prog: MotionValue<number>; dot: DotData })
 }
 
 function DriverNode({ prog, d, i }: { prog: MotionValue<number>; d: string; i: number }) {
-    const opacity = useTransform(prog, [0.1 + i * 0.02, 0.15 + i * 0.02], [0, 1]);
+    const opacity = useTransform(prog, [0.05 + i * 0.02, 0.10 + i * 0.02], [0, 1]);
     const y = 30 + i * 50;
     return (
         <motion.g style={{ opacity }}>
@@ -122,7 +118,7 @@ function DriverNode({ prog, d, i }: { prog: MotionValue<number>; d: string; i: n
 }
 
 function DimNode({ prog, i }: { prog: MotionValue<number>; i: number }) {
-    const opacity = useTransform(prog, [0.35 + i * 0.02, 0.40 + i * 0.02], [0, 1]);
+    const opacity = useTransform(prog, [0.30 + i * 0.02, 0.40 + i * 0.02], [0, 1]);
     const y = 50 + i * 60;
     return (
         <motion.g style={{ opacity }}>
@@ -132,7 +128,7 @@ function DimNode({ prog, i }: { prog: MotionValue<number>; i: number }) {
 }
 
 function IndexNode({ prog, node, i }: { prog: MotionValue<number>; node: { label: string; color: string }; i: number }) {
-    const opacity = useTransform(prog, [0.65 + i * 0.03, 0.72 + i * 0.03], [0, 1]);
+    const opacity = useTransform(prog, [0.50 + i * 0.03, 0.58 + i * 0.03], [0, 1]);
     const y = 60 + i * 70;
     return (
         <motion.g style={{ opacity }}>
@@ -168,14 +164,13 @@ function LandingContent() {
 
     // Global scroll progress
     const { scrollYProgress } = useScroll();
-    const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
 
-    // Background orb opacities
-    const redOpacity = useTransform(scrollYProgress, [0.05, 0.15, 0.35, 0.45], [0, 0.12, 0.12, 0]);
+    // Background orb opacities — sequential, no two bright at once
+    const redOpacity = useTransform(scrollYProgress, [0.05, 0.12, 0.25, 0.35], [0, 0.10, 0.10, 0]);
     const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
-    const amberOpacity = useTransform(scrollYProgress, [0.25, 0.35, 0.55, 0.65], [0, 0.10, 0.10, 0]);
+    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.08, 0.08, 0]);
     const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
-    const greenOpacity = useTransform(scrollYProgress, [0.50, 0.60, 0.82, 0.92], [0, 0.12, 0.12, 0]);
+    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.10, 0.10, 0]);
     const greenY = useTransform(scrollYProgress, [0, 1], ['0%', '-8%']);
 
     // Hero exit
@@ -188,15 +183,13 @@ function LandingContent() {
     const methodologyRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress: methProg } = useScroll({ target: methodologyRef, offset: ['start end', 'end start'] });
     const lineHeight = useTransform(methProg, [0.55, 0.80], ['0%', '100%']);
-    const convDotOpacity = useTransform(methProg, [0.80, 0.90], [0, 1]);
-    const convDotScale = useTransform(methProg, [0.80, 0.95], [0.5, 1.2]);
 
     const algoRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress: algoProg } = useScroll({ target: algoRef, offset: ['start end', 'end start'] });
 
     const synthRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress: synthProg } = useScroll({ target: synthRef, offset: ['start end', 'end start'] });
-    const briefingOpacity = useTransform(synthProg, [0.80, 0.95], [0, 1]);
+    const briefingOpacity = useTransform(synthProg, [0.60, 0.70], [0, 1]);
 
     // 5B: 40 Bayesian dots
     const [dots] = useState<DotData[]>(() =>
@@ -220,50 +213,51 @@ function LandingContent() {
         { label: 'ENG', color: '#10B981' },
     ];
     const d2dEdges: Array<[number, number, number, number]> = [
-        [30, 50, 0.25, 0.50],
-        [30, 170, 0.27, 0.52],
-        [80, 110, 0.29, 0.54],
-        [80, 230, 0.31, 0.56],
-        [130, 170, 0.33, 0.58],
-        [130, 290, 0.35, 0.60],
-        [180, 50, 0.30, 0.55],
-        [230, 110, 0.32, 0.57],
-        [280, 50, 0.34, 0.59],
+        [30, 50, 0.15, 0.35],
+        [30, 170, 0.16, 0.36],
+        [80, 110, 0.17, 0.37],
+        [80, 230, 0.18, 0.38],
+        [130, 170, 0.19, 0.39],
+        [130, 290, 0.20, 0.40],
+        [180, 50, 0.17, 0.37],
+        [230, 110, 0.18, 0.38],
+        [280, 50, 0.19, 0.39],
     ];
     const d2iEdges: Array<[number, number, number, number]> = [
-        [50, 60, 0.50, 0.75],
-        [110, 130, 0.52, 0.77],
-        [170, 60, 0.54, 0.79],
-        [230, 200, 0.56, 0.81],
-        [290, 270, 0.58, 0.83],
-        [110, 270, 0.60, 0.85],
-        [170, 200, 0.62, 0.87],
+        [50, 60, 0.35, 0.55],
+        [110, 130, 0.36, 0.56],
+        [170, 60, 0.37, 0.57],
+        [230, 200, 0.38, 0.58],
+        [290, 270, 0.39, 0.59],
+        [110, 270, 0.40, 0.60],
+        [170, 200, 0.41, 0.61],
     ];
 
     const dds = c.deepDive.sections;
 
     return (
         <div className="relative bg-black text-white min-h-screen">
-
-            {/* === SCROLL PROGRESS BAR === */}
-            <motion.div
-                className="fixed top-0 left-0 right-0 h-[2px] bg-[#8B5CF6] origin-left z-[100]"
-                style={{ scaleX }}
-            />
+            {/* === SCROLLBAR === */}
+            <style jsx global>{`
+                ::-webkit-scrollbar { width: 6px; background: transparent; }
+                ::-webkit-scrollbar-track { background: transparent; }
+                ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+                ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+            `}</style>
 
             {/* === BACKGROUND ORBS === */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
                 <motion.div
-                    className="absolute w-[600px] h-[600px] rounded-full blur-[200px] bg-[#E11D48]"
-                    style={{ opacity: redOpacity, top: '15%', left: '10%', y: redY }}
+                    className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#E11D48]"
+                    style={{ opacity: redOpacity, top: '10%', left: '10%', y: redY }}
                 />
                 <motion.div
-                    className="absolute w-[600px] h-[600px] rounded-full blur-[200px] bg-[#F59E0B]"
-                    style={{ opacity: amberOpacity, top: '40%', right: '5%', y: amberY }}
+                    className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#F59E0B]"
+                    style={{ opacity: amberOpacity, top: '10%', left: '10%', y: amberY }}
                 />
                 <motion.div
-                    className="absolute w-[600px] h-[600px] rounded-full blur-[200px] bg-[#10B981]"
-                    style={{ opacity: greenOpacity, top: '65%', left: '30%', y: greenY }}
+                    className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#10B981]"
+                    style={{ opacity: greenOpacity, top: '10%', left: '10%', y: greenY }}
                 />
             </div>
 
@@ -291,16 +285,7 @@ function LandingContent() {
                 className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10"
                 style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
             >
-                <motion.div
-                    className="mb-12"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.1, duration: 0.6 }}
-                >
-                    <span className="text-sm font-mono tracking-[0.2em] text-text-tertiary uppercase">inPsyq</span>
-                </motion.div>
-
-                <h1 className="text-[4.5rem] leading-[1.05] md:text-[7rem] font-display font-semibold text-white tracking-tight max-w-5xl">
+                <h1 className="text-[6rem] leading-[0.95] md:text-[9rem] lg:text-[11rem] font-display font-semibold text-white tracking-tight max-w-6xl">
                     {c.hero.headline.split('\n').map((line, li) => (
                         <React.Fragment key={li}>
                             {line.split(' ').map((word, wi) => (
@@ -318,16 +303,6 @@ function LandingContent() {
                         </React.Fragment>
                     ))}
                 </h1>
-
-                <motion.div className="mt-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}>
-                    <a
-                        href="#gut-feeling"
-                        className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#8B5CF6]/40 text-[#8B5CF6] font-body text-base hover:bg-[#8B5CF6]/10 transition-colors"
-                    >
-                        {c.hero.cta}
-                        <ArrowRight className="w-4 h-4" />
-                    </a>
-                </motion.div>
 
                 <motion.div className="absolute bottom-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>
                     <ChevronDown className="w-5 h-5 text-text-tertiary animate-bounce" />
@@ -376,29 +351,24 @@ function LandingContent() {
             {/* === DIMENSION ORBIT WRAPPER (spans S3 + S4) === */}
             <div className="relative">
                 <motion.div
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] pointer-events-none z-0"
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] pointer-events-none z-0"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 90, repeat: Infinity, ease: 'linear' }}
                 >
-                    {DIMENSIONS.map((dim, i) => {
-                        const angle = (i / DIMENSIONS.length) * 360;
-                        const rad = (angle * Math.PI) / 180;
-                        const x = 50 + 45 * Math.cos(rad);
-                        const y = 50 + 45 * Math.sin(rad);
-                        return (
-                            <div
-                                key={dim}
-                                className="absolute text-[10px] font-mono tracking-widest whitespace-nowrap"
-                                style={{
-                                    left: `${x}%`, top: `${y}%`,
-                                    transform: 'translate(-50%, -50%)',
-                                    color: DIM_COLORS[i], opacity: 0.08,
-                                }}
-                            >
-                                {dim}
-                            </div>
-                        );
-                    })}
+                    <svg viewBox="0 0 900 900" className="w-full h-full">
+                        <defs>
+                            <path
+                                id="dimension-circle"
+                                d="M 450,450 m -380,0 a 380,380 0 1,1 760,0 a 380,380 0 1,1 -760,0"
+                                fill="none"
+                            />
+                        </defs>
+                        <text style={{ fontSize: '11px', letterSpacing: '0.25em', fontFamily: 'monospace' }}>
+                            <textPath href="#dimension-circle" fill="rgba(139, 92, 246, 0.15)" startOffset="0%">
+                                {'STRAIN · WITHDRAWAL · TRUST · ENGAGEMENT · AUTONOMY · ROLE CLARITY · SAFETY · WORKLOAD · DEPENDENCY · BELONGING · STRAIN · WITHDRAWAL · TRUST · ENGAGEMENT · AUTONOMY · ROLE CLARITY · SAFETY · WORKLOAD · DEPENDENCY · BELONGING · '}
+                            </textPath>
+                        </text>
+                    </svg>
                 </motion.div>
 
                 {/* === SECTION 3: THE DEPTH === */}
@@ -513,17 +483,13 @@ function LandingContent() {
 
                     {/* 5A: METHODOLOGY — Signal Pulse */}
                     <div ref={methodologyRef} className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 min-h-[80vh] items-center mb-32">
-                        <div className="md:sticky md:top-[25vh] md:self-start h-[400px] relative bg-[#050505] rounded-2xl overflow-hidden">
+                        <div className="md:sticky md:top-[25vh] md:self-start h-[500px] relative rounded-2xl overflow-hidden">
                             {DIMENSIONS.map((dim, i) => (
                                 <DimItem key={dim} prog={methProg} dim={dim} i={i} />
                             ))}
                             <motion.div
                                 className="absolute left-1/2 -translate-x-1/2 w-[1px] top-[8%]"
                                 style={{ height: lineHeight, background: 'linear-gradient(to bottom, #8B5CF600, #8B5CF6)' }}
-                            />
-                            <motion.div
-                                className="absolute left-1/2 -translate-x-1/2 bottom-[5%] w-4 h-4 rounded-full bg-[#8B5CF6]"
-                                style={{ opacity: convDotOpacity, scale: convDotScale, boxShadow: '0 0 20px rgba(139,92,246,0.6)' }}
                             />
                         </div>
                         <div>
@@ -556,7 +522,7 @@ function LandingContent() {
 
                     {/* 5B: ALGORITHMS — Bayesian Convergence */}
                     <div ref={algoRef} className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 min-h-[80vh] items-center mb-32">
-                        <div className="md:sticky md:top-[25vh] md:self-start h-[400px] relative bg-[#050505] rounded-2xl overflow-hidden">
+                        <div className="md:sticky md:top-[25vh] md:self-start h-[500px] relative rounded-2xl overflow-hidden">
                             {dots.map((dot) => (
                                 <BayesianDot key={dot.id} prog={algoProg} dot={dot} />
                             ))}
@@ -591,7 +557,7 @@ function LandingContent() {
 
                     {/* 5C: PSYCHOLOGY — Causal Network Graph */}
                     <div ref={synthRef} className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 min-h-[80vh] items-center">
-                        <div className="md:sticky md:top-[25vh] md:self-start h-[400px] relative bg-[#050505] rounded-2xl overflow-hidden">
+                        <div className="md:sticky md:top-[25vh] md:self-start h-[500px] relative rounded-2xl overflow-hidden">
                             <svg viewBox="0 0 400 350" className="w-full h-full">
                                 {d2dEdges.map(([y1, y2, aStart, aEnd], i) => (
                                     <AnimatedEdge
