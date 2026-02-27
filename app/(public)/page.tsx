@@ -112,7 +112,7 @@ function BayesianDot({ prog, dot }: { prog: MotionValue<number>; dot: DotData })
 }
 
 function DriverNode({ prog, d, i }: { prog: MotionValue<number>; d: string; i: number }) {
-    const opacity = useTransform(prog, [0.03 + i * 0.01, 0.07 + i * 0.01], [0, 1]);
+    const opacity = useTransform(prog, [0.04 + i * 0.015, 0.09 + i * 0.015], [0, 1]);
     const y = 30 + i * 50;
     return (
         <motion.g style={{ opacity }}>
@@ -123,7 +123,7 @@ function DriverNode({ prog, d, i }: { prog: MotionValue<number>; d: string; i: n
 }
 
 function DimNode({ prog, i }: { prog: MotionValue<number>; i: number }) {
-    const opacity = useTransform(prog, [0.15 + i * 0.01, 0.22 + i * 0.01], [0, 1]);
+    const opacity = useTransform(prog, [0.22 + i * 0.015, 0.30 + i * 0.015], [0, 1]);
     const y = 50 + i * 60;
     return (
         <motion.g style={{ opacity }}>
@@ -133,7 +133,7 @@ function DimNode({ prog, i }: { prog: MotionValue<number>; i: number }) {
 }
 
 function IndexNode({ prog, node, i }: { prog: MotionValue<number>; node: { label: string; color: string }; i: number }) {
-    const opacity = useTransform(prog, [0.28 + i * 0.02, 0.33 + i * 0.02], [0, 1]);
+    const opacity = useTransform(prog, [0.38 + i * 0.025, 0.45 + i * 0.025], [0, 1]);
     const y = 60 + i * 70;
     return (
         <motion.g style={{ opacity }}>
@@ -202,7 +202,7 @@ function LandingContent() {
 
     const synthRef = useRef<HTMLDivElement>(null);
     const { scrollYProgress: synthProg } = useScroll({ target: synthRef, offset: ['start end', 'end start'] });
-    const briefingOpacity = useTransform(synthProg, [0.33, 0.38], [0, 1]);
+    const briefingOpacity = useTransform(synthProg, [0.48, 0.55], [0, 1]);
 
     // 5B: 40 Bayesian dots
     const [dots] = useState<DotData[]>(() =>
@@ -226,24 +226,24 @@ function LandingContent() {
         { label: 'ENG', color: '#10B981' },
     ];
     const d2dEdges: Array<[number, number, number, number]> = [
-        [30, 50, 0.08, 0.20],
-        [30, 170, 0.09, 0.21],
-        [80, 110, 0.10, 0.22],
-        [80, 230, 0.10, 0.22],
-        [130, 170, 0.11, 0.23],
-        [130, 290, 0.11, 0.23],
-        [180, 50, 0.10, 0.22],
-        [230, 110, 0.10, 0.22],
-        [280, 50, 0.11, 0.23],
+        [30, 50, 0.10, 0.25],
+        [30, 170, 0.11, 0.26],
+        [80, 110, 0.12, 0.27],
+        [80, 230, 0.13, 0.28],
+        [130, 170, 0.14, 0.29],
+        [130, 290, 0.14, 0.29],
+        [180, 50, 0.12, 0.27],
+        [230, 110, 0.13, 0.28],
+        [280, 50, 0.14, 0.29],
     ];
     const d2iEdges: Array<[number, number, number, number]> = [
-        [50, 60, 0.20, 0.32],
-        [110, 130, 0.21, 0.33],
-        [170, 60, 0.22, 0.34],
-        [230, 200, 0.22, 0.34],
-        [290, 270, 0.23, 0.35],
-        [110, 270, 0.23, 0.35],
-        [170, 200, 0.24, 0.36],
+        [50, 60, 0.28, 0.42],
+        [110, 130, 0.29, 0.43],
+        [170, 60, 0.30, 0.44],
+        [230, 200, 0.31, 0.45],
+        [290, 270, 0.32, 0.46],
+        [110, 270, 0.32, 0.46],
+        [170, 200, 0.33, 0.47],
     ];
 
     const dds = c.deepDive.sections;
