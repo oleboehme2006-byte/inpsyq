@@ -72,13 +72,18 @@ function DimItem({ prog, dim, i }: { prog: MotionValue<number>; dim: string; i: 
     const activateAt = 0.15 + i * 0.04;
     const opacity = useTransform(prog, [activateAt, activateAt + 0.03], [0.15, 1]);
     const scale = useTransform(prog, [activateAt, activateAt + 0.03], [0.5, 1]);
+
+    // First 4 items use their index colours, remaining use purple
+    const INDEX_COLORS = ['#E11D48', '#F59E0B', '#0EA5E9', '#10B981'];
+    const color = i < 4 ? INDEX_COLORS[i] : '#8B5CF6';
+
     return (
         <motion.div
             className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3"
             style={{ top: `${8 + i * 8.5}%`, opacity, scale }}
         >
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B5CF6' }} />
-            <span className="text-[10px] font-mono tracking-wider" style={{ color: '#8B5CF6' }}>{dim}</span>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+            <span className="text-[10px] font-mono tracking-wider" style={{ color }}>{dim}</span>
         </motion.div>
     );
 }
@@ -166,11 +171,11 @@ function LandingContent() {
     const { scrollYProgress } = useScroll();
 
     // Background orb opacities — sequential, no two bright at once
-    const redOpacity = useTransform(scrollYProgress, [0.05, 0.12, 0.25, 0.35], [0, 0.10, 0.10, 0]);
+    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.08, 0.15, 0.15, 0]);
     const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
-    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.08, 0.08, 0]);
+    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.12, 0.12, 0]);
     const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
-    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.10, 0.10, 0]);
+    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.15, 0.15, 0]);
     const greenY = useTransform(scrollYProgress, [0, 1], ['0%', '-8%']);
 
     // Hero exit
@@ -246,7 +251,7 @@ function LandingContent() {
             `}</style>
 
             {/* === BACKGROUND ORBS === */}
-            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+            <div className="fixed inset-0 pointer-events-none z-0">
                 <motion.div
                     className="absolute w-[80vw] h-[80vh] rounded-full blur-[300px] bg-[#E11D48]"
                     style={{ opacity: redOpacity, top: '10%', left: '10%', y: redY }}
@@ -262,7 +267,7 @@ function LandingContent() {
             </div>
 
             {/* === FIXED NAV === */}
-            <nav className="fixed top-[2px] left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
+            <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="relative">
                         <span className="text-2xl font-display font-semibold text-white tracking-tight">inPsyq</span>
@@ -285,22 +290,16 @@ function LandingContent() {
                 className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10"
                 style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
             >
-                <h1 className="text-[6rem] leading-[0.95] md:text-[9rem] lg:text-[11rem] font-display font-semibold text-white tracking-tight max-w-6xl">
+                <h1 className="text-[clamp(3rem,8vw,11rem)] leading-[0.95] font-display font-semibold text-white tracking-tight max-w-[90vw]">
                     {c.hero.headline.split('\n').map((line, li) => (
-                        <React.Fragment key={li}>
-                            {line.split(' ').map((word, wi) => (
-                                <motion.span
-                                    key={`${li}-${wi}`}
-                                    className="inline-block mr-[0.3em]"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.3 + (li * 5 + wi) * 0.08, duration: 0.4 }}
-                                >
-                                    {word}
-                                </motion.span>
-                            ))}
-                            {li < c.hero.headline.split('\n').length - 1 && <br />}
-                        </React.Fragment>
+                        <motion.div
+                            key={li}
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 + li * 0.15, duration: 0.5 }}
+                        >
+                            {line}
+                        </motion.div>
                     ))}
                 </h1>
 
