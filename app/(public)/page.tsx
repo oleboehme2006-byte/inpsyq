@@ -170,13 +170,21 @@ function LandingContent() {
     // Global scroll progress
     const { scrollYProgress } = useScroll();
 
-    // Background orb opacities — sequential, bright but not outshining
-    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.20, 0.35, 0.35, 0]);
+    // Background orb opacities — sequential, clearly visible
+    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.25, 0.45, 0.45, 0]);
     const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
-    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.30, 0.30, 0]);
+    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.40, 0.40, 0]);
     const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
-    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.35, 0.35, 0]);
+    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.45, 0.45, 0]);
     const greenY = useTransform(scrollYProgress, [0, 1], ['0%', '-8%']);
+
+    // Scroll-linked blob drift positions
+    const blobX1 = useTransform(scrollYProgress, [0, 0.5, 1], ['0vw', '8vw', '-5vw']);
+    const blobY1 = useTransform(scrollYProgress, [0, 0.5, 1], ['0vh', '-12vh', '5vh']);
+    const blobX2 = useTransform(scrollYProgress, [0, 0.5, 1], ['0vw', '-10vw', '6vw']);
+    const blobY2 = useTransform(scrollYProgress, [0, 0.5, 1], ['0vh', '8vh', '-10vh']);
+    const blobX3 = useTransform(scrollYProgress, [0, 0.5, 1], ['0vw', '12vw', '-8vw']);
+    const blobY3 = useTransform(scrollYProgress, [0, 0.5, 1], ['0vh', '-6vh', '12vh']);
 
     // Hero exit
     const heroScale = useTransform(scrollYProgress, [0, 0.12], [1, 0.92]);
@@ -263,31 +271,31 @@ function LandingContent() {
 
             {/* === BACKGROUND COLOUR FADES === */}
             <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 1 }}>
-                {/* Main orbs — solid colours, opacity controlled by scroll */}
+                {/* Main orbs — circle gradients for seamless round fade */}
                 <motion.div
                     className="absolute inset-0"
-                    style={{ opacity: redOpacity, background: 'radial-gradient(ellipse 80% 70% at 40% 40%, #E11D48 0%, rgba(225,29,72,0.3) 40%, transparent 70%)' }}
+                    style={{ opacity: redOpacity, background: 'radial-gradient(circle 60vw at 40% 40%, #E11D48 0%, rgba(225,29,72,0.25) 40%, transparent 70%)' }}
                 />
                 <motion.div
                     className="absolute inset-0"
-                    style={{ opacity: amberOpacity, background: 'radial-gradient(ellipse 70% 80% at 60% 50%, #F59E0B 0%, rgba(245,158,11,0.3) 40%, transparent 70%)' }}
+                    style={{ opacity: amberOpacity, background: 'radial-gradient(circle 55vw at 55% 50%, #F59E0B 0%, rgba(245,158,11,0.25) 40%, transparent 70%)' }}
                 />
                 <motion.div
                     className="absolute inset-0"
-                    style={{ opacity: greenOpacity, background: 'radial-gradient(ellipse 80% 70% at 45% 55%, #10B981 0%, rgba(16,185,129,0.3) 40%, transparent 70%)' }}
+                    style={{ opacity: greenOpacity, background: 'radial-gradient(circle 60vw at 45% 55%, #10B981 0%, rgba(16,185,129,0.25) 40%, transparent 70%)' }}
                 />
-                {/* Satellite blobs — smaller, drifting, organic */}
+                {/* Satellite blobs — scroll-linked drift */}
                 <motion.div
                     className="absolute w-[40vw] h-[40vh] rounded-full"
-                    style={{ opacity: redOpacity, top: '15%', left: '55%', background: 'radial-gradient(circle, rgba(225,29,72,0.6) 0%, transparent 70%)', animation: 'drift1 12s ease-in-out infinite' }}
+                    style={{ opacity: redOpacity, top: '15%', left: '55%', x: blobX1, y: blobY1, background: 'radial-gradient(circle, rgba(225,29,72,0.6) 0%, transparent 70%)', animation: 'drift1 12s ease-in-out infinite' }}
                 />
                 <motion.div
                     className="absolute w-[35vw] h-[35vh] rounded-full"
-                    style={{ opacity: amberOpacity, top: '60%', left: '10%', background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)', animation: 'drift2 15s ease-in-out infinite' }}
+                    style={{ opacity: amberOpacity, top: '60%', left: '10%', x: blobX2, y: blobY2, background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)', animation: 'drift2 15s ease-in-out infinite' }}
                 />
                 <motion.div
                     className="absolute w-[45vw] h-[45vh] rounded-full"
-                    style={{ opacity: greenOpacity, top: '20%', right: '10%', background: 'radial-gradient(circle, rgba(16,185,129,0.6) 0%, transparent 70%)', animation: 'drift3 18s ease-in-out infinite' }}
+                    style={{ opacity: greenOpacity, top: '20%', right: '10%', x: blobX3, y: blobY3, background: 'radial-gradient(circle, rgba(16,185,129,0.6) 0%, transparent 70%)', animation: 'drift3 18s ease-in-out infinite' }}
                 />
             </div>
 
@@ -390,7 +398,7 @@ function LandingContent() {
                             />
                         </defs>
                         <text style={{ fontSize: '11px', letterSpacing: '0.25em', fontFamily: 'monospace' }}>
-                            <textPath href="#dimension-circle" fill="rgba(139, 92, 246, 0.15)" startOffset="0%">
+                            <textPath href="#dimension-circle" fill="rgba(139, 92, 246, 0.4)" startOffset="0%">
                                 {'STRAIN · WITHDRAWAL · TRUST · ENGAGEMENT · AUTONOMY · ROLE CLARITY · SAFETY · WORKLOAD · DEPENDENCY · BELONGING · STRAIN · WITHDRAWAL · TRUST · ENGAGEMENT · AUTONOMY · ROLE CLARITY · SAFETY · WORKLOAD · DEPENDENCY · BELONGING · '}
                             </textPath>
                         </text>
