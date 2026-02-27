@@ -290,13 +290,13 @@ function LandingContent() {
                 className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10"
                 style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
             >
-                <h1 className="text-[clamp(3rem,8vw,11rem)] leading-[0.95] font-display font-semibold text-white tracking-tight max-w-[90vw]">
+                <h1 className="text-[clamp(2.5rem,10vw,12rem)] leading-[0.9] font-display font-bold text-white tracking-tighter w-full">
                     {c.hero.headline.split('\n').map((line, li) => (
                         <motion.div
                             key={li}
-                            initial={{ opacity: 0, y: 30 }}
+                            initial={{ opacity: 0, y: 40 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 + li * 0.15, duration: 0.5 }}
+                            transition={{ delay: 0.2 + li * 0.2, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
                         >
                             {line}
                         </motion.div>
