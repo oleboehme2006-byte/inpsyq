@@ -284,18 +284,18 @@ function LandingContent() {
                     className="absolute inset-0"
                     style={{ opacity: greenOpacity, background: 'radial-gradient(circle 60vw at 45% 55%, #10B981 0%, rgba(16,185,129,0.25) 40%, transparent 70%)' }}
                 />
-                {/* Satellite blobs — scroll-linked drift */}
+                {/* Satellite blobs — scroll-linked drift, soft edges */}
                 <motion.div
-                    className="absolute w-[40vw] h-[40vh] rounded-full"
-                    style={{ opacity: redOpacity, top: '15%', left: '55%', x: blobX1, y: blobY1, background: 'radial-gradient(circle, rgba(225,29,72,0.6) 0%, transparent 70%)', animation: 'drift1 12s ease-in-out infinite' }}
-                />
-                <motion.div
-                    className="absolute w-[35vw] h-[35vh] rounded-full"
-                    style={{ opacity: amberOpacity, top: '60%', left: '10%', x: blobX2, y: blobY2, background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)', animation: 'drift2 15s ease-in-out infinite' }}
+                    className="absolute w-[50vw] h-[50vh] rounded-full"
+                    style={{ opacity: redOpacity, top: '10%', left: '50%', x: blobX1, y: blobY1, background: 'radial-gradient(circle, rgba(225,29,72,0.5) 0%, rgba(225,29,72,0.15) 40%, rgba(225,29,72,0.03) 70%, transparent 100%)', filter: 'blur(30px)', animation: 'drift1 12s ease-in-out infinite' }}
                 />
                 <motion.div
                     className="absolute w-[45vw] h-[45vh] rounded-full"
-                    style={{ opacity: greenOpacity, top: '20%', right: '10%', x: blobX3, y: blobY3, background: 'radial-gradient(circle, rgba(16,185,129,0.6) 0%, transparent 70%)', animation: 'drift3 18s ease-in-out infinite' }}
+                    style={{ opacity: amberOpacity, top: '55%', left: '5%', x: blobX2, y: blobY2, background: 'radial-gradient(circle, rgba(245,158,11,0.45) 0%, rgba(245,158,11,0.12) 40%, rgba(245,158,11,0.02) 70%, transparent 100%)', filter: 'blur(30px)', animation: 'drift2 15s ease-in-out infinite' }}
+                />
+                <motion.div
+                    className="absolute w-[55vw] h-[55vh] rounded-full"
+                    style={{ opacity: greenOpacity, top: '15%', right: '5%', x: blobX3, y: blobY3, background: 'radial-gradient(circle, rgba(16,185,129,0.5) 0%, rgba(16,185,129,0.15) 40%, rgba(16,185,129,0.03) 70%, transparent 100%)', filter: 'blur(30px)', animation: 'drift3 18s ease-in-out infinite' }}
                 />
             </div>
 
