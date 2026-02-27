@@ -171,11 +171,11 @@ function LandingContent() {
     const { scrollYProgress } = useScroll();
 
     // Background orb opacities — sequential, bright but not outshining
-    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.15, 0.25, 0.25, 0]);
+    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.20, 0.35, 0.35, 0]);
     const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
-    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.20, 0.20, 0]);
+    const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.30, 0.30, 0]);
     const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
-    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.25, 0.25, 0]);
+    const greenOpacity = useTransform(scrollYProgress, [0.55, 0.62, 0.75, 0.85], [0, 0.35, 0.35, 0]);
     const greenY = useTransform(scrollYProgress, [0, 1], ['0%', '-8%']);
 
     // Hero exit
@@ -263,31 +263,31 @@ function LandingContent() {
 
             {/* === BACKGROUND COLOUR FADES === */}
             <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 1 }}>
-                {/* Main orbs — radial gradient for seamless edge */}
+                {/* Main orbs — solid colours, opacity controlled by scroll */}
                 <motion.div
                     className="absolute inset-0"
-                    style={{ opacity: redOpacity, background: 'radial-gradient(ellipse 80% 70% at 40% 40%, rgba(225,29,72,0.35) 0%, rgba(225,29,72,0.08) 50%, transparent 70%)' }}
+                    style={{ opacity: redOpacity, background: 'radial-gradient(ellipse 80% 70% at 40% 40%, #E11D48 0%, rgba(225,29,72,0.3) 40%, transparent 70%)' }}
                 />
                 <motion.div
                     className="absolute inset-0"
-                    style={{ opacity: amberOpacity, background: 'radial-gradient(ellipse 70% 80% at 60% 50%, rgba(245,158,11,0.30) 0%, rgba(245,158,11,0.06) 50%, transparent 70%)' }}
+                    style={{ opacity: amberOpacity, background: 'radial-gradient(ellipse 70% 80% at 60% 50%, #F59E0B 0%, rgba(245,158,11,0.3) 40%, transparent 70%)' }}
                 />
                 <motion.div
                     className="absolute inset-0"
-                    style={{ opacity: greenOpacity, background: 'radial-gradient(ellipse 80% 70% at 45% 55%, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0.08) 50%, transparent 70%)' }}
+                    style={{ opacity: greenOpacity, background: 'radial-gradient(ellipse 80% 70% at 45% 55%, #10B981 0%, rgba(16,185,129,0.3) 40%, transparent 70%)' }}
                 />
                 {/* Satellite blobs — smaller, drifting, organic */}
                 <motion.div
                     className="absolute w-[40vw] h-[40vh] rounded-full"
-                    style={{ opacity: redOpacity, top: '15%', left: '55%', background: 'radial-gradient(circle, rgba(225,29,72,0.20) 0%, transparent 70%)', animation: 'drift1 12s ease-in-out infinite' }}
+                    style={{ opacity: redOpacity, top: '15%', left: '55%', background: 'radial-gradient(circle, rgba(225,29,72,0.6) 0%, transparent 70%)', animation: 'drift1 12s ease-in-out infinite' }}
                 />
                 <motion.div
                     className="absolute w-[35vw] h-[35vh] rounded-full"
-                    style={{ opacity: amberOpacity, top: '60%', left: '10%', background: 'radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 70%)', animation: 'drift2 15s ease-in-out infinite' }}
+                    style={{ opacity: amberOpacity, top: '60%', left: '10%', background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)', animation: 'drift2 15s ease-in-out infinite' }}
                 />
                 <motion.div
                     className="absolute w-[45vw] h-[45vh] rounded-full"
-                    style={{ opacity: greenOpacity, top: '20%', right: '10%', background: 'radial-gradient(circle, rgba(16,185,129,0.20) 0%, transparent 70%)', animation: 'drift3 18s ease-in-out infinite' }}
+                    style={{ opacity: greenOpacity, top: '20%', right: '10%', background: 'radial-gradient(circle, rgba(16,185,129,0.6) 0%, transparent 70%)', animation: 'drift3 18s ease-in-out infinite' }}
                 />
             </div>
 
