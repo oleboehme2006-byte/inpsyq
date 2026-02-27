@@ -244,27 +244,50 @@ function LandingContent() {
         <div className="relative text-white min-h-screen">
             {/* Black base — sits behind the orbs */}
             <div className="fixed inset-0 bg-black" style={{ zIndex: -1 }} />
-            {/* === SCROLLBAR === */}
+            {/* === SCROLLBAR + BODY === */}
             <style jsx global>{`
+                html, body { overflow-x: hidden; }
+                body { background: #000; }
                 ::-webkit-scrollbar { width: 6px; background: transparent; }
                 ::-webkit-scrollbar-track { background: transparent; }
                 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
                 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+                ::-webkit-scrollbar-corner { background: transparent; }
+                @supports (scrollbar-width: thin) {
+                    html { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+                }
+                @keyframes drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-20px) scale(1.1); } }
+                @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-20px,30px) scale(0.9); } }
+                @keyframes drift3 { 0%,100% { transform: translate(0,0) scale(1.05); } 50% { transform: translate(25px,15px) scale(0.95); } }
             `}</style>
 
-            {/* === BACKGROUND ORBS === */}
+            {/* === BACKGROUND COLOUR FADES === */}
             <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+                {/* Main orbs — radial gradient for seamless edge */}
                 <motion.div
-                    className="absolute rounded-full bg-[#E11D48]"
-                    style={{ opacity: redOpacity, top: '5%', left: '5%', width: '80vw', height: '80vh', filter: 'blur(120px)', y: redY }}
+                    className="absolute inset-0"
+                    style={{ opacity: redOpacity, background: 'radial-gradient(ellipse 80% 70% at 40% 40%, rgba(225,29,72,0.35) 0%, rgba(225,29,72,0.08) 50%, transparent 70%)' }}
                 />
                 <motion.div
-                    className="absolute rounded-full bg-[#F59E0B]"
-                    style={{ opacity: amberOpacity, top: '10%', right: '5%', width: '80vw', height: '80vh', filter: 'blur(120px)', y: amberY }}
+                    className="absolute inset-0"
+                    style={{ opacity: amberOpacity, background: 'radial-gradient(ellipse 70% 80% at 60% 50%, rgba(245,158,11,0.30) 0%, rgba(245,158,11,0.06) 50%, transparent 70%)' }}
                 />
                 <motion.div
-                    className="absolute rounded-full bg-[#10B981]"
-                    style={{ opacity: greenOpacity, top: '5%', left: '15%', width: '80vw', height: '80vh', filter: 'blur(120px)', y: greenY }}
+                    className="absolute inset-0"
+                    style={{ opacity: greenOpacity, background: 'radial-gradient(ellipse 80% 70% at 45% 55%, rgba(16,185,129,0.35) 0%, rgba(16,185,129,0.08) 50%, transparent 70%)' }}
+                />
+                {/* Satellite blobs — smaller, drifting, organic */}
+                <motion.div
+                    className="absolute w-[40vw] h-[40vh] rounded-full"
+                    style={{ opacity: redOpacity, top: '15%', left: '55%', background: 'radial-gradient(circle, rgba(225,29,72,0.20) 0%, transparent 70%)', animation: 'drift1 12s ease-in-out infinite' }}
+                />
+                <motion.div
+                    className="absolute w-[35vw] h-[35vh] rounded-full"
+                    style={{ opacity: amberOpacity, top: '60%', left: '10%', background: 'radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 70%)', animation: 'drift2 15s ease-in-out infinite' }}
+                />
+                <motion.div
+                    className="absolute w-[45vw] h-[45vh] rounded-full"
+                    style={{ opacity: greenOpacity, top: '20%', right: '10%', background: 'radial-gradient(circle, rgba(16,185,129,0.20) 0%, transparent 70%)', animation: 'drift3 18s ease-in-out infinite' }}
                 />
             </div>
 
@@ -292,12 +315,12 @@ function LandingContent() {
                 className="relative min-h-screen grid place-items-center px-6 pb-[5vh] overflow-visible"
                 style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter, zIndex: 2 }}
             >
-                <div className="w-full max-w-5xl mx-auto text-center overflow-visible">
+                <div className="w-full max-w-6xl mx-auto text-center overflow-visible">
                     {c.hero.headline.split('\n').map((line, li) => (
                         <motion.div
                             key={li}
                             className="font-display font-semibold text-white tracking-tight overflow-visible"
-                            style={{ fontSize: 'clamp(2rem, 5.5vw, 6rem)', lineHeight: 1.1 }}
+                            style={{ fontSize: 'clamp(1.8rem, 4.8vw, 5rem)', lineHeight: 1.15 }}
                             initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 + li * 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
