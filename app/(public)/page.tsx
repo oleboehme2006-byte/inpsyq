@@ -287,16 +287,16 @@ function LandingContent() {
 
             {/* === SECTION 1: HERO === */}
             <motion.section
-                className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 z-10"
+                className="relative min-h-screen flex items-center justify-center px-4 z-10"
                 style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
             >
-                <h1 className="text-[clamp(2.5rem,10vw,12rem)] leading-[0.9] font-display font-bold text-white tracking-tighter w-full">
+                <h1 className="font-display font-semibold text-white tracking-tighter w-full text-center" style={{ fontSize: 'clamp(3rem, 11vw, 13rem)', lineHeight: '0.88' }}>
                     {c.hero.headline.split('\n').map((line, li) => (
                         <motion.div
                             key={li}
-                            initial={{ opacity: 0, y: 40 }}
+                            initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 + li * 0.2, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                            transition={{ delay: 0.3 + li * 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
                         >
                             {line}
                         </motion.div>
@@ -709,7 +709,7 @@ function LandingContent() {
             </section>
 
             {/* === FOOTER === */}
-            <footer className="relative z-10 border-t border-white/5 py-8">
+            <footer className="relative z-10 py-8">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono text-text-tertiary">
                     <span>{c.footer.rights}</span>
                     <div className="flex gap-6">
