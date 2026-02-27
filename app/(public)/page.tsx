@@ -287,13 +287,15 @@ function LandingContent() {
 
             {/* === SECTION 1: HERO === */}
             <motion.section
-                className="relative min-h-screen flex items-center justify-center px-4 z-10"
+                className="relative min-h-screen grid place-items-center px-4 pb-[5vh] z-10 overflow-visible"
                 style={{ scale: heroScale, opacity: heroOpacity, filter: heroFilter }}
             >
-                <h1 className="font-display font-semibold text-white tracking-tighter w-full text-center" style={{ fontSize: 'clamp(3rem, 11vw, 13rem)', lineHeight: '0.88' }}>
+                <div className="w-full text-center overflow-visible">
                     {c.hero.headline.split('\n').map((line, li) => (
                         <motion.div
                             key={li}
+                            className="font-display font-semibold text-white tracking-tighter overflow-visible"
+                            style={{ fontSize: 'clamp(3rem, 11vw, 13rem)', lineHeight: 1.05 }}
                             initial={{ opacity: 0, y: 50 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 + li * 0.25, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -301,7 +303,7 @@ function LandingContent() {
                             {line}
                         </motion.div>
                     ))}
-                </h1>
+                </div>
 
                 <motion.div className="absolute bottom-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>
                     <ChevronDown className="w-5 h-5 text-text-tertiary animate-bounce" />
