@@ -171,7 +171,7 @@ function LandingContent() {
     const { scrollYProgress } = useScroll();
 
     // Background orb opacities — sequential, clearly visible
-    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.25, 0.35], [0.25, 0.45, 0.45, 0]);
+    const redOpacity = useTransform(scrollYProgress, [0, 0.08, 0.12, 0.25, 0.35], [0, 0, 0.45, 0.45, 0]);
     const redY = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
     const amberOpacity = useTransform(scrollYProgress, [0.30, 0.37, 0.50, 0.60], [0, 0.40, 0.40, 0]);
     const amberY = useTransform(scrollYProgress, [0, 1], ['0%', '-10%']);
