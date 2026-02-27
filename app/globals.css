@@ -115,10 +115,9 @@
         @apply text-base md:text-lg;
     }
 
-    /* Ensure minimum 14px for all text */
+    /* Ensure minimum 14px for all text-carrying elements */
     p,
     span,
-    div,
     li,
     td,
     th,
