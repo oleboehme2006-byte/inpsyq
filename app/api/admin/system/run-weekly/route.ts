@@ -141,14 +141,14 @@ export async function POST(req: NextRequest) {
         // Audit log
         try {
             await query(
-                `INSERT INTO audit_events (event_id, org_id, user_id, event_type, payload, created_at)
-                 VALUES ($1, $2, $3, $4, $5, NOW())`,
+                `INSERT INTO audit_events (event_id, org_id, event_type, metadata, created_at)
+                 VALUES ($1, $2, $3, $4, NOW())`,
                 [
                     crypto.randomUUID(),
                     orgId,
-                    userId,
                     dryRun ? 'ADMIN_RUN_WEEKLY_DRYRUN' : 'ADMIN_RUN_WEEKLY',
                     JSON.stringify({
+                        triggered_by_user: userId,
                         week_start: result.weekStart,
                         week_offset: weekOffset,
                         dry_run: dryRun,

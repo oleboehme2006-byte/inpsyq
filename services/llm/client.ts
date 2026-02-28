@@ -7,7 +7,9 @@ export const getOpenAIClient = (): OpenAI | null => {
         return null; // Fallback mode
     }
     return new OpenAI({
-        apiKey: apiKey
+        apiKey: apiKey,
+        timeout: 30_000,
+        maxRetries: 2,
     });
 };
 
