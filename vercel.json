@@ -5,5 +5,16 @@
             "path": "/api/cron/run-weekly",
             "schedule": "0 2 * * 1"
         }
-    ]
+    ],
+    "functions": {
+        "app/api/cron/run-weekly/route.ts": {
+            "maxDuration": 300
+        },
+        "app/api/internal/run-weekly/route.ts": {
+            "maxDuration": 300
+        },
+        "app/api/admin/system/run-weekly/route.ts": {
+            "maxDuration": 300
+        }
+    }
 }
