@@ -10,16 +10,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orgs_slug ON orgs(slug) WHERE slug IS NOT 
 
 CREATE TABLE IF NOT EXISTS teams (
     team_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id UUID REFERENCES orgs(org_id),
+    org_id UUID REFERENCES orgs(org_id) ON DELETE CASCADE,
     name TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_teams_org ON teams(org_id);
 
 CREATE TABLE IF NOT EXISTS users (
     user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     clerk_id TEXT,
     email TEXT,
-    org_id UUID REFERENCES orgs(org_id),
-    team_id UUID REFERENCES teams(team_id),
+    org_id UUID REFERENCES orgs(org_id) ON DELETE SET NULL,
+    team_id UUID REFERENCES teams(team_id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     tutorial_seen JSONB NOT NULL DEFAULT '{"executive":false,"teamlead":false,"employee":false,"admin":false}'
@@ -39,7 +40,7 @@ CREATE TABLE IF NOT EXISTS interactions (
 
 CREATE TABLE IF NOT EXISTS sessions (
     session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(user_id),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     completed_at TIMESTAMP WITH TIME ZONE,
     duration_seconds INT
@@ -47,14 +48,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS responses (
     response_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID REFERENCES sessions(session_id),
+    session_id UUID REFERENCES sessions(session_id) ON DELETE CASCADE,
     interaction_id UUID REFERENCES interactions(interaction_id),
     raw_input TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_responses_session ON responses(session_id);
+CREATE INDEX IF NOT EXISTS idx_responses_interaction ON responses(interaction_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_responses_unique_answer ON responses(session_id, interaction_id);
 
 CREATE TABLE IF NOT EXISTS encoded_signals (
-    response_id UUID REFERENCES responses(response_id),
+    response_id UUID REFERENCES responses(response_id) ON DELETE CASCADE,
     signals JSONB, -- { "<parameter>": 0.0–1.0 }
     uncertainty JSONB, -- { "<parameter>": 0.05–0.35 }
     confidence FLOAT,
@@ -65,7 +69,7 @@ CREATE TABLE IF NOT EXISTS encoded_signals (
 );
 
 CREATE TABLE IF NOT EXISTS latent_states (
-    user_id UUID REFERENCES users(user_id),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     parameter TEXT NOT NULL,
     mean FLOAT NOT NULL,
     variance FLOAT NOT NULL,
@@ -74,7 +78,7 @@ CREATE TABLE IF NOT EXISTS latent_states (
 );
 
 CREATE TABLE IF NOT EXISTS latent_states_history (
-    user_id UUID REFERENCES users(user_id),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     week_start DATE NOT NULL,
     parameter TEXT NOT NULL,
     mean FLOAT NOT NULL,
@@ -94,6 +98,8 @@ CREATE TABLE IF NOT EXISTS org_aggregates_weekly (
     contributions_breakdown JSONB,
     PRIMARY KEY (org_id, team_id, week_start)
 );
+CREATE INDEX IF NOT EXISTS idx_oaw_team ON org_aggregates_weekly(team_id);
+CREATE INDEX IF NOT EXISTS idx_oaw_org_week ON org_aggregates_weekly(org_id, week_start DESC);
 
 CREATE TABLE IF NOT EXISTS org_profiles_weekly (
     org_id UUID REFERENCES orgs(org_id),
@@ -105,13 +111,13 @@ CREATE TABLE IF NOT EXISTS org_profiles_weekly (
 );
 
 CREATE TABLE IF NOT EXISTS private_feedback (
-    user_id UUID REFERENCES users(user_id),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     week_start DATE NOT NULL,
     content TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS employee_profiles (
-    user_id UUID REFERENCES users(user_id),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
     org_id UUID REFERENCES orgs(org_id),
     team_id UUID REFERENCES teams(team_id),
     week_start DATE NOT NULL,
@@ -127,9 +133,9 @@ CREATE TABLE IF NOT EXISTS employee_profiles (
 
 CREATE TABLE IF NOT EXISTS memberships (
     membership_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    org_id UUID NOT NULL REFERENCES orgs(org_id),
-    team_id UUID REFERENCES teams(team_id),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES orgs(org_id) ON DELETE CASCADE,
+    team_id UUID REFERENCES teams(team_id) ON DELETE SET NULL,
     role TEXT NOT NULL CHECK (role IN ('ADMIN', 'EXECUTIVE', 'TEAMLEAD', 'EMPLOYEE')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -140,7 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_memberships_org ON memberships(org_id);
 
 CREATE TABLE IF NOT EXISTS alerts (
     alert_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id UUID REFERENCES orgs(org_id),
+    org_id UUID REFERENCES orgs(org_id) ON DELETE CASCADE,
     alert_type TEXT NOT NULL,
     severity TEXT NOT NULL, -- 'critical', 'warning', 'info'
     message TEXT NOT NULL,
