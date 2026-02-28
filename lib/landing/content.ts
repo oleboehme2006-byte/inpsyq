@@ -89,7 +89,7 @@ export const content: Record<Lang, LandingContent> = {
             scroll: 'Scroll',
         },
         gutFeeling: {
-            headline: "The gut feeling was right.\nThe instrument was missing.",
+            headline: "The\ngut feeling\nwas right.\nThe\ninstrument\nwas missing.",
             p1: "Leaders already sense when something shifts. The quieter meetings. The delayed responses. The subtle withdrawal before anyone hands in a resignation. That instinct is real — it's pattern recognition built from years of experience.",
             p2: "But instinct doesn't produce evidence. It doesn't tell you which team, which structural driver, or how much time you have left to act. It gives you a feeling in a boardroom full of opinions.",
             p3: "inPsyq gives that instinct an instrument. The patterns a trained psychologist would recognise over weeks of observation — cognitive load compounding, trust thinning between functions, engagement silently decaying — are now resolved mathematically. Continuously. Across your entire organisation.",
@@ -194,7 +194,7 @@ export const content: Record<Lang, LandingContent> = {
             scroll: 'Scrollen',
         },
         gutFeeling: {
-            headline: "Das Bauchgefühl hatte recht.\nDas Instrument fehlte.",
+            headline: "Das\nBauchgefühl\nhatte recht.\nDas\nInstrument\nfehlte.",
             p1: "Führungskräfte spüren bereits, wenn sich etwas verschiebt. Die stilleren Meetings. Die verzögerten Antworten. Der subtile Rückzug, bevor jemand kündigt. Diese Intuition ist real — sie ist Mustererkennung, aufgebaut aus jahrelanger Erfahrung.",
             p2: "Aber Intuition erzeugt keine Evidenz. Sie sagt nicht, welches Team, welcher strukturelle Treiber, oder wie viel Zeit zum Handeln bleibt. Sie liefert ein Gefühl in einem Raum voller Meinungen.",
             p3: "inPsyq gibt dieser Intuition ein Instrument. Die Muster, die ein ausgebildeter Psychologe über Wochen der Beobachtung erkennen würde — kognitive Belastung, die sich verdichtet, Vertrauen, das zwischen Abteilungen dünner wird, Engagement, das still erodiert — werden jetzt mathematisch aufgelöst. Kontinuierlich. In Ihrer gesamten Organisation.",
