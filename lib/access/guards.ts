@@ -49,14 +49,18 @@ export type RBACGuardResult<T> =
 // ============================================================================
 
 const DEV_USER_HEADER = 'x-dev-user-id';
-const DEV_MODE = process.env.NODE_ENV === 'development';
+// Dev auth bypass is opt-in: requires both NODE_ENV=development AND ENABLE_DEV_AUTH=true.
+// This prevents the bypass from accidentally activating in self-hosted or Docker environments
+// where NODE_ENV may not be 'production'.
+const DEV_MODE = process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_AUTH === 'true';
 
 
 /**
  * Get the authenticated user from the request.
  * 
  * In production: validates session cookie.
- * In development: also accepts X-DEV-USER-ID header or inpsyq_dev_user cookie.
+ * In development (NODE_ENV=development AND ENABLE_DEV_AUTH=true): also accepts
+ * X-DEV-USER-ID header or inpsyq_dev_user cookie.
  */
 export async function getAuthenticatedUser(
     req: Request
@@ -424,13 +428,10 @@ export async function requireRolesStrict(
         };
     }
 
-    // 4. Find membership for selected org
+    // 4. Find membership for selected org — must be a real membership, no cross-org bypass
     const membership = memberships.find(m => m.orgId === selectedOrgId);
 
-    // ADMIN bypass: if user is ADMIN in *any* org, allow cross-org access
-    const isGlobalAdmin = memberships.some(m => m.role === 'ADMIN');
-
-    if (!membership && !isGlobalAdmin) {
+    if (!membership) {
         return {
             ok: false,
             response: NextResponse.json(
@@ -440,12 +441,8 @@ export async function requireRolesStrict(
         };
     }
 
-    // Use matched membership, or synthesize an ADMIN context for cross-org access
-    const effectiveRole = membership?.role ?? 'ADMIN';
-    const effectiveTeamId = membership?.teamId ?? null;
-
     // 5. Check role
-    if (!allowedRoles.includes(effectiveRole)) {
+    if (!allowedRoles.includes(membership.role)) {
         return {
             ok: false,
             response: NextResponse.json(
@@ -460,8 +457,8 @@ export async function requireRolesStrict(
         value: {
             userId,
             orgId: selectedOrgId!,
-            role: effectiveRole,
-            teamId: effectiveTeamId,
+            role: membership.role,
+            teamId: membership.teamId,
         },
     };
 }

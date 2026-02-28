@@ -11,9 +11,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-// Skip auth entirely in demo mode
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
 // Public routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
     '/',
@@ -27,11 +24,6 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-    // Demo mode: skip all auth
-    if (DEMO_MODE) {
-        return NextResponse.next();
-    }
-
     const { userId } = await auth();
 
     // Authenticated user on landing page → redirect to dashboard
