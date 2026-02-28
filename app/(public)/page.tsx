@@ -348,10 +348,10 @@ function LandingContent() {
                 <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-5 gap-12 md:gap-16">
                     <div className="md:col-span-2 md:sticky md:top-[30vh] md:self-start">
                         <h2 className="text-5xl md:text-6xl font-display font-semibold tracking-tight text-white leading-[1.1]">
-                            {c.gutFeeling.headline.split('\n').map((line, i) => (
+                            {c.gutFeeling.headline.split('\n').map((line, i, arr) => (
                                 <React.Fragment key={i}>
                                     {line}
-                                    {i === 0 && <br />}
+                                    {i < arr.length - 1 && <br />}
                                 </React.Fragment>
                             ))}
                         </h2>
